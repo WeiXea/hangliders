@@ -1,0 +1,14 @@
+---
+description: Always commit and push after finishing work
+alwaysApply: true
+---
+
+# Git: always commit and push
+
+When you finish a task that changed files in this repo:
+
+1. Commit with a clear message (follow the repo’s commit style and the user’s git safety rules).
+2. Push to `origin` on the current branch.
+3. Do this without waiting to be asked, unless the user explicitly says not to commit/push for that change.
+
+Still never force-push to main/master, never skip hooks, and never commit secrets.
