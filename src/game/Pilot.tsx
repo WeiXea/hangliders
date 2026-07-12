@@ -311,25 +311,53 @@ function applyLimb(
   if (foreArm) foreArm.rotation.set(pose.foreArm, 0, 0)
 }
 
-function makeChuteBranding(): THREE.CanvasTexture {
-  const size = 512
+/** PUBG-style rectangular ram-air canopy fabric (green + Moroccan star). */
+function makeRamAirTexture(): THREE.CanvasTexture {
+  const w = 1024
+  const h = 512
   const c = document.createElement('canvas')
-  c.width = size
-  c.height = size
+  c.width = w
+  c.height = h
   const g = c.getContext('2d')!
-  g.fillStyle = '#C1272D'
-  g.fillRect(0, 0, size, size)
-  for (let i = 0; i < 12; i++) {
-    g.strokeStyle = 'rgba(0,0,0,0.12)'
-    g.lineWidth = 2
+
+  g.fillStyle = '#2d8a3e'
+  g.fillRect(0, 0, w, h)
+
+  const cells = 9
+  for (let i = 0; i < cells; i++) {
+    const x0 = (i / cells) * w
+    const x1 = ((i + 1) / cells) * w
+    g.fillStyle = i % 2 === 0 ? '#348f45' : '#267a36'
+    g.fillRect(x0, 0, x1 - x0 + 1, h)
+    g.strokeStyle = 'rgba(0,0,0,0.28)'
+    g.lineWidth = 3
     g.beginPath()
-    g.moveTo((i / 12) * size, 0)
-    g.lineTo((i / 12) * size, size)
+    g.moveTo(x0, 0)
+    g.lineTo(x0, h)
     g.stroke()
   }
-  const cx = size * 0.5
-  const cy = size * 0.42
-  const R = size * 0.22
+
+  // Leading-edge dark band
+  g.fillStyle = 'rgba(0,0,0,0.18)'
+  g.fillRect(0, 0, w, h * 0.12)
+  // Trailing edge stitch
+  g.fillStyle = 'rgba(255,255,255,0.12)'
+  g.fillRect(0, h * 0.88, w, h * 0.12)
+
+  // Cross seams
+  for (let j = 1; j < 4; j++) {
+    g.strokeStyle = 'rgba(0,0,0,0.2)'
+    g.lineWidth = 2
+    g.beginPath()
+    g.moveTo(0, (j / 4) * h)
+    g.lineTo(w, (j / 4) * h)
+    g.stroke()
+  }
+
+  // Center Moroccan star accent
+  const cx = w * 0.5
+  const cy = h * 0.52
+  const R = h * 0.28
   g.beginPath()
   for (let i = 0; i < 5; i++) {
     const a = -Math.PI / 2 + (i * 4 * Math.PI) / 5
@@ -339,13 +367,139 @@ function makeChuteBranding(): THREE.CanvasTexture {
     else g.lineTo(x, y)
   }
   g.closePath()
-  g.strokeStyle = '#006233'
-  g.lineWidth = size * 0.04
+  g.strokeStyle = '#C1272D'
+  g.lineWidth = 10
   g.lineJoin = 'miter'
   g.stroke()
+
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
+  tex.anisotropy = 8
   return tex
+}
+
+/** Rectangular ram-air wing (PUBG-like), arched across span with open cells. */
+function createRamAirCanopy(): THREE.BufferGeometry {
+  const span = 5.6
+  const chord = 2.35
+  const cells = 9
+  const chordSegs = 6
+  const arch = 0.55
+  const thick = 0.42
+
+  const cols = cells + 1
+  const rows = chordSegs + 1
+  const positions: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+
+  const point = (i: number, j: number, bottom: boolean) => {
+    const u = i / cells
+    const v = j / chordSegs
+    const x = (u - 0.5) * span
+    const z = (0.5 - v) * chord
+    const archY = arch * (1 - (2 * u - 1) ** 2)
+    const camber = Math.sin(v * Math.PI) * 0.22
+    const y = archY + camber - (bottom ? thick * (0.55 + 0.45 * Math.sin(v * Math.PI)) : 0)
+    return { x, y, z, u, v }
+  }
+
+  // Top surface
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const p = point(i, j, false)
+      positions.push(p.x, p.y, p.z)
+      uvs.push(p.u, 1 - p.v)
+    }
+  }
+  // Bottom surface
+  const botOff = cols * rows
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const p = point(i, j, true)
+      positions.push(p.x, p.y, p.z)
+      uvs.push(p.u, 1 - p.v)
+    }
+  }
+
+  const quad = (a: number, b: number, c: number, d: number) => {
+    indices.push(a, b, c, a, c, d)
+  }
+
+  for (let j = 0; j < chordSegs; j++) {
+    for (let i = 0; i < cells; i++) {
+      const a = j * cols + i
+      const b = a + 1
+      const c = (j + 1) * cols + i + 1
+      const d = (j + 1) * cols + i
+      quad(a, b, c, d)
+      // Bottom — reverse winding for outward normals
+      const a2 = botOff + a
+      const b2 = botOff + b
+      const c2 = botOff + c
+      const d2 = botOff + d
+      quad(a2, d2, c2, b2)
+    }
+  }
+
+  // Trailing edge close
+  for (let i = 0; i < cells; i++) {
+    const a = chordSegs * cols + i
+    const b = a + 1
+    const a2 = botOff + a
+    const b2 = botOff + b
+    quad(a, b, b2, a2)
+  }
+
+  // Rib walls between cells (vertical)
+  for (let i = 0; i <= cells; i++) {
+    for (let j = 0; j < chordSegs; j++) {
+      const t0 = j * cols + i
+      const t1 = (j + 1) * cols + i
+      const b0 = botOff + t0
+      const b1 = botOff + t1
+      if (i === 0) quad(t0, t1, b1, b0)
+      else if (i === cells) quad(t0, b0, b1, t1)
+      else {
+        // Internal rib — double-sided via both windings omitted; single
+        quad(t0, t1, b1, b0)
+      }
+    }
+  }
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  geo.setIndex(indices)
+  geo.computeVertexNormals()
+  return geo
+}
+
+function chuteLineEndpoints(cells = 9) {
+  const span = 5.6
+  const chord = 2.35
+  const arch = 0.55
+  const pts: THREE.Vector3[] = []
+  for (let i = 0; i <= cells; i++) {
+    const u = i / cells
+    const x = (u - 0.5) * span
+    const y = arch * (1 - (2 * u - 1) ** 2) - 0.35
+    pts.push(new THREE.Vector3(x, y, chord * 0.35))
+    pts.push(new THREE.Vector3(x, y - 0.05, -chord * 0.35))
+  }
+  return pts
+}
+
+type LineXform = { pos: THREE.Vector3; quat: THREE.Quaternion; len: number }
+
+function buildLineXforms(tops: THREE.Vector3[], harness: THREE.Vector3): LineXform[] {
+  const up = new THREE.Vector3(0, 1, 0)
+  return tops.map((top) => {
+    const dir = harness.clone().sub(top)
+    const len = dir.length()
+    const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.normalize())
+    return { pos: top.clone().lerp(harness, 0.5), quat, len }
+  })
 }
 
 export function ParachuteCanopy({
@@ -360,58 +514,86 @@ export function ParachuteCanopy({
   const swingRef = useRef(swing)
   inflationRef.current = inflation
   swingRef.current = swing
-  const chuteMap = useMemo(() => makeChuteBranding(), [])
+  const fabricMap = useMemo(() => makeRamAirTexture(), [])
+  const canopyGeo = useMemo(() => createRamAirCanopy(), [])
+  const lineXforms = useMemo(
+    () => buildLineXforms(chuteLineEndpoints(), new THREE.Vector3(0, -3.35, 0.15)),
+    [],
+  )
+  const cellMouths = useMemo(
+    () =>
+      Array.from({ length: 9 }, (_, i) => {
+        const u = (i + 0.5) / 9
+        const x = (u - 0.5) * 5.4
+        const y = 0.55 * (1 - (2 * u - 1) ** 2) - 0.12
+        return { x, y }
+      }),
+    [],
+  )
 
   useFrame((state) => {
     if (!group.current) return
     const t = state.clock.elapsedTime
     const o = smoothstep(inflationRef.current)
     const sw = swingRef.current
-    // Soft billow only — avoid aggressive scale pulse that reads as shake
-    const billow = 1 + Math.sin(t * 1.6) * 0.018 * o
-    const pack = Math.max(0.12, o)
-    group.current.scale.set(billow * pack, pack * 0.9 + 0.1, billow * pack)
-    group.current.rotation.z = sw * 0.45 + Math.sin(t * 1.2) * 0.02 * o
-    group.current.rotation.x = Math.sin(t * 0.9) * 0.025 * o
-    group.current.position.y = lerp(0.8, 3.45, o)
+    const billow = 1 + Math.sin(t * 1.4) * 0.012 * o
+    const pack = Math.max(0.08, o)
+    group.current.scale.set(billow * pack, pack * 0.85 + 0.15, lerp(0.25, billow, o) * pack)
+    group.current.rotation.z = sw * 0.4 + Math.sin(t * 1.1) * 0.015 * o
+    group.current.rotation.x = 0.08 + Math.sin(t * 0.85) * 0.02 * o
+    group.current.position.y = lerp(0.9, 3.55, o)
     group.current.visible = o > 0.02
   })
 
   return (
     <group ref={group} position={[0, 3.2, 0]}>
-      <mesh castShadow>
-        <sphereGeometry args={[2.45, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
-        <meshStandardMaterial
-          map={chuteMap}
-          color="#ffffff"
+      <mesh geometry={canopyGeo} castShadow receiveShadow>
+        <meshPhysicalMaterial
+          map={fabricMap}
           side={THREE.DoubleSide}
-          roughness={0.72}
-          metalness={0.04}
+          roughness={0.78}
+          metalness={0.02}
+          sheen={0.35}
+          sheenRoughness={0.7}
+          sheenColor="#a8e6b0"
         />
       </mesh>
-      <mesh>
-        <sphereGeometry args={[2.4, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
-        <meshStandardMaterial color="#8B1E24" side={THREE.BackSide} roughness={0.8} />
+
+      {cellMouths.map((m, i) => (
+        <mesh key={i} position={[m.x, m.y, 1.12]} rotation={[0.15, 0, 0]}>
+          <boxGeometry args={[0.48, 0.28, 0.06]} />
+          <meshStandardMaterial color="#0d2818" roughness={0.9} />
+        </mesh>
+      ))}
+
+      <mesh position={[-2.85, 0.15, 0]} rotation={[0, 0, 0.35]}>
+        <boxGeometry args={[0.08, 0.55, 1.8]} />
+        <meshStandardMaterial color="#1f6b30" roughness={0.75} side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[0, 0.55, 0]} rotation={[0.08, 0, 0]}>
-        <torusGeometry args={[1.85, 0.07, 6, 36, Math.PI]} />
-        <meshStandardMaterial color="#006233" roughness={0.7} />
+      <mesh position={[2.85, 0.15, 0]} rotation={[0, 0, -0.35]}>
+        <boxGeometry args={[0.08, 0.55, 1.8]} />
+        <meshStandardMaterial color="#1f6b30" roughness={0.75} side={THREE.DoubleSide} />
       </mesh>
-      {Array.from({ length: 8 }, (_, i) => {
-        const a = (i / 8) * Math.PI * 2
-        const lx = Math.sin(a) * 1.6
-        const lz = Math.cos(a) * 1.6
-        return (
-          <mesh
-            key={i}
-            position={[lx * 0.35, -1.7, lz * 0.35]}
-            rotation={[0.2 + Math.abs(lz) * 0.05, 0, lx * 0.12]}
-          >
-            <cylinderGeometry args={[0.01, 0.01, 3.6, 3]} />
-            <meshStandardMaterial color="#dee2e6" />
-          </mesh>
-        )
-      })}
+
+      {lineXforms.map((lx, i) => (
+        <mesh key={i} position={lx.pos} quaternion={lx.quat}>
+          <cylinderGeometry args={[0.008, 0.008, lx.len, 3]} />
+          <meshStandardMaterial color="#e8ecef" roughness={0.55} />
+        </mesh>
+      ))}
+
+      <mesh position={[0, -3.25, 0.15]}>
+        <boxGeometry args={[0.22, 0.1, 0.14]} />
+        <meshStandardMaterial color="#1a1a1a" roughness={0.65} />
+      </mesh>
+      <mesh position={[-0.12, -3.45, 0.1]} rotation={[0.2, 0, 0.15]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.55, 4]} />
+        <meshStandardMaterial color="#c1272d" roughness={0.7} />
+      </mesh>
+      <mesh position={[0.12, -3.45, 0.1]} rotation={[0.2, 0, -0.15]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.55, 4]} />
+        <meshStandardMaterial color="#c1272d" roughness={0.7} />
+      </mesh>
     </group>
   )
 }
