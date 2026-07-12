@@ -23,23 +23,61 @@ export function HangGlider() {
 
   const lookTarget = useRef(new THREE.Vector3())
   const worldQuat = useRef(new THREE.Quaternion())
+  const smoothPitch = useRef(0)
+  const smoothRoll = useRef(0)
+  const smoothYaw = useRef(0)
+  const smoothPos = useRef(new THREE.Vector3())
+  const smoothCamPos = useRef(new THREE.Vector3())
+  const smoothLook = useRef(new THREE.Vector3())
+  const camInit = useRef(false)
+  const posInit = useRef(false)
 
   useFrame((_, delta) => {
     if (!groupRef.current || !bodyRef.current) return
     const { flight, input } = useGameStore.getState()
     const { position, pitch, roll, yaw, phase: ph, chuteSwing: swing } = flight
 
-    groupRef.current.position.set(position.x, position.y, position.z)
-    groupRef.current.rotation.set(0, yaw, 0)
+    // Soft attitude + position — speed changes used to telegraph as shake
+    const attDamp = 1 - Math.exp(-4.5 * delta)
+    const posDamp = 1 - Math.exp(-14 * delta)
+    const yawDamp = 1 - Math.exp(-8 * delta)
+    smoothPitch.current = THREE.MathUtils.lerp(smoothPitch.current, pitch, attDamp)
+    smoothRoll.current = THREE.MathUtils.lerp(smoothRoll.current, roll, attDamp)
+    // Unwrap-ish yaw lerp via shortest path
+    let dy = yaw - smoothYaw.current
+    while (dy > Math.PI) dy -= Math.PI * 2
+    while (dy < -Math.PI) dy += Math.PI * 2
+    smoothYaw.current += dy * yawDamp
+    const sp = smoothPitch.current
+    const sr = smoothRoll.current
+    const sy = smoothYaw.current
+
+    if (!posInit.current) {
+      smoothPos.current.set(position.x, position.y, position.z)
+      smoothYaw.current = yaw
+      posInit.current = true
+    } else if (smoothPos.current.distanceToSquared(position) > 400) {
+      // Teleport / restart — snap instead of lerping across the map
+      smoothPos.current.set(position.x, position.y, position.z)
+      smoothYaw.current = yaw
+      smoothPitch.current = pitch
+      smoothRoll.current = roll
+      camInit.current = false
+    } else {
+      smoothPos.current.lerp(position, posDamp)
+    }
+
+    groupRef.current.position.copy(smoothPos.current)
+    groupRef.current.rotation.set(0, sy, 0)
 
     const onGround =
       ph === 'grounded' || ph === 'running' || ph === 'landed' || ph === 'walking'
     const airbornePilot = ph === 'freefall' || ph === 'parachuting'
-    const swingRoll = ph === 'parachuting' ? -swing * 0.45 : 0
+    const swingRoll = ph === 'parachuting' ? -swing * 0.35 : 0
     bodyRef.current.rotation.set(
-      onGround ? 0 : airbornePilot ? Math.min(0.45, pitch) : pitch,
+      onGround ? 0 : airbornePilot ? Math.min(0.4, sp) : sp,
       0,
-      onGround ? 0 : -roll + swingRoll,
+      onGround ? 0 : -sr + swingRoll,
     )
 
     if (barRef.current) {
@@ -64,11 +102,16 @@ export function HangGlider() {
     )
 
     worldQuat.current.setFromEuler(
-      new THREE.Euler(onGround ? 0 : pitch * 0.35, yaw, onGround ? 0 : -roll * 0.5 + swingRoll, 'YXZ'),
+      new THREE.Euler(
+        onGround ? 0 : sp * 0.28,
+        sy,
+        onGround ? 0 : -sr * 0.35 + swingRoll,
+        'YXZ',
+      ),
     )
     worldQuat.current.multiply(lookQuat)
 
-    const origin = new THREE.Vector3(position.x, position.y, position.z)
+    const origin = smoothPos.current.clone()
     let eye = new THREE.Vector3()
     let lookAt = new THREE.Vector3()
     let targetFov = 60
@@ -82,7 +125,6 @@ export function HangGlider() {
       lookAt.set(0, -3, 14)
       targetFov = 72
     } else if (ph === 'parachuting') {
-      // Landing approach cam when low
       if (flight.altitude < 28) {
         eye.set(0, 4.2, -14)
         lookAt.set(0, -6, 8)
@@ -116,17 +158,27 @@ export function HangGlider() {
     lookAt.applyQuaternion(worldQuat.current)
 
     const camPos = origin.clone().add(eye)
-    lookTarget.current.copy(origin).add(lookAt)
+    const lookPos = origin.clone().add(lookAt)
 
-    // Passenger: snappier camera so net-smoothed craft doesn't feel laggy
     const camLerp =
       flight.tandemRole === 'passenger'
-        ? 1 - Math.pow(0.0000001, delta)
+        ? 1 - Math.exp(-2.2 * delta)
         : ph === 'flying' || ph === 'running'
-          ? 1 - Math.pow(0.00002, delta)
-          : 1 - Math.pow(0.00005, delta)
-    camera.position.lerp(camPos, camLerp)
-    camera.lookAt(lookTarget.current)
+          ? 1 - Math.exp(-5.5 * delta)
+          : 1 - Math.exp(-8 * delta)
+
+    if (!camInit.current) {
+      smoothCamPos.current.copy(camPos)
+      smoothLook.current.copy(lookPos)
+      camInit.current = true
+    } else {
+      smoothCamPos.current.lerp(camPos, camLerp)
+      smoothLook.current.lerp(lookPos, camLerp)
+    }
+
+    camera.position.copy(smoothCamPos.current)
+    camera.lookAt(smoothLook.current)
+    lookTarget.current.copy(smoothLook.current)
 
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, camLerp)

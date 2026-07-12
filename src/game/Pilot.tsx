@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from './gameStore'
@@ -9,16 +9,18 @@ export const PILOT_HIP = 0.98
 export const PILOT_EYE = 1.62
 export const PILOT_HEIGHT = 1.78
 
-const SKIN = '#d4a574'
-const SKIN_SH = '#c49364'
-const SUIT = '#1e3a5f'
-const SUIT_LT = '#2a4a6f'
-const SUIT_DK = '#152538'
-const BOOT = '#1a1512'
-const GLOVE = '#3d5a6c'
-const HELMET = '#e9c46a'
-const HELMET_DK = '#c9a227'
+const SKIN = '#c9956c'
+const SKIN_SH = '#b8835c'
+const SUIT = '#2c3e50'
+const SUIT_LT = '#3d566e'
+const SUIT_DK = '#1b2838'
+const BOOT = '#1a1210'
+const BOOT_SOLE = '#0d0a08'
+const GLOVE = '#2a3540'
+const HELMET = '#eceff1'
+const HELMET_DK = '#90a4ae'
 const HARNESS = '#c1272d'
+const COLLAR = '#1a2332'
 
 type PoseMode = 'prone' | 'stand' | 'freefall' | 'chute'
 
@@ -309,6 +311,43 @@ function applyLimb(
   if (foreArm) foreArm.rotation.set(pose.foreArm, 0, 0)
 }
 
+function makeChuteBranding(): THREE.CanvasTexture {
+  const size = 512
+  const c = document.createElement('canvas')
+  c.width = size
+  c.height = size
+  const g = c.getContext('2d')!
+  g.fillStyle = '#C1272D'
+  g.fillRect(0, 0, size, size)
+  for (let i = 0; i < 12; i++) {
+    g.strokeStyle = 'rgba(0,0,0,0.12)'
+    g.lineWidth = 2
+    g.beginPath()
+    g.moveTo((i / 12) * size, 0)
+    g.lineTo((i / 12) * size, size)
+    g.stroke()
+  }
+  const cx = size * 0.5
+  const cy = size * 0.42
+  const R = size * 0.22
+  g.beginPath()
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + (i * 4 * Math.PI) / 5
+    const x = cx + Math.cos(a) * R
+    const y = cy + Math.sin(a) * R
+    if (i === 0) g.moveTo(x, y)
+    else g.lineTo(x, y)
+  }
+  g.closePath()
+  g.strokeStyle = '#006233'
+  g.lineWidth = size * 0.04
+  g.lineJoin = 'miter'
+  g.stroke()
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
 export function ParachuteCanopy({
   inflation = 1,
   swing = 0,
@@ -321,17 +360,19 @@ export function ParachuteCanopy({
   const swingRef = useRef(swing)
   inflationRef.current = inflation
   swingRef.current = swing
+  const chuteMap = useMemo(() => makeChuteBranding(), [])
 
   useFrame((state) => {
     if (!group.current) return
     const t = state.clock.elapsedTime
     const o = smoothstep(inflationRef.current)
     const sw = swingRef.current
-    const billow = 1 + Math.sin(t * 2.4) * 0.035 * o
+    // Soft billow only — avoid aggressive scale pulse that reads as shake
+    const billow = 1 + Math.sin(t * 1.6) * 0.018 * o
     const pack = Math.max(0.12, o)
     group.current.scale.set(billow * pack, pack * 0.9 + 0.1, billow * pack)
-    group.current.rotation.z = sw * 0.55 + Math.sin(t * 1.7) * 0.045 * o
-    group.current.rotation.x = Math.sin(t * 1.1) * 0.05 * o
+    group.current.rotation.z = sw * 0.45 + Math.sin(t * 1.2) * 0.02 * o
+    group.current.rotation.x = Math.sin(t * 0.9) * 0.025 * o
     group.current.position.y = lerp(0.8, 3.45, o)
     group.current.visible = o > 0.02
   })
@@ -341,7 +382,8 @@ export function ParachuteCanopy({
       <mesh castShadow>
         <sphereGeometry args={[2.45, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
         <meshStandardMaterial
-          color="#f4a261"
+          map={chuteMap}
+          color="#ffffff"
           side={THREE.DoubleSide}
           roughness={0.72}
           metalness={0.04}
@@ -349,23 +391,8 @@ export function ParachuteCanopy({
       </mesh>
       <mesh>
         <sphereGeometry args={[2.4, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
-        <meshStandardMaterial color="#e76f51" side={THREE.BackSide} roughness={0.8} />
+        <meshStandardMaterial color="#8B1E24" side={THREE.BackSide} roughness={0.8} />
       </mesh>
-      {Array.from({ length: 6 }, (_, i) => {
-        const a = (i / 6) * Math.PI * 2
-        return (
-          <mesh key={i} position={[Math.sin(a) * 1.1, 0.35, Math.cos(a) * 1.1]} rotation={[0.2, a, 0]}>
-            <planeGeometry args={[0.9, 1.6]} />
-            <meshStandardMaterial
-              color={i % 2 === 0 ? '#e9c46a' : '#c1272d'}
-              side={THREE.DoubleSide}
-              transparent
-              opacity={0.55}
-              roughness={0.7}
-            />
-          </mesh>
-        )
-      })}
       <mesh position={[0, 0.55, 0]} rotation={[0.08, 0, 0]}>
         <torusGeometry args={[1.85, 0.07, 6, 36, Math.PI]} />
         <meshStandardMaterial color="#006233" roughness={0.7} />
@@ -514,161 +541,221 @@ export function AnimatedPilot({
 
   if (hide) return null
 
-  const hipW = 0.2
-  const thighLen = 0.42
-  const shinLen = 0.4
+  const hipW = 0.22
+  const thighLen = 0.44
+  const shinLen = 0.42
 
   return (
     <group ref={root}>
       <group ref={hips}>
-        {/* Pelvis */}
-        <mesh position={[0, -0.02, 0]} castShadow>
-          <sphereGeometry args={[0.14, 14, 12]} />
-          <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
+        {/* Pelvis / hips */}
+        <mesh position={[0, -0.02, 0]} castShadow scale={[1.05, 0.85, 0.9]}>
+          <sphereGeometry args={[0.155, 16, 14]} />
+          <meshStandardMaterial color={suit} roughness={0.68} />
+        </mesh>
+        {/* Belt */}
+        <mesh position={[0, 0.06, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <torusGeometry args={[0.17, 0.028, 8, 20]} />
+          <meshStandardMaterial color="#1a1a1a" roughness={0.55} />
         </mesh>
 
-        <group ref={torso} position={[0, 0.28, 0]}>
-          {/* Chest / abdomen — thicker than stick figure */}
-          <mesh position={[0, 0.08, 0]} castShadow>
-            <capsuleGeometry args={[0.2, 0.36, 8, 14]} />
-            <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
+        <group ref={torso} position={[0, 0.3, 0]}>
+          {/* Abdomen */}
+          <mesh position={[0, 0.02, 0]} castShadow>
+            <capsuleGeometry args={[0.17, 0.22, 8, 14]} />
+            <meshStandardMaterial color={suit} roughness={0.68} />
           </mesh>
-          <mesh position={[0, 0.22, 0.04]} castShadow>
-            <sphereGeometry args={[0.22, 14, 12]} />
-            <meshStandardMaterial color={SUIT_LT} roughness={0.7} metalness={0.04} />
+          {/* Chest */}
+          <mesh position={[0, 0.28, 0.02]} castShadow scale={[1.15, 0.95, 1.05]}>
+            <sphereGeometry args={[0.2, 16, 14]} />
+            <meshStandardMaterial color={SUIT_LT} roughness={0.65} />
+          </mesh>
+          {/* Collar */}
+          <mesh position={[0, 0.42, 0.02]} castShadow>
+            <cylinderGeometry args={[0.11, 0.14, 0.1, 14]} />
+            <meshStandardMaterial color={COLLAR} roughness={0.7} />
+          </mesh>
+          {/* Suit zip line */}
+          <mesh position={[0, 0.2, 0.175]}>
+            <boxGeometry args={[0.025, 0.42, 0.01]} />
+            <meshStandardMaterial color="#adb5bd" metalness={0.6} roughness={0.35} />
           </mesh>
           {/* Shoulders */}
-          <mesh position={[-0.22, 0.28, 0]} castShadow>
-            <sphereGeometry args={[0.09, 10, 10]} />
-            <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
+          <mesh position={[-0.24, 0.32, 0]} castShadow>
+            <sphereGeometry args={[0.1, 12, 12]} />
+            <meshStandardMaterial color={suit} roughness={0.68} />
           </mesh>
-          <mesh position={[0.22, 0.28, 0]} castShadow>
-            <sphereGeometry args={[0.09, 10, 10]} />
-            <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
+          <mesh position={[0.24, 0.32, 0]} castShadow>
+            <sphereGeometry args={[0.1, 12, 12]} />
+            <meshStandardMaterial color={suit} roughness={0.68} />
           </mesh>
-          {/* Harness */}
-          <mesh position={[0, 0.05, 0.16]} rotation={[0.12, 0, 0]}>
-            <torusGeometry args={[0.2, 0.03, 6, 18]} />
-            <meshStandardMaterial color={HARNESS} roughness={0.65} />
+          {/* Harness straps */}
+          <mesh position={[0, 0.12, 0.16]} rotation={[0.15, 0, 0]}>
+            <torusGeometry args={[0.19, 0.028, 6, 18]} />
+            <meshStandardMaterial color={HARNESS} roughness={0.6} />
           </mesh>
-          <mesh position={[0, -0.05, 0.14]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.025, 0.025, 0.35, 8]} />
-            <meshStandardMaterial color={HARNESS} roughness={0.65} />
+          <mesh position={[-0.1, 0.05, 0.14]} rotation={[0.1, 0, 0.25]}>
+            <cylinderGeometry args={[0.02, 0.02, 0.45, 8]} />
+            <meshStandardMaterial color={HARNESS} roughness={0.6} />
+          </mesh>
+          <mesh position={[0.1, 0.05, 0.14]} rotation={[0.1, 0, -0.25]}>
+            <cylinderGeometry args={[0.02, 0.02, 0.45, 8]} />
+            <meshStandardMaterial color={HARNESS} roughness={0.6} />
+          </mesh>
+          {/* Chest buckle */}
+          <mesh position={[0, 0.08, 0.2]} castShadow>
+            <boxGeometry args={[0.1, 0.06, 0.04]} />
+            <meshPhysicalMaterial color="#c9a227" metalness={0.85} roughness={0.25} />
           </mesh>
 
-          {/* Head + helmet — kept compact so it fits under the wing when prone */}
-          <group position={[0, 0.48, 0.02]}>
+          {/* Head */}
+          <group position={[0, 0.52, 0.02]}>
+            {/* Neck */}
+            <mesh position={[0, -0.08, 0]} castShadow>
+              <cylinderGeometry args={[0.055, 0.065, 0.1, 12]} />
+              <meshPhysicalMaterial color={SKIN} roughness={0.5} sheen={0.25} sheenRoughness={0.6} />
+            </mesh>
+            {/* Skull */}
             <mesh castShadow>
-              <sphereGeometry args={[0.125, 16, 16]} />
+              <sphereGeometry args={[0.125, 18, 16]} />
               <meshPhysicalMaterial
                 color={SKIN}
-                roughness={0.48}
-                metalness={0.0}
-                sheen={0.4}
+                roughness={0.45}
+                sheen={0.35}
                 sheenRoughness={0.55}
                 sheenColor="#ffd6b8"
               />
             </mesh>
-            <mesh position={[0, 0.02, 0.04]} castShadow>
-              <sphereGeometry args={[0.08, 10, 10]} />
-              <meshPhysicalMaterial color={SKIN_SH} roughness={0.52} sheen={0.3} sheenRoughness={0.6} />
+            {/* Jaw / chin */}
+            <mesh position={[0, -0.04, 0.04]} castShadow scale={[0.85, 0.7, 0.9]}>
+              <sphereGeometry args={[0.09, 12, 10]} />
+              <meshPhysicalMaterial color={SKIN_SH} roughness={0.5} />
             </mesh>
-            <mesh position={[0, 0.035, 0]} castShadow>
-              <sphereGeometry args={[0.14, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.58]} />
+            {/* Ears */}
+            <mesh position={[-0.12, 0, 0]} castShadow>
+              <sphereGeometry args={[0.03, 8, 8]} />
+              <meshPhysicalMaterial color={SKIN} roughness={0.5} />
+            </mesh>
+            <mesh position={[0.12, 0, 0]} castShadow>
+              <sphereGeometry args={[0.03, 8, 8]} />
+              <meshPhysicalMaterial color={SKIN} roughness={0.5} />
+            </mesh>
+            {/* Flight helmet shell */}
+            <mesh position={[0, 0.03, -0.01]} castShadow>
+              <sphereGeometry args={[0.145, 18, 14, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
               <meshPhysicalMaterial
                 color={HELMET}
-                roughness={0.28}
-                metalness={0.25}
-                clearcoat={0.65}
-                clearcoatRoughness={0.2}
+                roughness={0.22}
+                metalness={0.15}
+                clearcoat={0.7}
+                clearcoatRoughness={0.18}
               />
             </mesh>
-            <mesh position={[0, 0.02, 0.08]} rotation={[0.2, 0, 0]}>
-              <sphereGeometry args={[0.095, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.42]} />
+            {/* Visor */}
+            <mesh position={[0, 0.01, 0.09]} rotation={[0.25, 0, 0]}>
+              <sphereGeometry args={[0.1, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.4]} />
               <meshPhysicalMaterial
-                color="#1d3557"
+                color="#0b1a2b"
                 transparent
-                opacity={0.45}
-                roughness={0.08}
-                metalness={0.55}
-                transmission={0.15}
-                thickness={0.4}
+                opacity={0.55}
+                roughness={0.05}
+                metalness={0.6}
+                transmission={0.2}
+                thickness={0.35}
               />
             </mesh>
-            <mesh position={[0, -0.04, 0.11]}>
-              <torusGeometry args={[0.09, 0.022, 6, 14]} />
-              <meshStandardMaterial color={HELMET_DK} roughness={0.85} />
+            {/* Chin strap */}
+            <mesh position={[0, -0.06, 0.08]} rotation={[0.4, 0, 0]}>
+              <torusGeometry args={[0.09, 0.014, 6, 14]} />
+              <meshStandardMaterial color={HELMET_DK} roughness={0.7} />
             </mesh>
           </group>
 
           {/* Left leg */}
-          <group ref={thighL} position={[-hipW * 0.55, -0.28, 0]}>
+          <group ref={thighL} position={[-hipW * 0.55, -0.3, 0]}>
             <mesh position={[0, -thighLen * 0.5, 0]} castShadow>
-              <capsuleGeometry args={[0.085, thighLen * 0.55, 6, 10]} />
-              <meshStandardMaterial color={suit} roughness={0.8} />
+              <capsuleGeometry args={[0.09, thighLen * 0.55, 6, 12]} />
+              <meshStandardMaterial color={suit} roughness={0.7} />
+            </mesh>
+            <mesh position={[0, -thighLen * 0.35, 0.08]}>
+              <boxGeometry args={[0.1, 0.12, 0.04]} />
+              <meshStandardMaterial color={SUIT_DK} roughness={0.75} />
             </mesh>
             <group ref={shinL} position={[0, -thighLen, 0]}>
               <mesh position={[0, -shinLen * 0.45, 0]} castShadow>
-                <capsuleGeometry args={[0.07, shinLen * 0.5, 6, 10]} />
-                <meshStandardMaterial color={SUIT_DK} roughness={0.82} />
+                <capsuleGeometry args={[0.072, shinLen * 0.5, 6, 12]} />
+                <meshStandardMaterial color={SUIT_DK} roughness={0.72} />
               </mesh>
-              <mesh position={[0, -shinLen * 0.95, 0.06]} castShadow>
-                <boxGeometry args={[0.13, 0.09, 0.28]} />
-                <meshStandardMaterial color={BOOT} roughness={0.9} />
+              {/* Boot */}
+              <mesh position={[0, -shinLen * 0.92, 0.05]} castShadow>
+                <boxGeometry args={[0.12, 0.12, 0.26]} />
+                <meshStandardMaterial color={BOOT} roughness={0.85} />
+              </mesh>
+              <mesh position={[0, -shinLen * 1.02, 0.08]} castShadow>
+                <boxGeometry args={[0.13, 0.04, 0.3]} />
+                <meshStandardMaterial color={BOOT_SOLE} roughness={0.95} />
               </mesh>
             </group>
           </group>
 
           {/* Right leg */}
-          <group ref={thighR} position={[hipW * 0.55, -0.28, 0]}>
+          <group ref={thighR} position={[hipW * 0.55, -0.3, 0]}>
             <mesh position={[0, -thighLen * 0.5, 0]} castShadow>
-              <capsuleGeometry args={[0.085, thighLen * 0.55, 6, 10]} />
-              <meshStandardMaterial color={suit} roughness={0.8} />
+              <capsuleGeometry args={[0.09, thighLen * 0.55, 6, 12]} />
+              <meshStandardMaterial color={suit} roughness={0.7} />
+            </mesh>
+            <mesh position={[0, -thighLen * 0.35, 0.08]}>
+              <boxGeometry args={[0.1, 0.12, 0.04]} />
+              <meshStandardMaterial color={SUIT_DK} roughness={0.75} />
             </mesh>
             <group ref={shinR} position={[0, -thighLen, 0]}>
               <mesh position={[0, -shinLen * 0.45, 0]} castShadow>
-                <capsuleGeometry args={[0.07, shinLen * 0.5, 6, 10]} />
-                <meshStandardMaterial color={SUIT_DK} roughness={0.82} />
+                <capsuleGeometry args={[0.072, shinLen * 0.5, 6, 12]} />
+                <meshStandardMaterial color={SUIT_DK} roughness={0.72} />
               </mesh>
-              <mesh position={[0, -shinLen * 0.95, 0.06]} castShadow>
-                <boxGeometry args={[0.13, 0.09, 0.28]} />
-                <meshStandardMaterial color={BOOT} roughness={0.9} />
+              <mesh position={[0, -shinLen * 0.92, 0.05]} castShadow>
+                <boxGeometry args={[0.12, 0.12, 0.26]} />
+                <meshStandardMaterial color={BOOT} roughness={0.85} />
+              </mesh>
+              <mesh position={[0, -shinLen * 1.02, 0.08]} castShadow>
+                <boxGeometry args={[0.13, 0.04, 0.3]} />
+                <meshStandardMaterial color={BOOT_SOLE} roughness={0.95} />
               </mesh>
             </group>
           </group>
 
           {/* Left arm */}
-          <group ref={armL} position={[-0.26, 0.26, 0]}>
-            <mesh position={[0, -0.18, 0]} castShadow>
-              <capsuleGeometry args={[0.065, 0.22, 6, 10]} />
-              <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
+          <group ref={armL} position={[-0.28, 0.3, 0]}>
+            <mesh position={[0, -0.19, 0]} castShadow>
+              <capsuleGeometry args={[0.068, 0.24, 6, 12]} />
+              <meshStandardMaterial color={suit} roughness={0.68} />
             </mesh>
-            <group ref={foreL} position={[0, -0.36, 0]}>
-              <mesh position={[0, -0.14, 0]} castShadow>
-                <capsuleGeometry args={[0.055, 0.18, 6, 10]} />
-                <meshStandardMaterial color={SUIT_LT} roughness={0.78} />
+            <group ref={foreL} position={[0, -0.38, 0]}>
+              <mesh position={[0, -0.15, 0]} castShadow>
+                <capsuleGeometry args={[0.058, 0.2, 6, 12]} />
+                <meshStandardMaterial color={SUIT_LT} roughness={0.7} />
               </mesh>
-              <mesh position={[0, -0.3, 0]} castShadow>
-                <sphereGeometry args={[0.065, 10, 10]} />
-                <meshStandardMaterial color={GLOVE} roughness={0.72} />
+              <mesh position={[0, -0.32, 0]} castShadow>
+                <sphereGeometry args={[0.07, 12, 12]} />
+                <meshStandardMaterial color={GLOVE} roughness={0.65} />
               </mesh>
             </group>
           </group>
 
           {/* Right arm */}
-          <group ref={armR} position={[0.26, 0.26, 0]}>
-            <mesh position={[0, -0.18, 0]} castShadow>
-              <capsuleGeometry args={[0.065, 0.22, 6, 10]} />
-              <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
+          <group ref={armR} position={[0.28, 0.3, 0]}>
+            <mesh position={[0, -0.19, 0]} castShadow>
+              <capsuleGeometry args={[0.068, 0.24, 6, 12]} />
+              <meshStandardMaterial color={suit} roughness={0.68} />
             </mesh>
-            <group ref={foreR} position={[0, -0.36, 0]}>
-              <mesh position={[0, -0.14, 0]} castShadow>
-                <capsuleGeometry args={[0.055, 0.18, 6, 10]} />
-                <meshStandardMaterial color={SUIT_LT} roughness={0.78} />
+            <group ref={foreR} position={[0, -0.38, 0]}>
+              <mesh position={[0, -0.15, 0]} castShadow>
+                <capsuleGeometry args={[0.058, 0.2, 6, 12]} />
+                <meshStandardMaterial color={SUIT_LT} roughness={0.7} />
               </mesh>
-              <mesh position={[0, -0.3, 0]} castShadow>
-                <sphereGeometry args={[0.065, 10, 10]} />
-                <meshStandardMaterial color={GLOVE} roughness={0.72} />
+              <mesh position={[0, -0.32, 0]} castShadow>
+                <sphereGeometry args={[0.07, 12, 12]} />
+                <meshStandardMaterial color={GLOVE} roughness={0.65} />
               </mesh>
             </group>
           </group>
