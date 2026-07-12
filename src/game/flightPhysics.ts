@@ -14,12 +14,15 @@ import {
   getObstacles,
   hitObstacle,
 } from './obstacles'
-import { computeAeroForces, groundEffectFactor } from './aero'
+import { liftCoeff, groundEffectFactor } from './aero'
 import { sampleAtmosphere } from './atmosphere'
 
 const MAX_AIRSPEED = 32
+const MIN_AIRSPEED = 7
 const CRUISE = 12
 const LIFTOFF_SPEED = 11
+const STALL = 8.5
+const BASE_SINK = 1.35
 const PITCH_RATE = 1.55
 const ROLL_RATE = 1.9
 const MAX_PITCH = 0.48
@@ -464,13 +467,14 @@ export function tickFlight(
     if (spd >= LIFTOFF_SPEED && wantsLift) {
       next.phase = 'flying'
       next.airspeed = Math.max(spd, CRUISE)
-      next.pitch = 0.12
-      // Velocity along the wing so AoA starts near trim (not a balloon then pancake)
-      next.velocity.x = Math.sin(next.yaw) * Math.cos(next.pitch) * next.airspeed
-      next.velocity.y = Math.sin(next.pitch) * next.airspeed + 0.8
-      next.velocity.z = Math.cos(next.yaw) * Math.cos(next.pitch) * next.airspeed
-      next.position.y = groundY + GROUND_CLEARANCE + 2.8
-      next.altitude = 2.8
+      next.pitch = 0.16
+      next.velocity = {
+        x: Math.sin(next.yaw) * next.airspeed,
+        y: 2.8,
+        z: Math.cos(next.yaw) * next.airspeed,
+      }
+      next.position.y = groundY + GROUND_CLEARANCE + 2.2
+      next.altitude = 2.2
       next.airtime = 0
     }
 
@@ -508,71 +512,58 @@ export function tickFlight(
   if (input.bankLeft) next.roll = Math.min(MAX_ROLL, next.roll + ROLL_RATE * dt)
   if (input.bankRight) next.roll = Math.max(-MAX_ROLL, next.roll - ROLL_RATE * dt)
 
-  if (!input.bankLeft && !input.bankRight) next.roll *= 1 - Math.min(1, 2.4 * dt)
+  if (!input.bankLeft && !input.bankRight) next.roll *= 1 - Math.min(1, 2.8 * dt)
   if (!input.pitchUp && !input.pitchDown) {
-    // Trim toward gentle positive pitch for supported glide
-    next.pitch += (0.1 - next.pitch) * Math.min(1, 1.1 * dt)
+    // Slight nose-down trim = stable cruise glide
+    next.pitch += (-0.04 - next.pitch) * Math.min(1, 1.1 * dt)
   }
 
-  // Speed bar: pull in (speedUp) → nose down a touch; push out → nose up
-  if (input.speedUp) next.pitch = Math.max(-MAX_PITCH, next.pitch - 0.55 * dt)
-  if (input.speedDown) next.pitch = Math.min(MAX_PITCH, next.pitch + 0.4 * dt)
+  // Speed bar directly controls airspeed (arcade — playable). Pitch still steers climb/dive.
+  if (input.speedUp) {
+    next.airspeed = Math.min(MAX_AIRSPEED, next.airspeed + 10 * dt)
+  } else if (input.speedDown) {
+    next.airspeed = Math.max(MIN_AIRSPEED, next.airspeed - 10 * dt)
+  } else {
+    const target = Math.min(
+      MAX_AIRSPEED,
+      Math.max(MIN_AIRSPEED, CRUISE - next.pitch * 10),
+    )
+    next.airspeed += (target - next.airspeed) * Math.min(1, 2.2 * dt)
+  }
 
   const wind = sampleAtmosphere(config, time, next.position)
-  next.yaw += next.roll * 0.95 * dt
+  next.yaw += next.roll * 1.05 * dt
 
-  // Seed velocity from heading if nearly stopped (just lifted)
-  if (Math.hypot(next.velocity.x, next.velocity.y, next.velocity.z) < 3) {
-    const spd = Math.max(next.airspeed, CRUISE)
-    next.velocity.x = Math.sin(next.yaw) * Math.cos(next.pitch) * spd
-    next.velocity.y = Math.sin(next.pitch) * spd * 0.35
-    next.velocity.z = Math.cos(next.yaw) * Math.cos(next.pitch) * spd
-  }
+  // AoA ≈ pitch vs flight path — flavors sink / deep-stall only (speed stays arcade)
+  const pathPitch = Math.asin(
+    Math.max(-1, Math.min(1, next.velocity.y / Math.max(8, next.airspeed))),
+  )
+  const aoa = next.pitch - pathPitch + 0.08
+  const { cl, stallSeverity } = liftCoeff(aoa)
+  const speedStall = next.airspeed < STALL
+  const aoaStall = stallSeverity > 0.55
+  next.stallWarning = speedStall || aoaStall
 
-  // Aero in the airmass frame; thermals/ridge are wind.y (rising air)
-  const airState = {
-    ...next,
-    velocity: {
-      x: next.velocity.x - wind.x,
-      y: next.velocity.y - wind.y,
-      z: next.velocity.z - wind.z,
-    },
-  }
-  const aero = computeAeroForces(airState, input, { x: 0, y: 0, z: 0 })
+  const speed = next.airspeed
+  const fx = Math.sin(next.yaw) * Math.cos(next.pitch)
+  const fz = Math.cos(next.yaw) * Math.cos(next.pitch)
+
+  // Base sink ~1.35 m/s; better Cl → slightly less sink; thermals/ridge via wind.y
+  const ldSink = BASE_SINK * (1.12 - Math.min(0.3, cl * 0.2))
   const ge = groundEffectFactor(next.altitude)
+  let vy = next.pitch * speed * 1.05 - ldSink * ge + wind.y
+  if (input.pitchDown) vy -= 5 + Math.abs(next.pitch) * 8
+  if (input.pitchUp) vy += 3.2 + next.pitch * 4
+  if (speedStall) vy -= 7
+  else if (aoaStall) vy -= 3 + stallSeverity * 3
 
-  const vAirX = airState.velocity.x + aero.acceleration.x * dt
-  const vAirY = airState.velocity.y + aero.acceleration.y * dt * ge
-  const vAirZ = airState.velocity.z + aero.acceleration.z * dt
+  next.velocity.x = fx * speed + wind.x * 0.55
+  next.velocity.y = vy
+  next.velocity.z = fz * speed + wind.z * 0.55
 
-  next.velocity.x = vAirX + wind.x
-  next.velocity.y = vAirY + wind.y
-  next.velocity.z = vAirZ + wind.z
-
-  // Soft clamp extreme speeds for game feel
-  let spd = Math.hypot(next.velocity.x, next.velocity.y, next.velocity.z)
-  if (spd > MAX_AIRSPEED) {
-    const s = MAX_AIRSPEED / spd
-    next.velocity.x *= s
-    next.velocity.y *= s
-    next.velocity.z *= s
-    spd = MAX_AIRSPEED
-  }
-
-  // Arcade glide assist: ease air-relative sink toward ~1.3 m/s when not stalled
-  if (aero.stallSeverity < 0.45 && aero.airspeed > 9) {
-    const targetSink = -1.3 - Math.max(0, (13 - aero.airspeed) * 0.1)
-    const assist = (1 - Math.exp(-2.2 * dt)) * 0.7
-    const airVy = next.velocity.y - wind.y
-    next.velocity.y = airVy + (targetSink - airVy) * assist + wind.y
-  }
-
-  next.airspeed = aero.airspeed
-  next.stallWarning = aero.stallWarning
-
-  // Progressive wing-drop when deep stall
-  if (aero.stallSeverity > 0.35) {
-    next.roll += (Math.sin(time * 3.1) > 0 ? 1 : -1) * aero.stallSeverity * 0.9 * dt
+  // Mild wing-drop only in deep AoA stall
+  if (aoaStall) {
+    next.roll += (Math.sin(time * 3.1) > 0 ? 1 : -1) * stallSeverity * 0.45 * dt
     next.roll = Math.max(-MAX_ROLL, Math.min(MAX_ROLL, next.roll))
   }
 
@@ -610,7 +601,6 @@ export function tickFlight(
       next.airspeed = 0
       next.velocity = { x: 0, y: 0, z: 0 }
     } else {
-      // Stay mounted — resume ground roll
       next.phase = 'running'
       next.airspeed = Math.max(next.airspeed, 8)
       next.velocity.y = 0
