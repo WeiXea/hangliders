@@ -10,8 +10,12 @@ export function HangGlider() {
   const groupRef = useRef<THREE.Group>(null)
   const bodyRef = useRef<THREE.Group>(null)
   const barRef = useRef<THREE.Group>(null)
-  const flight = useGameStore((s) => s.flight)
-  const input = useGameStore((s) => s.input)
+  // Structural only — pose/position read live in useFrame to avoid stuttery remounts
+  const phase = useGameStore((s) => s.flight.phase)
+  const tandemRole = useGameStore((s) => s.flight.tandemRole)
+  const chuteDeployed = useGameStore((s) => s.flight.chuteDeployed)
+  const chuteInflation = useGameStore((s) => s.flight.chuteInflation)
+  const chuteSwing = useGameStore((s) => s.flight.chuteSwing)
   const cameraMode = useGameStore((s) => s.cameraMode)
   const peerConnected = useGameStore((s) => s.peerConnected)
   const { camera } = useThree()
@@ -21,15 +25,16 @@ export function HangGlider() {
 
   useFrame((_, delta) => {
     if (!groupRef.current || !bodyRef.current) return
-    const { position, pitch, roll, yaw, phase, chuteSwing } = flight
+    const { flight, input } = useGameStore.getState()
+    const { position, pitch, roll, yaw, phase: ph, chuteSwing: swing } = flight
 
     groupRef.current.position.set(position.x, position.y, position.z)
     groupRef.current.rotation.set(0, yaw, 0)
 
     const onGround =
-      phase === 'grounded' || phase === 'running' || phase === 'landed' || phase === 'walking'
-    const airbornePilot = phase === 'freefall' || phase === 'parachuting'
-    const swingRoll = phase === 'parachuting' ? -chuteSwing * 0.45 : 0
+      ph === 'grounded' || ph === 'running' || ph === 'landed' || ph === 'walking'
+    const airbornePilot = ph === 'freefall' || ph === 'parachuting'
+    const swingRoll = ph === 'parachuting' ? -swing * 0.45 : 0
     bodyRef.current.rotation.set(
       onGround ? 0 : airbornePilot ? Math.min(0.45, pitch) : pitch,
       0,
@@ -67,15 +72,15 @@ export function HangGlider() {
     let lookAt = new THREE.Vector3()
     let targetFov = 60
 
-    if (phase === 'walking') {
+    if (ph === 'walking') {
       eye.set(0, PILOT_EYE + 0.15, -6.5)
       lookAt.set(0, PILOT_EYE * 0.55, 10)
       targetFov = 58
-    } else if (phase === 'freefall') {
+    } else if (ph === 'freefall') {
       eye.set(0, 1.6, -10)
       lookAt.set(0, -3, 14)
       targetFov = 72
-    } else if (phase === 'parachuting') {
+    } else if (ph === 'parachuting') {
       eye.set(0, 2.8, -12)
       lookAt.set(0, -1.5, 10)
       targetFov = 64
@@ -99,34 +104,37 @@ export function HangGlider() {
     const camPos = origin.clone().add(eye)
     lookTarget.current.copy(origin).add(lookAt)
 
-    const lerp = 1 - Math.pow(0.00005, delta)
-    camera.position.lerp(camPos, lerp)
+    // Passenger: snappier camera so net-smoothed craft doesn't feel laggy
+    const camLerp =
+      flight.tandemRole === 'passenger'
+        ? 1 - Math.pow(0.0000001, delta)
+        : 1 - Math.pow(0.00005, delta)
+    camera.position.lerp(camPos, camLerp)
     camera.lookAt(lookTarget.current)
 
     if (camera instanceof THREE.PerspectiveCamera) {
-      camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, lerp)
+      camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, camLerp)
       camera.updateProjectionMatrix()
     }
   })
 
-  const phase = flight.phase
   const showWing =
     phase === 'grounded' ||
     phase === 'running' ||
     phase === 'flying' ||
     phase === 'landed' ||
-    flight.tandemRole === 'passenger'
+    tandemRole === 'passenger'
   const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
-  const showChute = phase === 'parachuting' || (phase === 'freefall' && flight.chuteDeployed)
-  const showTandemPassenger = peerConnected && flight.tandemRole === 'pilot' && showWing
+  const showChute = phase === 'parachuting' || (phase === 'freefall' && chuteDeployed)
+  const showTandemPassenger = peerConnected && tandemRole === 'pilot' && showWing
 
   return (
     <group ref={groupRef}>
       <group ref={bodyRef}>
         {showWing && (
           <group>
-            <GliderModel barRef={barRef} hidePilot={flight.tandemRole === 'passenger'} />
-            {flight.tandemRole === 'passenger' && (
+            <GliderModel barRef={barRef} hidePilot={tandemRole === 'passenger'} />
+            {tandemRole === 'passenger' && (
               <>
                 <group position={[-0.35, -1.45, 0.1]}>
                   <AnimatedPilot mode="prone" suitColor="#3d5a80" />
@@ -143,13 +151,13 @@ export function HangGlider() {
             )}
           </group>
         )}
-        {offGlider && flight.tandemRole !== 'passenger' && (
+        {offGlider && tandemRole !== 'passenger' && (
           <group position={[0, phase === 'walking' ? 0 : -PILOT_HIP * 0.15, 0]}>
             <AnimatedPilot />
           </group>
         )}
         {showChute && (
-          <ParachuteCanopy inflation={flight.chuteInflation} swing={flight.chuteSwing} />
+          <ParachuteCanopy inflation={chuteInflation} swing={chuteSwing} />
         )}
       </group>
     </group>

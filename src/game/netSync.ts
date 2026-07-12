@@ -1,5 +1,6 @@
 import type { NetMsg, RoomSession } from './netRoom'
 import { useGameStore } from './gameStore'
+import { noteRemoteFlight } from './remoteSmooth'
 
 let session: RoomSession | null = null
 let syncAcc = 0
@@ -11,7 +12,6 @@ export function getRoomSession() {
 export function setRoomSession(s: RoomSession | null) {
   session?.destroy()
   session = s
-  // Help heartbeat include the local name
   ;(window as unknown as { __hgName?: string }).__hgName =
     useGameStore.getState().playerName
 }
@@ -29,6 +29,7 @@ export function handleNetMessage(msg: NetMsg) {
       })
     }
   } else if (msg.t === 'state') {
+    noteRemoteFlight(msg.flight)
     store.setRemoteFlight(msg.flight, msg.name)
   } else if (msg.t === 'ping') {
     if (!store.peerConnected) {
@@ -48,8 +49,10 @@ export function tickNetSync(dt: number) {
   if (screen !== 'flight' && screen !== 'result') return
   if (!peerConnected && !session.connected) return
 
+  // Faster updates while tandem so the passenger stays smooth
+  const interval = flight.tandemRole !== 'none' ? 0.05 : 0.1
   syncAcc += dt
-  if (syncAcc < 0.12) return
+  if (syncAcc < interval) return
   syncAcc = 0
   session.send({ t: 'state', flight, name: playerName })
 }

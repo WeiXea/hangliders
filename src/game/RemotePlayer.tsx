@@ -4,36 +4,66 @@ import * as THREE from 'three'
 import { useGameStore } from './gameStore'
 import { GliderModel } from './GliderModel'
 import { AnimatedPilot, ParachuteCanopy, PILOT_HIP } from './Pilot'
+import { predictedRemote } from './remoteSmooth'
 
-/** Ghosted second player from the multiplayer room. Hidden while riding tandem together. */
+/** Ghosted second player. Hidden while riding tandem together. */
 export function RemotePlayer() {
   const group = useRef<THREE.Group>(null)
   const body = useRef<THREE.Group>(null)
-  const remote = useGameStore((s) => s.remoteFlight)
+  const display = useRef({
+    x: 0,
+    y: 0,
+    z: 0,
+    yaw: 0,
+    pitch: 0,
+    roll: 0,
+  })
   const connected = useGameStore((s) => s.peerConnected)
   const localTandem = useGameStore((s) => s.flight.tandemRole)
+  const remoteRole = useGameStore((s) => s.remoteFlight?.tandemRole ?? 'none')
+  const remotePhase = useGameStore((s) => s.remoteFlight?.phase ?? null)
+  const remoteChute = useGameStore((s) => s.remoteFlight?.chuteInflation ?? 0)
+  const remoteSwing = useGameStore((s) => s.remoteFlight?.chuteSwing ?? 0)
+  const remoteAction = useGameStore((s) => s.remoteFlight?.landAction ?? 'none')
+  const remoteSpeed = useGameStore((s) => s.remoteFlight?.airspeed ?? 0)
+  const remoteAlt = useGameStore((s) => s.remoteFlight?.altitude ?? 0)
+  const remoteVy = useGameStore((s) => s.remoteFlight?.velocity.y ?? 0)
 
-  useFrame(() => {
-    if (!group.current || !body.current || !remote) return
-    group.current.position.set(remote.position.x, remote.position.y, remote.position.z)
-    group.current.rotation.y = remote.yaw
+  useFrame((_, dt) => {
+    if (!group.current || !body.current) return
+    const remote = predictedRemote() ?? useGameStore.getState().remoteFlight
+    if (!remote) return
+
+    const k = 1 - Math.pow(0.00005, dt)
+    const d = display.current
+    d.x += (remote.position.x - d.x) * k
+    d.y += (remote.position.y - d.y) * k
+    d.z += (remote.position.z - d.z) * k
+    let dyaw = remote.yaw - d.yaw
+    while (dyaw > Math.PI) dyaw -= Math.PI * 2
+    while (dyaw < -Math.PI) dyaw += Math.PI * 2
+    d.yaw += dyaw * k
+    d.pitch += (remote.pitch - d.pitch) * k
+    d.roll += (remote.roll - d.roll) * k
+
+    group.current.position.set(d.x, d.y, d.z)
+    group.current.rotation.y = d.yaw
     const onGround =
       remote.phase === 'grounded' ||
       remote.phase === 'running' ||
       remote.phase === 'landed' ||
       remote.phase === 'walking'
     body.current.rotation.set(
-      onGround ? 0 : remote.pitch * 0.8,
+      onGround ? 0 : d.pitch * 0.8,
       0,
-      onGround ? 0 : -remote.roll,
+      onGround ? 0 : -d.roll,
     )
   })
 
-  if (!connected || !remote) return null
-  // Shared craft is drawn on HangGlider
-  if (localTandem !== 'none' || remote.tandemRole !== 'none') return null
+  if (!connected || !remotePhase) return null
+  if (localTandem !== 'none' || remoteRole !== 'none') return null
 
-  const phase = remote.phase
+  const phase = remotePhase
   const showWing =
     phase === 'grounded' || phase === 'running' || phase === 'flying' || phase === 'landed'
   const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
@@ -63,17 +93,15 @@ export function RemotePlayer() {
             <AnimatedPilot
               mode={remoteMode}
               suitColor="#3d5a80"
-              motionSpeed={remote.airspeed}
-              landAction={remote.landAction}
-              chuteSwing={remote.chuteSwing}
-              altitude={remote.altitude}
-              airborneY={remote.velocity.y}
+              motionSpeed={remoteSpeed}
+              landAction={remoteAction}
+              chuteSwing={remoteSwing}
+              altitude={remoteAlt}
+              airborneY={remoteVy}
             />
           </group>
         )}
-        {showChute && (
-          <ParachuteCanopy inflation={remote.chuteInflation} swing={remote.chuteSwing} />
-        )}
+        {showChute && <ParachuteCanopy inflation={remoteChute} swing={remoteSwing} />}
       </group>
     </group>
   )

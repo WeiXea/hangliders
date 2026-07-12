@@ -49,7 +49,14 @@ export function FlightSimulator() {
     let parkedOut = parkedGliders
 
     if (peerConnected && remoteFlight) {
-      const tandem = resolveTandem(current, remoteFlight, frameInput, parkedGliders, config)
+      const tandem = resolveTandem(
+        current,
+        remoteFlight,
+        frameInput,
+        parkedGliders,
+        config,
+        dt,
+      )
       flight = tandem.flight
       parkedOut = tandem.parked
 
