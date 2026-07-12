@@ -13,7 +13,9 @@ import {
   GROUND_CLEARANCE,
   getObstacles,
   hitObstacle,
+  hitCityBuildings,
 } from './obstacles'
+import { resolveBuildingPush } from './cityBuildings'
 import { liftCoeff, groundEffectFactor } from './aero'
 import { sampleAtmosphere } from './atmosphere'
 
@@ -97,9 +99,20 @@ export function initParkedGliders(config: BiomeConfig): ParkedGlider[] {
 }
 
 function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
-  if (next.phase === 'walking' || next.phase === 'freefall' || next.phase === 'parachuting') {
+  // Walking uses soft push instead of crash
+  if (next.phase === 'walking' || next.phase === 'landed' || next.phase === 'crashed') {
     return next
   }
+
+  if (config.id === 'city' && hitCityBuildings(next.position, config.getHeight)) {
+    return {
+      ...next,
+      phase: 'crashed',
+      airspeed: 0,
+      velocity: { x: 0, y: 0, z: 0 },
+    }
+  }
+
   const obstacles = getObstacles(config.id)
   for (const ob of obstacles) {
     const gy = config.getHeight(ob.x, ob.z)
@@ -269,6 +282,12 @@ export function tickFlight(
     next.position.z += next.velocity.z * dt
     next.position.y += next.velocity.y * dt
 
+    if (config.id === 'city') {
+      const pushed = resolveBuildingPush(next.position, config.getHeight)
+      next.position.x = pushed.x
+      next.position.z = pushed.z
+    }
+
     groundY = config.getHeight(next.position.x, next.position.z)
     if (next.position.y < groundY + WALK_FEET) {
       next.position.y = groundY + WALK_FEET
@@ -353,7 +372,7 @@ export function tickFlight(
       }
     }
 
-    return { flight: next, parked }
+    return { flight: collideWorld(next, config), parked }
   }
 
   // --- Parachuting ---
@@ -427,7 +446,7 @@ export function tickFlight(
       }
     }
 
-    return { flight: next, parked }
+    return { flight: collideWorld(next, config), parked }
   }
 
   // --- Ground roll / takeoff ---

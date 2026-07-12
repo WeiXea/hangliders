@@ -1,4 +1,5 @@
 import type { Biome, Vec3 } from '../types/game'
+import { CITY_BUILDINGS, hitBuildingBox } from './cityBuildings'
 
 /** Vertical solid obstacle — cylinder standing on the ground */
 export interface Obstacle {
@@ -20,25 +21,9 @@ export const MOUNTAIN_SCENERY: Obstacle[] = [
   { x: 300, z: 120, radius: 6, height: 36 },
 ]
 
-/** City buildings still block — but slightly tighter hitboxes */
-export const CITY_OBSTACLES: Obstacle[] = [
-  { x: 10, z: 25, radius: 4.2, height: 14 },
-  { x: 30, z: 35, radius: 5, height: 22 },
-  { x: 50, z: 20, radius: 4, height: 32 },
-  { x: 70, z: 30, radius: 4.5, height: 18 },
-  { x: -10, z: 40, radius: 3.5, height: 12 },
-  { x: 15, z: 55, radius: 4.2, height: 26 },
-  { x: 45, z: 65, radius: 3.5, height: 16 },
-  { x: 65, z: 80, radius: 5, height: 24 },
-  { x: 85, z: 45, radius: 4, height: 20 },
-  { x: 100, z: 60, radius: 5.5, height: 28 },
-  { x: 5, z: 75, radius: 3.2, height: 10 },
-  { x: 55, z: 95, radius: 4.2, height: 15 },
-]
-
 export function getObstacles(biome: Biome): Obstacle[] {
-  // Mountains: no crash pillars on the flight path
-  if (biome === 'city') return CITY_OBSTACLES
+  // City uses box buildings via hitCityBuildings — not cylinders
+  if (biome === 'city') return []
   return []
 }
 
@@ -53,6 +38,17 @@ export function hitObstacle(
   if (horiz > obstacle.radius + 0.6) return false
   const top = groundY + obstacle.height
   return pos.y > groundY - 1 && pos.y < top + 1.5
+}
+
+/** True if position intersects any city building volume. */
+export function hitCityBuildings(
+  pos: Vec3,
+  getHeight: (x: number, z: number) => number,
+): boolean {
+  for (const b of CITY_BUILDINGS) {
+    if (hitBuildingBox(pos, b, getHeight(b.x, b.z))) return true
+  }
+  return false
 }
 
 /**
