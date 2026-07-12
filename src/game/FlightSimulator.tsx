@@ -6,7 +6,7 @@ import { BIOME_CONFIGS } from './biomeConfigs'
 import { tickNetSync } from './netSync'
 import { bearingTo, horizontalDist } from './multiplayerSocial'
 import { resolveTandem } from './tandem'
-import { INITIAL_INPUT } from '../types/game'
+import { applyPulses, clearPulses } from './actionPulses'
 
 export function FlightSimulator() {
   const biome = useGameStore((s) => s.biome)
@@ -34,12 +34,14 @@ export function FlightSimulator() {
 
     const store = useGameStore.getState()
     const { flight: current, parkedGliders, remoteFlight, peerConnected } = store
+    const frameInput = applyPulses(input)
 
     if (current.phase === 'crashed' || current.phase === 'landed') {
       if (!finishedRef.current) {
         finishedRef.current = true
         finishFlight()
       }
+      clearPulses()
       return
     }
 
@@ -47,22 +49,31 @@ export function FlightSimulator() {
     let parkedOut = parkedGliders
 
     if (peerConnected && remoteFlight) {
-      const tandem = resolveTandem(current, remoteFlight, input, parkedGliders, config)
+      const tandem = resolveTandem(current, remoteFlight, frameInput, parkedGliders, config)
       flight = tandem.flight
       parkedOut = tandem.parked
 
       if (tandem.followPilot) {
         updateFlight(flight, parkedOut)
         tickNetSync(dt)
-        clearOneShots()
+        finishInput(frameInput)
         checkRings()
         return
       }
     }
 
+    // Pilot jump must reach physics even while marked tandem pilot
+    const physicsInput: typeof frameInput = {
+      ...frameInput,
+      tandem: false,
+      jump:
+        frameInput.jump &&
+        !(current.tandemRole === 'passenger' && flight.phase === 'freefall'),
+    }
+
     const { flight: next, parked } = tickFlight(
       flight,
-      { ...input, tandem: false },
+      physicsInput,
       config,
       dt,
       timeRef.current,
@@ -87,60 +98,74 @@ export function FlightSimulator() {
       }
     }
 
-    // Catch auto-board / pilot promote after physics moved us
-    if (peerConnected && remoteFlight) {
-      const tandem = resolveTandem(
-        flight,
-        remoteFlight,
-        { ...INITIAL_INPUT },
-        parkedOut,
-        config,
-      )
-      if (tandem.followPilot || tandem.flight.tandemRole !== flight.tandemRole) {
-        flight = tandem.flight
-        parkedOut = tandem.parked
-        if (tandem.followPilot) {
-          updateFlight(flight, parkedOut)
-          tickNetSync(dt)
-          clearOneShots()
-          checkRings()
-          return
-        }
-      }
+    // Promote to pilot if friend boarded (no input)
+    if (
+      peerConnected &&
+      remoteFlight &&
+      remoteFlight.tandemRole === 'passenger' &&
+      flight.tandemRole !== 'passenger' &&
+      (flight.phase === 'grounded' ||
+        flight.phase === 'running' ||
+        flight.phase === 'flying' ||
+        flight.phase === 'landed')
+    ) {
+      flight = { ...flight, tandemRole: 'pilot', tandemWant: false }
     }
 
     updateFlight(flight, parkedOut)
     tickNetSync(dt)
-    clearOneShots()
+    finishInput(frameInput)
     checkRings()
   })
 
   return null
 }
 
-function clearOneShots() {
-  const input = useGameStore.getState().input
-  if (
-    input.jump ||
-    input.deployChute ||
-    input.interact ||
-    input.emoteWave ||
-    input.emoteDance ||
-    input.emoteSit ||
-    input.emoteHug ||
-    input.emoteHighFive ||
-    input.tandem
-  ) {
-    useGameStore.getState().setInput({
-      jump: false,
-      deployChute: false,
-      interact: false,
-      emoteWave: false,
-      emoteDance: false,
-      emoteSit: false,
-      emoteHug: false,
-      emoteHighFive: false,
-      tandem: false,
-    })
+function finishInput(frameInput: {
+  jump: boolean
+  deployChute: boolean
+  interact: boolean
+  emoteWave: boolean
+  emoteDance: boolean
+  emoteSit: boolean
+  emoteHug: boolean
+  emoteHighFive: boolean
+  tandem: boolean
+  takeOff: boolean
+  land: boolean
+}) {
+  clearPulses()
+  const clear: Partial<{
+    jump: boolean
+    deployChute: boolean
+    interact: boolean
+    emoteWave: boolean
+    emoteDance: boolean
+    emoteSit: boolean
+    emoteHug: boolean
+    emoteHighFive: boolean
+    tandem: boolean
+    takeOff: boolean
+    land: boolean
+  }> = {}
+  let any = false
+  for (const key of [
+    'jump',
+    'deployChute',
+    'interact',
+    'emoteWave',
+    'emoteDance',
+    'emoteSit',
+    'emoteHug',
+    'emoteHighFive',
+    'tandem',
+    'takeOff',
+    'land',
+  ] as const) {
+    if (frameInput[key] || useGameStore.getState().input[key]) {
+      clear[key] = false
+      any = true
+    }
   }
+  if (any) useGameStore.getState().setInput(clear)
 }

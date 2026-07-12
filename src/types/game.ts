@@ -123,7 +123,7 @@ export interface BiomeConfig {
   parkedGliders: { x: number; z: number; yaw: number }[]
 }
 
-export const JUMP_MIN_ALTITUDE = 25
+export const JUMP_MIN_ALTITUDE = 15
 export const MOUNT_RANGE = 6
 /** Standing pilots can hug / high-five within this range */
 export const SOCIAL_RANGE = 3.4

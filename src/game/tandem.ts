@@ -7,7 +7,6 @@ import { GROUND_CLEARANCE } from './obstacles'
 export type TandemResult = {
   flight: FlightState
   parked: ParkedGlider[]
-  /** Passenger is copying the pilot — skip local physics */
   followPilot: boolean
 }
 
@@ -37,16 +36,13 @@ function dropOff(flight: FlightState, config: BiomeConfig, near: FlightState): F
   }
 }
 
-/** Passenger (or dumped rider) leaves the wing into freefall — can deploy chute. */
 function bailToFreefall(flight: FlightState, from: FlightState): FlightState {
-  const gy =
-    from.position.y /* keep air position */
   return {
     ...flight,
     phase: 'freefall',
     position: {
       x: from.position.x + Math.cos(from.yaw) * 1.2,
-      y: Math.max(from.position.y - 0.5, gy),
+      y: from.position.y - 0.4,
       z: from.position.z - Math.sin(from.yaw) * 1.2,
     },
     velocity: {
@@ -57,7 +53,7 @@ function bailToFreefall(flight: FlightState, from: FlightState): FlightState {
     airspeed: Math.max(8, from.airspeed * 0.55),
     pitch: 0.25,
     roll: 0,
-    altitude: from.altitude,
+    altitude: Math.max(from.altitude, 1),
     tandemRole: 'none',
     tandemWant: false,
     landAction: 'none',
@@ -123,10 +119,8 @@ function becomePilot(
 }
 
 /**
- * One-press tandem:
- * - Near a friend on a glider → Board (passenger)
- * - Otherwise → you become pilot (mount if needed); friend boards with T or auto when close
- * - Press T again to leave
+ * Explicit tandem only (no auto-steal while flying solo).
+ * T = start/board/leave. Jump as passenger = freefall (chute works after).
  */
 export function resolveTandem(
   flight: FlightState,
@@ -139,98 +133,56 @@ export function resolveTandem(
     return { flight, parked, followPilot: false }
   }
 
+  // Never puppet someone in freefall / under canopy
+  if (flight.phase === 'freefall' || flight.phase === 'parachuting') {
+    if (flight.tandemRole !== 'none') {
+      return {
+        flight: { ...flight, tandemRole: 'none', tandemWant: false },
+        parked,
+        followPilot: false,
+      }
+    }
+    return { flight, parked, followPilot: false }
+  }
+
   const dist = horizontalDist(flight.position, remote.position)
   const near = dist <= TANDEM_RANGE
   let next = flight
   let parkedOut = parked
 
-  // Friend boarded onto my craft → promote me to pilot
+  // Someone boarded me → I'm the pilot
   if (
     remote.tandemRole === 'passenger' &&
     next.tandemRole !== 'passenger' &&
-    (isOnGlider(next.phase) || next.tandemRole === 'pilot')
+    isOnGlider(next.phase)
   ) {
     next = { ...next, tandemRole: 'pilot', tandemWant: false }
   }
 
-  // Leave tandem
-  if ((input.tandem || input.jump) && next.tandemRole !== 'none') {
-    // Pilot jump is handled by normal glider physics
-    if (input.jump && next.tandemRole === 'pilot') {
-      /* fall through */
-    } else if (input.jump && next.tandemRole === 'passenger') {
-      // Passenger jumps off into freefall → can parachute
-      const from = isOnGlider(remote.phase) || remote.tandemRole === 'pilot' ? remote : next
-      if (from.altitude >= 8 || from.phase === 'flying' || from.phase === 'running') {
-        return {
-          flight: bailToFreefall(next, from),
-          parked: parkedOut,
-          followPilot: false,
-        }
-      }
+  // --- Passenger ---
+  if (next.tandemRole === 'passenger') {
+    if (input.jump) {
+      const from =
+        remote.tandemRole === 'pilot' || isOnGlider(remote.phase) ? remote : next
       return {
-        flight: dropOff(next, config, from),
+        flight: bailToFreefall(next, from),
         parked: parkedOut,
         followPilot: false,
       }
-    } else if (input.tandem) {
-      // T = gentle leave to ground walk
+    }
+    if (input.tandem) {
       return {
         flight: dropOff(next, config, isOnGlider(remote.phase) ? remote : next),
         parked: parkedOut,
         followPilot: false,
       }
     }
-  }
 
-  // Passenger: follow pilot (tolerate brief sync lag)
-  if (next.tandemRole === 'passenger') {
-    const pilotReady =
-      remote.tandemRole === 'pilot' ||
-      (isOnGlider(remote.phase) && remote.tandemRole !== 'passenger')
-
-    if (pilotReady) {
-      return {
-        flight: {
-          ...remote,
-          tandemRole: 'passenger',
-          tandemWant: false,
-          landAction: next.landAction,
-        },
-        parked: parkedOut,
-        followPilot: true,
-      }
-    }
-
-    // Pilot bailed — passenger also freefalls (can chute), don't teleport to ground
-    if (remote.phase === 'freefall' || remote.phase === 'parachuting') {
-      return {
-        flight: bailToFreefall(next, remote),
-        parked: parkedOut,
-        followPilot: false,
-      }
-    }
-
-    if (remote.phase === 'walking' || remote.phase === 'crashed') {
-      return {
-        flight: dropOff(next, config, remote),
-        parked: parkedOut,
-        followPilot: false,
-      }
-    }
-
-    // Waiting for pilot sync — hold still
-    return { flight: next, parked: parkedOut, followPilot: true }
-  }
-
-  // One-press join / start
-  if (input.tandem && near) {
-    const friendFlying =
-      remote.tandemRole === 'pilot' || isOnGlider(remote.phase)
-
-    if (friendFlying && remote.tandemRole !== 'passenger') {
-      // Board friend's glider
-      next = { ...next, tandemRole: 'passenger', tandemWant: false, landAction: 'none' }
+    if (
+      (remote.tandemRole === 'pilot' || remote.tandemRole === 'none') &&
+      isOnGlider(remote.phase)
+    ) {
+      // Follow craft; keep passenger role even if pilot flag lags
       return {
         flight: {
           ...remote,
@@ -243,31 +195,54 @@ export function resolveTandem(
       }
     }
 
-    // You become the pilot
-    const mounted = becomePilot(next, parkedOut, config)
-    next = mounted.flight
-    parkedOut = mounted.parked
-    return { flight: next, parked: parkedOut, followPilot: false }
+    if (remote.phase === 'freefall' || remote.phase === 'parachuting') {
+      return {
+        flight: bailToFreefall(next, remote),
+        parked: parkedOut,
+        followPilot: false,
+      }
+    }
+
+    return {
+      flight: dropOff(next, config, remote),
+      parked: parkedOut,
+      followPilot: false,
+    }
   }
 
-  // Auto-board when standing next to a pilot (no second sync dance)
-  if (
-    near &&
-    next.tandemRole === 'none' &&
-    next.phase === 'walking' &&
-    remote.tandemRole === 'pilot' &&
-    isOnGlider(remote.phase)
-  ) {
+  // Pilot leaves with T (jump uses normal glider physics)
+  if (next.tandemRole === 'pilot' && input.tandem) {
     return {
-      flight: {
-        ...remote,
-        tandemRole: 'passenger',
-        tandemWant: false,
-        landAction: 'none',
-      },
+      flight: { ...next, tandemRole: 'none', tandemWant: false },
       parked: parkedOut,
-      followPilot: true,
+      followPilot: false,
     }
+  }
+
+  // Press T near friend
+  if (input.tandem && near) {
+    // Board an active pilot (or friend on glider while you walk)
+    const canBoard =
+      remote.tandemRole === 'pilot' ||
+      (isOnGlider(remote.phase) &&
+        (next.phase === 'walking' || next.phase === 'grounded' || next.phase === 'landed'))
+
+    if (canBoard && remote.tandemRole !== 'passenger' && isOnGlider(remote.phase)) {
+      return {
+        flight: {
+          ...remote,
+          tandemRole: 'passenger',
+          tandemWant: false,
+          landAction: 'none',
+        },
+        parked: parkedOut,
+        followPilot: true,
+      }
+    }
+
+    // Offer / start as pilot
+    const mounted = becomePilot(next, parkedOut, config)
+    return { flight: mounted.flight, parked: mounted.parked, followPilot: false }
   }
 
   return { flight: next, parked: parkedOut, followPilot: false }
@@ -275,7 +250,7 @@ export function resolveTandem(
 
 export function canOfferTandem(local: FlightState, remote: FlightState | null): boolean {
   if (!remote) return false
-  if (local.tandemRole !== 'none') return true // leave
+  if (local.tandemRole !== 'none') return true
   if (local.phase === 'freefall' || local.phase === 'parachuting') return false
   if (remote.phase === 'freefall' || remote.phase === 'parachuting') return false
   return horizontalDist(local.position, remote.position) <= TANDEM_RANGE

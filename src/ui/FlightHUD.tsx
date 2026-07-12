@@ -10,6 +10,7 @@ import {
 import { nearestMountable } from '../game/flightPhysics'
 import { canSocialEmote } from '../game/multiplayerSocial'
 import { canOfferTandem, tandemButtonLabel } from '../game/tandem'
+import { pulseAction } from '../game/actionPulses'
 import { startWindAudio, stopWindAudio } from '../game/audio'
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
@@ -210,7 +211,7 @@ export function FlightHUD() {
       )}
 
       {canJump && (
-        <div className={styles.nearGround}>Jump ready — press Space (or J)</div>
+        <div className={styles.nearGround}>Jump ready — Space or J · then F for chute</div>
       )}
 
       {peerConnected && !inTandem && (
@@ -222,8 +223,8 @@ export function FlightHUD() {
       {inTandem && (
         <div className={styles.nearGround}>
           {flight.tandemRole === 'pilot'
-            ? `Tandem pilot — friend boards nearby · T to leave`
-            : `Tandem passenger — Jump to freefall & chute · T to leave`}
+            ? `Tandem pilot — friend presses Board nearby · T to leave`
+            : `Tandem passenger — Jump = freefall + chute · T = leave`}
         </div>
       )}
 
@@ -286,6 +287,7 @@ export function FlightHUD() {
             className={styles.bigChute}
             onPointerDown={(e) => {
               e.preventDefault()
+              pulseAction('deployChute')
               useGameStore.getState().setInput({ deployChute: true })
             }}
           >
@@ -302,6 +304,7 @@ export function FlightHUD() {
             className={styles.bigTandem}
             onPointerDown={(e) => {
               e.preventDefault()
+              pulseAction('tandem')
               useGameStore.getState().setInput({ tandem: true })
             }}
           >

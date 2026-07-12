@@ -12,6 +12,7 @@ import {
   steerFromSample,
 } from './tilt'
 import { addMouseLook, resetLook, setMouseLookHeld } from './lookCamera'
+import { isPulseKey, pulseAction, clearAllPulses } from './actionPulses'
 
 const PITCH_BANK_DOWN: Record<string, Partial<InputState>> = {
   ArrowUp: { pitchDown: true },
@@ -110,21 +111,26 @@ export function useKeyboardControls() {
         e.preventDefault()
         const phase = useGameStore.getState().flight.phase
         if (phase === 'walking' || phase === 'flying') {
+          pulseAction('jump')
           setInput({ jump: true })
         } else if (phase === 'freefall') {
+          pulseAction('deployChute')
           setInput({ deployChute: true })
         } else {
+          pulseAction('takeOff')
           setInput({ takeOff: true })
         }
         return
       }
       if (e.code === 'KeyJ') {
         e.preventDefault()
+        pulseAction('jump')
         setInput({ jump: true })
         return
       }
       if (e.code === 'KeyF') {
         e.preventDefault()
+        pulseAction('deployChute')
         setInput({ deployChute: true })
         return
       }
@@ -132,6 +138,7 @@ export function useKeyboardControls() {
         e.preventDefault()
         const phase = useGameStore.getState().flight.phase
         if (phase === 'walking') {
+          pulseAction('interact')
           setInput({ interact: true })
         } else {
           setInput({ lookRight: true })
@@ -155,36 +162,43 @@ export function useKeyboardControls() {
       }
       if (e.code === 'Digit1' || e.code === 'KeyZ') {
         e.preventDefault()
+        pulseAction('emoteWave')
         setInput({ emoteWave: true })
         return
       }
       if (e.code === 'Digit2' || e.code === 'KeyX') {
         e.preventDefault()
+        pulseAction('emoteDance')
         setInput({ emoteDance: true })
         return
       }
       if (e.code === 'Digit3' || e.code === 'KeyV') {
         e.preventDefault()
+        pulseAction('emoteSit')
         setInput({ emoteSit: true })
         return
       }
       if (e.code === 'Digit4' || e.code === 'KeyH') {
         e.preventDefault()
+        pulseAction('emoteHug')
         setInput({ emoteHug: true })
         return
       }
       if (e.code === 'Digit5' || e.code === 'KeyY') {
         e.preventDefault()
+        pulseAction('emoteHighFive')
         setInput({ emoteHighFive: true })
         return
       }
       if (e.code === 'KeyT') {
         e.preventDefault()
+        pulseAction('tandem')
         setInput({ tandem: true })
         return
       }
       if (e.code === 'KeyL') {
         e.preventDefault()
+        pulseAction('land')
         setInput({ land: true })
         return
       }
@@ -239,25 +253,15 @@ export function useKeyboardControls() {
 
       if (tiltEnabled) {
         const release = RELEASE_MAP[e.code]
-        if (
-          release &&
-          ('takeOff' in release ||
-            'land' in release ||
-            'jump' in release ||
-            'deployChute' in release ||
-            'interact' in release ||
-            'emoteWave' in release ||
-            'emoteDance' in release ||
-            'emoteSit' in release ||
-            'emoteHug' in release ||
-            'emoteHighFive' in release ||
-            'tandem' in release ||
-            'lookLeft' in release ||
-            'lookRight' in release ||
-            'lookBack' in release)
-        ) {
-          e.preventDefault()
-          setInput(release)
+        if (release) {
+          const filtered: Partial<InputState> = {}
+          for (const [k, v] of Object.entries(release)) {
+            if (!isPulseKey(k)) (filtered as Record<string, boolean>)[k] = v as boolean
+          }
+          if (Object.keys(filtered).length) {
+            e.preventDefault()
+            setInput(filtered)
+          }
         }
         const phase = useGameStore.getState().flight.phase
         if (phase !== 'walking' && phase !== 'freefall' && phase !== 'parachuting') {
@@ -267,12 +271,18 @@ export function useKeyboardControls() {
       const release = RELEASE_MAP[e.code]
       if (release) {
         e.preventDefault()
-        setInput(release)
+        // Don't clear one-shot pulses on keyup — the sim consumes them
+        const filtered: Partial<InputState> = {}
+        for (const [k, v] of Object.entries(release)) {
+          if (!isPulseKey(k)) (filtered as Record<string, boolean>)[k] = v as boolean
+        }
+        if (Object.keys(filtered).length) setInput(filtered)
       }
     }
 
     const onBlur = () => {
       setInput({ ...INITIAL_INPUT })
+      clearAllPulses()
       resetLook()
     }
 
@@ -283,6 +293,7 @@ export function useKeyboardControls() {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('blur', onBlur)
+      clearAllPulses()
       resetLook()
     }
   }, [screen, setInput, cycleCamera, startFlight, goHome, tiltEnabled])
@@ -407,19 +418,21 @@ export function useTouchControl(
   return {
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault()
+      if (isPulseKey(action)) pulseAction(action)
       setInput({ [action]: true })
     },
     onPointerUp: (e: React.PointerEvent) => {
       e.preventDefault()
-      setInput({ [action]: false })
+      // One-shots stay until the sim frame clears them
+      if (!isPulseKey(action)) setInput({ [action]: false })
     },
     onPointerLeave: (e: React.PointerEvent) => {
       e.preventDefault()
-      setInput({ [action]: false })
+      if (!isPulseKey(action)) setInput({ [action]: false })
     },
     onPointerCancel: (e: React.PointerEvent) => {
       e.preventDefault()
-      setInput({ [action]: false })
+      if (!isPulseKey(action)) setInput({ [action]: false })
     },
   }
 }
