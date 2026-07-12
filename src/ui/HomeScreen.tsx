@@ -96,7 +96,7 @@ export function HomeScreen() {
         </button>
         <p className={styles.controlsHint}>
           {tiltEnabled
-            ? 'Tilt the iPad to bank & pitch · +/− for speed · Level in-flight to recalibrate'
+            ? 'Hold landscape like a wheel — turn to bank · pull/push to pitch · Level to recalibrate'
             : 'Takeoff: Shift + ↓ climb · Land: slow + gentle sink · Enable tilt for iPad'}
         </p>
       </div>

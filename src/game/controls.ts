@@ -4,9 +4,12 @@ import { INITIAL_INPUT } from '../types/game'
 import type { InputState } from '../types/game'
 import {
   clearSteerInput,
+  getLatestTiltSample,
+  gravityToAxes,
   orientationAxes,
   screenOrientationAngle,
-  tiltToSteer,
+  setLatestTiltSample,
+  steerFromSample,
 } from './tilt'
 
 const PITCH_BANK_DOWN: Record<string, Partial<InputState>> = {
@@ -190,29 +193,45 @@ export function useTiltControls() {
       return
     }
 
-    const onOrient = (e: DeviceOrientationEvent) => {
-      if (e.beta == null || e.gamma == null) return
-      const raw = orientationAxes(e.beta, e.gamma, screenOrientationAngle())
-
+    const applySample = (raw: { bank: number; pitch: number }) => {
+      setLatestTiltSample(raw)
       const store = useGameStore.getState()
       let offset = store.tiltCalibration
       if (!offset) {
         offset = { bank: raw.bank, pitch: raw.pitch }
         setTiltCalibration(offset)
       }
+      setInput(steerFromSample(raw, offset))
+    }
 
-      setInput(tiltToSteer(raw.bank - offset.bank, raw.pitch - offset.pitch))
+    const onMotion = (e: DeviceMotionEvent) => {
+      const g = e.accelerationIncludingGravity
+      if (!g || g.x == null || g.y == null || g.z == null) return
+      lastMotionAt = performance.now()
+      applySample(gravityToAxes(g.x, g.y, g.z, screenOrientationAngle()))
+    }
+
+    let lastMotionAt = 0
+
+    const onOrient = (e: DeviceOrientationEvent) => {
+      // Prefer accelerometer; fall back to orientation if motion is silent
+      if (performance.now() - lastMotionAt < 400) return
+      if (e.beta == null || e.gamma == null) return
+      applySample(orientationAxes(e.beta, e.gamma, screenOrientationAngle()))
     }
 
     const onHidden = () => {
       if (document.hidden) setInput(clearSteerInput())
     }
 
+    window.addEventListener('devicemotion', onMotion)
     window.addEventListener('deviceorientation', onOrient)
     document.addEventListener('visibilitychange', onHidden)
     return () => {
+      window.removeEventListener('devicemotion', onMotion)
       window.removeEventListener('deviceorientation', onOrient)
       document.removeEventListener('visibilitychange', onHidden)
+      setLatestTiltSample(null)
       setInput(clearSteerInput())
     }
   }, [screen, tiltEnabled, tiltPermission, setInput, setTiltCalibration])
@@ -220,14 +239,21 @@ export function useTiltControls() {
 
 /** Recapture the current hold angle as neutral. Call from a button tap. */
 export function calibrateTiltNow() {
-  const sample = (e: DeviceOrientationEvent) => {
-    if (e.beta == null || e.gamma == null) return
-    const raw = orientationAxes(e.beta, e.gamma, screenOrientationAngle())
-    useGameStore.getState().setTiltCalibration({ bank: raw.bank, pitch: raw.pitch })
-    window.removeEventListener('deviceorientation', sample)
+  const latest = getLatestTiltSample()
+  if (latest) {
+    useGameStore.getState().setTiltCalibration({ bank: latest.bank, pitch: latest.pitch })
+    return
   }
-  window.addEventListener('deviceorientation', sample)
-  window.setTimeout(() => window.removeEventListener('deviceorientation', sample), 800)
+
+  const onMotion = (e: DeviceMotionEvent) => {
+    const g = e.accelerationIncludingGravity
+    if (!g || g.x == null || g.y == null || g.z == null) return
+    const raw = gravityToAxes(g.x, g.y, g.z, screenOrientationAngle())
+    useGameStore.getState().setTiltCalibration({ bank: raw.bank, pitch: raw.pitch })
+    window.removeEventListener('devicemotion', onMotion)
+  }
+  window.addEventListener('devicemotion', onMotion)
+  window.setTimeout(() => window.removeEventListener('devicemotion', onMotion), 800)
 }
 
 export function useTouchControl(

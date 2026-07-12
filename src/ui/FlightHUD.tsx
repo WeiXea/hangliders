@@ -183,8 +183,8 @@ export function FlightHUD() {
         <div className={styles.coach}>
           {tiltEnabled
             ? canLift
-              ? 'Speed ready — tilt back to climb and lift off'
-              : 'Hold + to build speed, then tilt back to take off'
+              ? 'Speed ready — pull the iPad back to climb and lift off'
+              : 'Hold + to build speed, then pull back to take off'
             : canLift
               ? 'Speed ready — hold ↓ Climb to lift off'
               : 'Hold + / Shift to build speed, then ↓ Climb to take off'}
@@ -243,8 +243,8 @@ export function FlightHUD() {
         )}
         {tiltEnabled && !showSteerPads && (
           <div className={styles.tiltHint} aria-live="polite">
-            <span className={styles.tiltHintTitle}>Tilt to steer</span>
-            <span className={styles.tiltHintSub}>Forward dive · Back climb · Side bank</span>
+            <span className={styles.tiltHintTitle}>Steer like a wheel</span>
+            <span className={styles.tiltHintSub}>Turn left/right · Pull back to climb · Push to dive</span>
           </div>
         )}
         <div className={styles.rightPads}>
