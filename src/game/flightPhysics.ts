@@ -464,10 +464,14 @@ export function tickFlight(
     if (spd >= LIFTOFF_SPEED && wantsLift) {
       next.phase = 'flying'
       next.airspeed = Math.max(spd, CRUISE)
-      next.pitch = 0.18
-      next.velocity.y = 3.5
-      next.position.y = groundY + GROUND_CLEARANCE + 1.2
-      next.altitude = 1.2
+      next.pitch = 0.12
+      // Velocity along the wing so AoA starts near trim (not a balloon then pancake)
+      next.velocity.x = Math.sin(next.yaw) * Math.cos(next.pitch) * next.airspeed
+      next.velocity.y = Math.sin(next.pitch) * next.airspeed + 0.8
+      next.velocity.z = Math.cos(next.yaw) * Math.cos(next.pitch) * next.airspeed
+      next.position.y = groundY + GROUND_CLEARANCE + 2.8
+      next.altitude = 2.8
+      next.airtime = 0
     }
 
     if (spd < 0.5 && !input.speedUp && !input.takeOff) {
@@ -506,8 +510,8 @@ export function tickFlight(
 
   if (!input.bankLeft && !input.bankRight) next.roll *= 1 - Math.min(1, 2.4 * dt)
   if (!input.pitchUp && !input.pitchDown) {
-    // Trim toward slight positive AoA / gentle glide
-    next.pitch += (0.06 - next.pitch) * Math.min(1, 0.9 * dt)
+    // Trim toward gentle positive pitch for supported glide
+    next.pitch += (0.1 - next.pitch) * Math.min(1, 1.1 * dt)
   }
 
   // Speed bar: pull in (speedUp) → nose down a touch; push out → nose up
@@ -555,6 +559,14 @@ export function tickFlight(
     spd = MAX_AIRSPEED
   }
 
+  // Arcade glide assist: ease air-relative sink toward ~1.3 m/s when not stalled
+  if (aero.stallSeverity < 0.45 && aero.airspeed > 9) {
+    const targetSink = -1.3 - Math.max(0, (13 - aero.airspeed) * 0.1)
+    const assist = (1 - Math.exp(-2.2 * dt)) * 0.7
+    const airVy = next.velocity.y - wind.y
+    next.velocity.y = airVy + (targetSink - airVy) * assist + wind.y
+  }
+
   next.airspeed = aero.airspeed
   next.stallWarning = aero.stallWarning
 
@@ -576,26 +588,35 @@ export function tickFlight(
   next = collideWorld(next, config)
   if (next.phase === 'crashed') return { flight: next, parked }
 
-  // Touchdown while still on glider → walk (soft) or crash / bounce
+  // Touchdown while still on glider → bounce to run (stay mounted) unless
+  // a real soft landing / intentional land. Auto-walk was unmounting on every
+  // post-takeoff scrape.
   if (next.position.y <= groundY + GROUND_CLEARANCE) {
     next.position.y = groundY + GROUND_CLEARANCE
     const sink = Math.abs(Math.min(0, next.velocity.y))
-    const slow = next.airspeed <= 14
+    const crawl = next.airspeed <= 6.5
     const gentle = sink <= 6.5 && next.pitch > -0.35
     const steadyDescent = next.velocity.y <= 0.5 && next.velocity.y >= -7
+    const takeoffGrace = next.airtime < 2.2
+    const softLand = crawl && gentle && steadyDescent && !takeoffGrace
+    const intentional =
+      input.land && next.airspeed <= 12 && sink < 10 && !takeoffGrace
 
-    if ((slow && gentle && steadyDescent) || (input.land && slow && sink < 10)) {
+    if (softLand || intentional) {
       parked = parkMountedGlider(next, parked)
       next = beginWalking(next, config)
-    } else if (sink > 9 || next.airspeed > 22 || next.pitch < -0.4) {
+    } else if (sink > 11 || next.airspeed > 24 || next.pitch < -0.45) {
       next.phase = 'crashed'
       next.airspeed = 0
       next.velocity = { x: 0, y: 0, z: 0 }
     } else {
+      // Stay mounted — resume ground roll
       next.phase = 'running'
-      next.airspeed = Math.min(next.airspeed, 12)
+      next.airspeed = Math.max(next.airspeed, 8)
       next.velocity.y = 0
-      next.pitch = 0
+      next.velocity.x = Math.sin(next.yaw) * next.airspeed
+      next.velocity.z = Math.cos(next.yaw) * next.airspeed
+      next.pitch = Math.min(next.pitch, 0.08)
       next.roll = 0
       next.altitude = 0
     }

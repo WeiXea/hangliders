@@ -1,10 +1,12 @@
 import type { FlightState, InputState, Vec3 } from '../types/game'
 
-/** Typical hang-glider ballpark: L/D ~12, min sink ~1.2–1.8 m/s at ~11 m/s. */
+/** Typical hang-glider ballpark: L/D ~12, min sink ~1.2–1.8 m/s at ~11–13 m/s. */
 const RHO = 1.2
-const WING_AREA = 16
-const MASS = 110 // pilot + glider kg (forces scaled for game feel)
+const WING_AREA = 18.5
+const MASS = 95 // pilot + glider kg (tuned for arcade glide feel)
 const G = 9.81
+/** Extra lift authority so cruise AoA supports weight with margin */
+const LIFT_MULT = 1.22
 
 export type AeroResult = {
   acceleration: Vec3
@@ -70,17 +72,18 @@ export function computeAeroForces(
 
   // Flight-path pitch from velocity; AoA ≈ geometric pitch − path pitch
   const pathPitch = Math.asin(clamp(airRel.y / airspeed, -1, 1))
-  const aoa = flight.pitch - pathPitch
+  // Bias: hang-glider flies with ~8° positive AoA at trim
+  const aoa = flight.pitch - pathPitch + 0.04
 
   // Speed-bar / trim: push-out (pitchUp) increases AoA feel; pull-in lowers
-  const trim = input.pitchUp ? 0.04 : input.pitchDown ? -0.06 : 0
+  const trim = input.pitchUp ? 0.05 : input.pitchDown ? -0.05 : 0
   const aoaEff = aoa + trim
 
   const { cl, stallSeverity } = liftCoeff(aoaEff)
   const cd = dragCoeff(aoaEff, cl, stallSeverity)
 
   const q = 0.5 * RHO * airspeed * airspeed
-  const liftMag = q * WING_AREA * cl
+  const liftMag = q * WING_AREA * cl * LIFT_MULT
   const dragMag = q * WING_AREA * cd
 
   // Unit air-velocity
