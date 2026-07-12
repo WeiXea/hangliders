@@ -11,29 +11,26 @@ function makeSailTexture(): THREE.CanvasTexture {
   c.height = size
   const g = c.getContext('2d')!
 
-  // Morocco flag red field
   g.fillStyle = '#C1272D'
   g.fillRect(0, 0, size, size)
 
-  // Subtle fabric weave
-  for (let i = 0; i < 120; i++) {
-    g.strokeStyle = `rgba(0,0,0,${0.02 + Math.random() * 0.03})`
+  for (let i = 0; i < 160; i++) {
+    g.strokeStyle = `rgba(0,0,0,${0.02 + Math.random() * 0.035})`
     g.lineWidth = 1
     g.beginPath()
-    g.moveTo(0, (i / 120) * size)
-    g.lineTo(size, (i / 120) * size)
+    g.moveTo(0, (i / 160) * size)
+    g.lineTo(size, (i / 160) * size)
     g.stroke()
   }
-  for (let i = 0; i < 80; i++) {
-    g.strokeStyle = `rgba(255,255,255,${0.015 + Math.random() * 0.02})`
+  for (let i = 0; i < 100; i++) {
+    g.strokeStyle = `rgba(255,255,255,${0.012 + Math.random() * 0.02})`
     g.lineWidth = 1
     g.beginPath()
-    g.moveTo((i / 80) * size, 0)
-    g.lineTo((i / 80) * size, size)
+    g.moveTo((i / 100) * size, 0)
+    g.lineTo((i / 100) * size, size)
     g.stroke()
   }
 
-  // Green pentagram (Seal of Solomon) — centered
   const cx = size * 0.5
   const cy = size * 0.52
   const R = size * 0.22
@@ -55,20 +52,54 @@ function makeSailTexture(): THREE.CanvasTexture {
   g.stroke()
   g.restore()
 
-  // Soft vignette / sail edge darkening
   const edge = g.createRadialGradient(cx, cy, size * 0.2, cx, cy, size * 0.7)
   edge.addColorStop(0, 'rgba(0,0,0,0)')
   edge.addColorStop(1, 'rgba(0,0,0,0.18)')
   g.fillStyle = edge
   g.fillRect(0, 0, size, size)
 
-  // Leading-edge highlight strip
   g.fillStyle = 'rgba(255,255,255,0.12)'
   g.fillRect(0, 0, size, 28)
 
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   tex.anisotropy = 16
+  return tex
+}
+
+function makeSailNormalMap(): THREE.CanvasTexture {
+  const size = 512
+  const c = document.createElement('canvas')
+  c.width = size
+  c.height = size
+  const g = c.getContext('2d')!
+  // Flat normal base
+  g.fillStyle = '#8080ff'
+  g.fillRect(0, 0, size, size)
+  // Fabric weave bumps
+  for (let y = 0; y < size; y += 3) {
+    const n = 128 + Math.sin(y * 0.4) * 18
+    g.fillStyle = `rgb(${n * 0.85},${n * 0.85},${200 + (n - 128) * 0.3})`
+    g.fillRect(0, y, size, 2)
+  }
+  for (let x = 0; x < size; x += 4) {
+    g.fillStyle = `rgba(140,140,220,${0.08 + (x % 8) * 0.01})`
+    g.fillRect(x, 0, 1, size)
+  }
+  // Soft panel seams
+  for (let i = 1; i < 8; i++) {
+    const x = (i / 8) * size
+    g.strokeStyle = 'rgba(90,90,180,0.35)'
+    g.lineWidth = 2
+    g.beginPath()
+    g.moveTo(x, 0)
+    g.lineTo(x, size)
+    g.stroke()
+  }
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.NoColorSpace
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.anisotropy = 8
   return tex
 }
 
@@ -80,7 +111,6 @@ function makeBottomSailTexture(): THREE.CanvasTexture {
   const g = c.getContext('2d')!
   g.fillStyle = '#8B1E24'
   g.fillRect(0, 0, size, size)
-  // Underside: darker Morocco red with battens
   for (let i = 0; i < 10; i++) {
     g.fillStyle = i % 2 === 0 ? '#A32028' : '#7A181E'
     g.fillRect((i / 10) * size, 0, size / 10 + 1, size)
@@ -109,9 +139,16 @@ function makeBottomSailTexture(): THREE.CanvasTexture {
   return tex
 }
 
-function createDeltaWingGeometry(): THREE.BufferGeometry {
-  const rows = 16
-  const cols = 32
+type WingGrid = {
+  geo: THREE.BufferGeometry
+  base: Float32Array
+  rows: number
+  cols: number
+}
+
+function createDeltaWingGeometry(): WingGrid {
+  const rows = 22
+  const cols = 40
   const span = 10
   const positions: number[] = []
   const uvs: number[] = []
@@ -121,13 +158,13 @@ function createDeltaWingGeometry(): THREE.BufferGeometry {
     const t = i / rows
     const halfSpan = span * (0.12 + 0.88 * t)
     const z = -3.6 + t * 7.2
-    const y = 0.78 * (1 - t * 0.3) + Math.sin(t * Math.PI) * 0.2
+    const y = 0.78 * (1 - t * 0.3) + Math.sin(t * Math.PI) * 0.22
 
     for (let j = 0; j <= cols; j++) {
       const s = j / cols
       const x = (s - 0.5) * 2 * halfSpan
-      const dihedral = Math.abs(s - 0.5) * 0.32
-      const billow = Math.cos((s - 0.5) * Math.PI) * 0.16 * (1 - t * 0.4)
+      const dihedral = Math.abs(s - 0.5) * 0.34
+      const billow = Math.cos((s - 0.5) * Math.PI) * 0.18 * (1 - t * 0.4)
       positions.push(x, y + dihedral + billow, z)
       uvs.push(s, t)
     }
@@ -142,11 +179,12 @@ function createDeltaWingGeometry(): THREE.BufferGeometry {
   }
 
   const geo = new THREE.BufferGeometry()
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  const base = new Float32Array(positions)
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(base.slice(), 3))
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
   geo.setIndex(indices)
   geo.computeVertexNormals()
-  return geo
+  return { geo, base, rows, cols }
 }
 
 function createLeadingEdgeCurve(): THREE.CatmullRomCurve3 {
@@ -162,17 +200,19 @@ function createLeadingEdgeCurve(): THREE.CatmullRomCurve3 {
 
 interface GliderModelProps {
   barRef?: React.RefObject<THREE.Group | null>
-  /** Hide pilot when rendering as a parked prop (ParkedGliders adds its own) */
   hidePilot?: boolean
 }
 
 export function GliderModel({ barRef: externalBarRef, hidePilot }: GliderModelProps) {
   const barRef = externalBarRef
   const wingRef = useRef<THREE.Mesh>(null)
-  const wingGeo = useMemo(() => createDeltaWingGeometry(), [])
+  const bottomRef = useRef<THREE.Mesh>(null)
+  const wing = useMemo(() => createDeltaWingGeometry(), [])
   const edgeCurve = useMemo(() => createLeadingEdgeCurve(), [])
   const sailMap = useMemo(() => makeSailTexture(), [])
+  const sailNormal = useMemo(() => makeSailNormalMap(), [])
   const bottomMap = useMemo(() => makeBottomSailTexture(), [])
+  const normalTick = useRef(0)
 
   const frameMat = useMemo(
     () =>
@@ -184,39 +224,72 @@ export function GliderModel({ barRef: externalBarRef, hidePilot }: GliderModelPr
     [],
   )
 
-  // Soft sail billow from airspeed / pitch / roll (visual only)
-  useFrame(() => {
+  // Vertex morph: fabric billow + wing flex from airspeed / weight-shift
+  useFrame(({ clock }) => {
     const mesh = wingRef.current
     if (!mesh) return
     const { flight } = useGameStore.getState()
     const spd = Math.min(1, flight.airspeed / 22)
-    const billow = 1 + spd * 0.04 + Math.abs(flight.pitch) * 0.03
-    const twist = flight.roll * 0.04
-    mesh.scale.set(1 + Math.abs(twist) * 0.02, billow, 1)
-    mesh.rotation.z = twist * 0.15
-    mesh.rotation.x = -flight.pitch * 0.04 * spd
+    const flying = flight.phase === 'flying' || flight.phase === 'running'
+    const t = clock.elapsedTime
+    const pos = mesh.geometry.attributes.position as THREE.BufferAttribute
+    const { base, rows, cols } = wing
+    const roll = flight.roll
+    const pitch = flight.pitch
+
+    for (let i = 0; i <= rows; i++) {
+      const rowT = i / rows
+      for (let j = 0; j <= cols; j++) {
+        const s = j / cols
+        const idx = (i * (cols + 1) + j) * 3
+        const bx = base[idx]
+        const by = base[idx + 1]
+        const bz = base[idx + 2]
+        const spanFade = Math.cos((s - 0.5) * Math.PI)
+        const press = flying ? spd * 0.14 * spanFade * (1 - rowT * 0.35) : 0.02
+        const flex = roll * (s - 0.5) * 0.55 * rowT
+        const flutter =
+          flying && Math.abs(s - 0.5) > 0.35
+            ? Math.sin(t * 14 + s * 8 + bz) * 0.012 * spd
+            : 0
+        const wash = -pitch * Math.abs(s - 0.5) * 0.12 * rowT
+        pos.array[idx] = bx
+        pos.array[idx + 1] = by + press + flex + flutter
+        pos.array[idx + 2] = bz + wash * 0.4
+      }
+    }
+    pos.needsUpdate = true
+    normalTick.current += 1
+    if (normalTick.current % 3 === 0) mesh.geometry.computeVertexNormals()
+    if (bottomRef.current) {
+      bottomRef.current.geometry = mesh.geometry
+    }
+    mesh.rotation.z = roll * 0.06
+    mesh.rotation.x = -pitch * 0.035 * spd
   })
 
   return (
     <group>
-      <mesh ref={wingRef} geometry={wingGeo} castShadow receiveShadow>
+      <mesh ref={wingRef} geometry={wing.geo} castShadow receiveShadow>
         <meshStandardMaterial
           map={sailMap}
-          roughness={0.72}
-          metalness={0.04}
+          normalMap={sailNormal}
+          normalScale={new THREE.Vector2(0.55, 0.55)}
+          roughness={0.62}
+          metalness={0.06}
+          envMapIntensity={0.85}
           side={THREE.FrontSide}
         />
       </mesh>
-      <mesh geometry={wingGeo} castShadow receiveShadow>
+      <mesh ref={bottomRef} geometry={wing.geo} castShadow receiveShadow>
         <meshStandardMaterial
           map={bottomMap}
-          roughness={0.85}
-          metalness={0.02}
+          roughness={0.82}
+          metalness={0.03}
           side={THREE.BackSide}
         />
       </mesh>
 
-      {/* Nose cone */}
       <mesh castShadow position={[0, 0.9, 3.55]}>
         <sphereGeometry args={[0.16, 16, 16]} />
         <meshStandardMaterial color="#f8f9fa" metalness={0.35} roughness={0.35} />
@@ -255,7 +328,6 @@ export function GliderModel({ barRef: externalBarRef, hidePilot }: GliderModelPr
         </mesh>
       ))}
 
-      {/* A-frame / control bar */}
       <group ref={barRef} position={[0, -0.55, 0.15]}>
         {[-0.55, 0.55].map((x) => (
           <mesh key={x} position={[x * 0.15, 0.35, -0.1]} rotation={[0.35, 0, x > 0 ? -0.25 : 0.25]}>
@@ -285,4 +357,3 @@ export function GliderModel({ barRef: externalBarRef, hidePilot }: GliderModelPr
     </group>
   )
 }
-

@@ -27,6 +27,30 @@ function makeNoiseTexture(base: string, accent: string, size = 256): THREE.Canva
   return tex
 }
 
+function makeNormalTexture(size = 256): THREE.CanvasTexture {
+  const c = document.createElement('canvas')
+  c.width = size
+  c.height = size
+  const g = c.getContext('2d')!
+  g.fillStyle = '#8080ff'
+  g.fillRect(0, 0, size, size)
+  for (let i = 0; i < 2200; i++) {
+    const x = Math.random() * size
+    const y = Math.random() * size
+    const n = 110 + Math.random() * 40
+    g.fillStyle = `rgb(${n},${n},${180 + Math.random() * 40})`
+    g.beginPath()
+    g.arc(x, y, 0.8 + Math.random() * 2.2, 0, Math.PI * 2)
+    g.fill()
+  }
+  const tex = new THREE.CanvasTexture(c)
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.repeat.set(64, 64)
+  tex.colorSpace = THREE.NoColorSpace
+  tex.anisotropy = 8
+  return tex
+}
+
 interface DetailedTerrainProps {
   config: BiomeConfig
   biome: Biome
@@ -60,12 +84,14 @@ function sampleColor(biome: Biome, h: number, slope: number, x: number, z: numbe
   return c
 }
 
-export function DetailedTerrain({ config, biome, size = 1400, segments = 240 }: DetailedTerrainProps) {
+export function DetailedTerrain({ config, biome, size = 1400, segments = 320 }: DetailedTerrainProps) {
   const map = useMemo(() => {
     if (biome === 'beach') return makeNoiseTexture('#e9c46a', '#d4a373', 512)
     if (biome === 'mountains') return makeNoiseTexture('#588157', '#3a5a40', 512)
     return makeNoiseTexture('#52b788', '#40916c', 512)
   }, [biome])
+
+  const normalMap = useMemo(() => makeNormalTexture(384), [])
 
   const geometry = useMemo(() => {
     const geo = new THREE.PlaneGeometry(size, size, segments, segments)
@@ -93,12 +119,14 @@ export function DetailedTerrain({ config, biome, size = 1400, segments = 240 }: 
 
   return (
     <mesh geometry={geometry} receiveShadow castShadow>
-        <meshStandardMaterial
-          map={map}
-          vertexColors
-          roughness={0.9}
-          metalness={0.03}
-        />
+      <meshStandardMaterial
+        map={map}
+        normalMap={normalMap}
+        normalScale={new THREE.Vector2(0.7, 0.7)}
+        vertexColors
+        roughness={0.88}
+        metalness={0.04}
+      />
     </mesh>
   )
 }

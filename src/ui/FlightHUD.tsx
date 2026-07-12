@@ -20,6 +20,7 @@ import {
   writeTutorialDone,
   type TutorialStep,
 } from '../game/tutorial'
+import { xcProgressLabel } from '../game/xcTask'
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
 import { FriendFinder } from './FriendFinder'
@@ -59,6 +60,7 @@ export function FlightHUD() {
   const input = useGameStore((s) => s.input)
   const mode = useGameStore((s) => s.mode)
   const rings = useGameStore((s) => s.rings)
+  const xcTask = useGameStore((s) => s.xcTask)
   const parkedGliders = useGameStore((s) => s.parkedGliders)
   const cameraMode = useGameStore((s) => s.cameraMode)
   const cycleCamera = useGameStore((s) => s.cycleCamera)
@@ -242,6 +244,17 @@ export function FlightHUD() {
               <div className={styles.instrument}>
                 <span className={styles.instrumentLabel}>Rings</span>
                 <span className={styles.instrumentValue}>{passedRings}/{rings.length}</span>
+              </div>
+            </>
+          )}
+          {mode === 'xc' && xcTask && (
+            <>
+              <div className={styles.divider} />
+              <div className={styles.instrument}>
+                <span className={styles.instrumentLabel}>XC</span>
+                <span className={styles.instrumentValue} style={{ fontSize: 12 }}>
+                  {xcProgressLabel(xcTask)}
+                </span>
               </div>
             </>
           )}

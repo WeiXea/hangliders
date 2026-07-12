@@ -49,6 +49,12 @@ export function ResultScreen() {
           {mode === 'challenge' && (
             <Stat label="Rings" value={`${stats.ringsPassed}/${stats.totalRings}`} />
           )}
+          {mode === 'xc' && (
+            <>
+              <Stat label="Turnpoints" value={`${stats.xcTurnpoints}/${stats.xcTotal}`} />
+              <Stat label="Goal" value={stats.xcGoal ? 'Tagged' : 'Open'} />
+            </>
+          )}
         </div>
 
         <div className={styles.actions}>

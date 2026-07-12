@@ -26,7 +26,10 @@ const LIFTOFF_SPEED = 11
 const STALL = 8.5
 const BASE_SINK = 1.35
 const PITCH_RATE = 1.55
-const ROLL_RATE = 1.9
+const PITCH_TORQUE = 3.8
+const ROLL_TORQUE = 4.4
+const PITCH_DAMP = 2.6
+const ROLL_DAMP = 3.1
 const MAX_PITCH = 0.48
 const MAX_ROLL = 0.7
 const WALK_SPEED = 7.5
@@ -43,6 +46,9 @@ const MAX_SWING = 0.55
 const BODY_LAND_CLEARANCE = 1.0
 
 let swingVel = 0
+/** Weight-shift angular rates (rad/s) — rigid-body lite */
+let pitchVel = 0
+let rollVel = 0
 
 function smoothstep(t: number) {
   const x = Math.min(1, Math.max(0, t))
@@ -514,6 +520,8 @@ export function tickFlight(
       next.phase = 'flying'
       next.airspeed = Math.max(spd, CRUISE)
       next.pitch = 0.16
+      pitchVel = 0.15
+      rollVel = 0
       next.velocity = {
         x: Math.sin(next.yaw) * next.airspeed,
         y: 2.8,
@@ -553,16 +561,16 @@ export function tickFlight(
     return { flight: next, parked }
   }
 
-  if (input.pitchUp) next.pitch = Math.min(MAX_PITCH, next.pitch + PITCH_RATE * dt)
-  if (input.pitchDown) next.pitch = Math.max(-MAX_PITCH, next.pitch - PITCH_RATE * dt)
-  if (input.bankLeft) next.roll = Math.min(MAX_ROLL, next.roll + ROLL_RATE * dt)
-  if (input.bankRight) next.roll = Math.max(-MAX_ROLL, next.roll - ROLL_RATE * dt)
-
-  if (!input.bankLeft && !input.bankRight) next.roll *= 1 - Math.min(1, 2.8 * dt)
-  if (!input.pitchUp && !input.pitchDown) {
-    // Slight nose-down trim = stable cruise glide
-    next.pitch += (-0.04 - next.pitch) * Math.min(1, 1.1 * dt)
-  }
+  // Weight-shift lite: input applies torque; rates damp toward trim
+  const pitchCmd = (input.pitchUp ? 1 : 0) - (input.pitchDown ? 1 : 0)
+  const rollCmd = (input.bankLeft ? 1 : 0) - (input.bankRight ? 1 : 0)
+  const trimPitch = -0.04
+  pitchVel += (pitchCmd * PITCH_TORQUE - (next.pitch - trimPitch) * 1.4 - pitchVel * PITCH_DAMP) * dt
+  rollVel += (rollCmd * ROLL_TORQUE - next.roll * 1.1 - rollVel * ROLL_DAMP) * dt
+  pitchVel = Math.max(-2.2, Math.min(2.2, pitchVel))
+  rollVel = Math.max(-2.8, Math.min(2.8, rollVel))
+  next.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, next.pitch + pitchVel * dt))
+  next.roll = Math.max(-MAX_ROLL, Math.min(MAX_ROLL, next.roll + rollVel * dt))
 
   // Speed bar directly controls airspeed (arcade — playable). Pitch still steers climb/dive.
   if (input.speedUp) {

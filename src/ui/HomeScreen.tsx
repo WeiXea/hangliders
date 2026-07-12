@@ -229,14 +229,14 @@ export function HomeScreen() {
             <div className={styles.pickerSection}>
               <span className={styles.sectionLabel}>Mode</span>
               <div className={styles.modePicker}>
-                {(['free', 'challenge'] as GameMode[]).map((m) => (
+                {(['free', 'challenge', 'xc'] as GameMode[]).map((m) => (
                   <button
                     key={m}
                     type="button"
                     className={`${styles.modeBtn} ${mode === m ? styles.modeActive : ''}`}
                     onClick={() => setMode(m)}
                   >
-                    {m === 'free' ? 'Free Flight' : 'Challenge'}
+                    {m === 'free' ? 'Free Flight' : m === 'challenge' ? 'Challenge' : 'XC Task'}
                   </button>
                 ))}
               </div>

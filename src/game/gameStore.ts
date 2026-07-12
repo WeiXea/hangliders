@@ -20,6 +20,7 @@ import {
   initParkedGliders,
 } from './flightPhysics'
 import { buildChallengeRings } from './challengeCourse'
+import { buildXCTask, type XCTask } from './xcTask'
 import { playRingSound } from './audio'
 import { checkRingCollision } from './obstacles'
 import {
@@ -42,6 +43,7 @@ interface GameStore {
   flight: FlightState
   input: InputState
   rings: ChallengeRing[]
+  xcTask: XCTask | null
   parkedGliders: ParkedGlider[]
   stats: FlightStats | null
   simTime: number
@@ -71,6 +73,7 @@ interface GameStore {
   updateFlight: (flight: FlightState, parked?: ParkedGlider[]) => void
   setSimTime: (t: number) => void
   checkRings: () => void
+  checkXC: () => void
   finishFlight: () => void
   endFlightFromWalk: () => void
   goHome: () => void
@@ -96,6 +99,7 @@ function calcScore(
   rings: ChallengeRing[],
   mode: GameMode,
   landingQuality: FlightStats['landingQuality'],
+  xcTask: XCTask | null,
 ): number {
   let score = Math.round(
     flight.distance * 2 +
@@ -111,6 +115,19 @@ function calcScore(
     if (landingQuality === 'perfect') score += 1000
     else if (landingQuality === 'good') score += 500
   }
+  if (mode === 'xc' && xcTask) {
+    const tagged = xcTask.turnpoints.filter((t) => t.tagged).length
+    score += tagged * 750
+    score += Math.round(flight.timeInLift * 80)
+    score += Math.round(flight.distance * 1.5)
+    if (xcTask.completed) {
+      score += 2500
+      if (xcTask.startTime != null && xcTask.finishTime != null) {
+        const elapsed = Math.max(1, xcTask.finishTime - xcTask.startTime)
+        score += Math.round(120000 / elapsed)
+      }
+    }
+  }
   return score
 }
 
@@ -122,6 +139,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   flight: { ...INITIAL_FLIGHT },
   input: { ...INITIAL_INPUT },
   rings: initRings('beach'),
+  xcTask: null,
   parkedGliders: initParkedGliders(BIOME_CONFIGS.beach),
   stats: null,
   simTime: 0,
@@ -143,9 +161,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       biome,
       rings: initRings(biome),
+      xcTask: get().mode === 'xc' ? buildXCTask(biome) : null,
       parkedGliders: initParkedGliders(BIOME_CONFIGS[biome]),
     }),
-  setMode: (mode) => set({ mode }),
+  setMode: (mode) =>
+    set({
+      mode,
+      xcTask: mode === 'xc' ? buildXCTask(get().biome) : null,
+    }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
   cycleCamera: () => {
     const { cameraMode } = get()
@@ -213,6 +236,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       flight: createInitialFlight(config),
       input: { ...INITIAL_INPUT },
       rings: initRings(biome),
+      xcTask: get().mode === 'xc' ? buildXCTask(biome) : null,
       parkedGliders: initParkedGliders(config),
       stats: null,
       simTime: 0,
@@ -258,8 +282,47 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
+  checkXC: () => {
+    const { flight, mode, xcTask, simTime } = get()
+    if (mode !== 'xc' || !xcTask || xcTask.completed) return
+    if (flight.phase !== 'flying' && flight.phase !== 'parachuting') return
+
+    let task = { ...xcTask, turnpoints: xcTask.turnpoints.map((t) => ({ ...t })) }
+    if (task.startTime == null && flight.airtime > 1) {
+      task = { ...task, startTime: simTime }
+    }
+
+    if (task.nextIndex < task.turnpoints.length) {
+      const tp = task.turnpoints[task.nextIndex]
+      const d = Math.hypot(
+        flight.position.x - tp.position.x,
+        flight.position.z - tp.position.z,
+      )
+      if (d <= tp.radius && flight.altitude >= tp.minAlt) {
+        playRingSound()
+        task.turnpoints[task.nextIndex] = { ...tp, tagged: true }
+        task = { ...task, nextIndex: task.nextIndex + 1 }
+      }
+    } else {
+      const g = task.goal
+      const d = Math.hypot(
+        flight.position.x - g.position.x,
+        flight.position.z - g.position.z,
+      )
+      if (d <= g.radius && flight.altitude < 35) {
+        playRingSound()
+        task = {
+          ...task,
+          completed: true,
+          finishTime: simTime,
+        }
+      }
+    }
+    set({ xcTask: task })
+  },
+
   finishFlight: () => {
-    const { flight, rings, mode, biome } = get()
+    const { flight, rings, mode, biome, xcTask } = get()
     const config = BIOME_CONFIGS[biome]
     let landingQuality = getLandingQuality(flight)
 
@@ -278,6 +341,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
+    if (mode === 'xc' && xcTask?.completed) {
+      landingQuality = landingQuality ?? 'perfect'
+    }
+
     const stats: FlightStats = {
       airtime: flight.airtime,
       maxAltitude: flight.maxAltitude,
@@ -286,8 +353,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       timeInLift: flight.timeInLift,
       ringsPassed: rings.filter((r) => r.passed).length,
       totalRings: rings.length,
+      xcTurnpoints: xcTask?.turnpoints.filter((t) => t.tagged).length ?? 0,
+      xcTotal: xcTask?.turnpoints.length ?? 0,
+      xcGoal: xcTask?.completed ?? false,
       landingQuality,
-      score: calcScore(flight, rings, mode, landingQuality),
+      score: calcScore(flight, rings, mode, landingQuality, xcTask),
     }
     set({ stats, screen: 'result' })
   },
@@ -319,6 +389,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       input: { ...INITIAL_INPUT },
       stats: null,
       simTime: 0,
+      xcTask: null,
       roomCode: null,
       roomRole: 'solo',
       roomStatus: '',
@@ -347,6 +418,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       peerConnected: true,
       roomStatus: `${name} joined`,
       rings: initRings(biome),
+      xcTask: mode === 'xc' ? buildXCTask(biome) : null,
       parkedGliders: initParkedGliders(config),
     })
   },

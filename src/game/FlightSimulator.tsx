@@ -37,6 +37,7 @@ export function FlightSimulator() {
   const screen = useGameStore((s) => s.screen)
   const updateFlight = useGameStore((s) => s.updateFlight)
   const checkRings = useGameStore((s) => s.checkRings)
+  const checkXC = useGameStore((s) => s.checkXC)
   const finishFlight = useGameStore((s) => s.finishFlight)
   const setSimTime = useGameStore((s) => s.setSimTime)
   const config = BIOME_CONFIGS[biome]
@@ -176,6 +177,7 @@ export function FlightSimulator() {
     // Hold one-shot pulses until a fixed step actually consumes them
     if (steps > 0) finishInput(frameInput)
     checkRings()
+    checkXC()
   })
 
   return null

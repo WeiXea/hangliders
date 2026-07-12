@@ -1,5 +1,5 @@
 export type Biome = 'beach' | 'mountains' | 'city'
-export type GameMode = 'free' | 'challenge'
+export type GameMode = 'free' | 'challenge' | 'xc'
 export type Screen = 'home' | 'flight' | 'result'
 export type FlightPhase =
   | 'grounded'
@@ -105,6 +105,9 @@ export interface FlightStats {
   timeInLift: number
   ringsPassed: number
   totalRings: number
+  xcTurnpoints: number
+  xcTotal: number
+  xcGoal: boolean
   landingQuality: 'perfect' | 'good' | 'hard' | 'crash' | null
   score: number
 }
