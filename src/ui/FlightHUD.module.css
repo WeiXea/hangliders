@@ -439,3 +439,10 @@
     font-size: 26px;
   }
 }
+
+/* Desktop / mouse: hide touch steer pads — use arrows / WASD */
+@media (pointer: fine) {
+  .leftPads {
+    display: none;
+  }
+}

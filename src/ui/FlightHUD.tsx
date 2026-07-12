@@ -3,6 +3,7 @@ import { useGameStore } from '../game/gameStore'
 import {
   calibrateTiltNow,
   useKeyboardControls,
+  useMouseLook,
   useTiltControls,
   useTouchControl,
 } from '../game/controls'
@@ -61,6 +62,7 @@ export function FlightHUD() {
 
   useKeyboardControls()
   useTiltControls()
+  useMouseLook()
 
   useEffect(() => {
     startWindAudio(flight.airspeed, flight.phase)
@@ -207,12 +209,12 @@ export function FlightHUD() {
       )}
 
       {canJump && (
-        <div className={styles.nearGround}>Jump ready — tap JUMP in the center (or Space)</div>
+        <div className={styles.nearGround}>Jump ready — press Space (or J)</div>
       )}
 
       {peerConnected && !inTandem && (
         <div className={styles.coach}>
-          Multiplayer · {remoteName || 'Friend'} is in this sky — radar finds them
+          Multiplayer · {remoteName || 'Friend'} — radar · look: Alt+←→↓ or hold right-click drag · Q/E/B
         </div>
       )}
 
@@ -276,25 +278,6 @@ export function FlightHUD() {
         </div>
       )}
 
-      {/* Big center actions — hard to miss while flying */}
-      {flying && (
-        <div className={styles.centerActions}>
-          <button
-            type="button"
-            className={`${styles.bigJump} ${canJump ? styles.bigJumpReady : ''}`}
-            disabled={!canJump}
-            onPointerDown={(e) => {
-              e.preventDefault()
-              if (canJump) useGameStore.getState().setInput({ jump: true })
-            }}
-          >
-            JUMP
-            <span className={styles.bigJumpSub}>
-              {canJump ? 'Leave glider · Space' : `Need ${JUMP_MIN_ALTITUDE}m alt`}
-            </span>
-          </button>
-        </div>
-      )}
       {freefall && (
         <div className={styles.centerActions}>
           <button
@@ -340,11 +323,6 @@ export function FlightHUD() {
           </div>
         )}
         <div className={styles.rightPads}>
-          <div className={styles.lookPads}>
-            <ControlPad label="◀" sub="Look" action="lookLeft" active={input.lookLeft} />
-            <ControlPad label="▼" sub="Rear" action="lookBack" active={input.lookBack} />
-            <ControlPad label="▶" sub="Look" action="lookRight" active={input.lookRight} />
-          </div>
           {freefall && (
             <ControlPad
               label="Chute"

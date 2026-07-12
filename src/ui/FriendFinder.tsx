@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { useGameStore } from '../game/gameStore'
 import { bearingTo, horizontalDist } from '../game/multiplayerSocial'
+import { getLookOffsets } from '../game/lookCamera'
 import styles from './FriendFinder.module.css'
 
 /** Edge arrow + mini radar so multiplayer partners can find each other. */
@@ -9,30 +10,30 @@ export function FriendFinder() {
   const remote = useGameStore((s) => s.remoteFlight)
   const connected = useGameStore((s) => s.peerConnected)
   const remoteName = useGameStore((s) => s.remoteName)
-  const input = useGameStore((s) => s.input)
+  const [, setTick] = useState(0)
 
-  const info = useMemo(() => {
-    if (!connected || !remote) return null
-    if (flight.tandemRole !== 'none') return null
-    const dist = horizontalDist(flight.position, remote.position)
-    const bearing = bearingTo(flight.position, remote.position)
-    const look =
-      input.lookBack ? Math.PI : input.lookLeft ? Math.PI * 0.55 : input.lookRight ? -Math.PI * 0.55 : 0
-    let rel = bearing - flight.yaw - look
-    while (rel > Math.PI) rel -= Math.PI * 2
-    while (rel < -Math.PI) rel += Math.PI * 2
-    const ahead = Math.abs(rel) < 0.45 && dist > 4
-    return { dist, relDeg: (rel * 180) / Math.PI, ahead, altDelta: remote.position.y - flight.position.y }
-  }, [connected, remote, flight, input.lookBack, input.lookLeft, input.lookRight])
+  useEffect(() => {
+    let id = 0
+    const loop = () => {
+      setTick((n) => n + 1)
+      id = requestAnimationFrame(loop)
+    }
+    id = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(id)
+  }, [])
 
-  if (!info) return null
+  if (!connected || !remote) return null
+  if (flight.tandemRole !== 'none') return null
 
-  const edge =
-    Math.abs(info.relDeg) > 25
-      ? {
-          transform: `translate(-50%, -50%) rotate(${info.relDeg}deg)`,
-        }
-      : null
+  const dist = horizontalDist(flight.position, remote.position)
+  const bearing = bearingTo(flight.position, remote.position)
+  const lookYaw = getLookOffsets().yaw
+  let rel = bearing - flight.yaw - lookYaw
+  while (rel > Math.PI) rel -= Math.PI * 2
+  while (rel < -Math.PI) rel += Math.PI * 2
+  const relDeg = (rel * 180) / Math.PI
+  const ahead = Math.abs(rel) < 0.45 && dist > 4
+  const altDelta = remote.position.y - flight.position.y
 
   return (
     <div className={styles.wrap} aria-hidden>
@@ -42,28 +43,31 @@ export function FriendFinder() {
         <div
           className={styles.radarBlip}
           style={{
-            transform: `translate(-50%, -50%) rotate(${info.relDeg}deg) translateY(-28px)`,
+            transform: `translate(-50%, -50%) rotate(${relDeg}deg) translateY(-28px)`,
           }}
         />
-        <span className={styles.radarDist}>{Math.round(info.dist)}m</span>
+        <span className={styles.radarDist}>{Math.round(dist)}m</span>
       </div>
 
-      {!info.ahead && edge && (
-        <div className={styles.edgeArrow} style={edge}>
+      {!ahead && Math.abs(relDeg) > 25 && (
+        <div
+          className={styles.edgeArrow}
+          style={{ transform: `translate(-50%, -50%) rotate(${relDeg}deg)` }}
+        >
           <span className={styles.arrowGlyph}>▲</span>
           <span
             className={styles.arrowLabel}
-            style={{ transform: `rotate(${-info.relDeg}deg)` }}
+            style={{ transform: `rotate(${-relDeg}deg)` }}
           >
-            {remoteName || 'Friend'} · {Math.round(info.dist)}m
-            {info.altDelta > 8 ? ' ↑' : info.altDelta < -8 ? ' ↓' : ''}
+            {remoteName || 'Friend'} · {Math.round(dist)}m
+            {altDelta > 8 ? ' ↑' : altDelta < -8 ? ' ↓' : ''}
           </span>
         </div>
       )}
 
-      {info.ahead && info.dist > 8 && (
+      {ahead && dist > 8 && (
         <div className={styles.aheadHint}>
-          {remoteName || 'Friend'} ahead · {Math.round(info.dist)}m
+          {remoteName || 'Friend'} ahead · {Math.round(dist)}m
         </div>
       )}
     </div>

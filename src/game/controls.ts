@@ -11,6 +11,7 @@ import {
   setLatestTiltSample,
   steerFromSample,
 } from './tilt'
+import { addMouseLook, resetLook, setMouseLookHeld } from './lookCamera'
 
 const PITCH_BANK_DOWN: Record<string, Partial<InputState>> = {
   ArrowUp: { pitchDown: true },
@@ -188,6 +189,25 @@ export function useKeyboardControls() {
         return
       }
 
+      // Alt / Option + arrows = look around (arrows alone still steer)
+      if (e.altKey) {
+        if (e.code === 'ArrowLeft') {
+          e.preventDefault()
+          setInput({ lookLeft: true, lookRight: false, lookBack: false })
+          return
+        }
+        if (e.code === 'ArrowRight') {
+          e.preventDefault()
+          setInput({ lookRight: true, lookLeft: false, lookBack: false })
+          return
+        }
+        if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
+          e.preventDefault()
+          setInput({ lookBack: true, lookLeft: false, lookRight: false })
+          return
+        }
+      }
+
       // When tilt owns steering, skip keyboard pitch/bank (walk still uses WASD)
       const phase = useGameStore.getState().flight.phase
       if (tiltEnabled && phase !== 'walking' && phase !== 'freefall' && phase !== 'parachuting') {
@@ -209,6 +229,14 @@ export function useKeyboardControls() {
     const onKeyUp = (e: KeyboardEvent) => {
       if (screen !== 'flight') return
       syncModifiers(e, setInput)
+
+      if (e.code === 'AltLeft' || e.code === 'AltRight') {
+        setInput({ lookLeft: false, lookRight: false, lookBack: false })
+      }
+      if (e.code === 'ArrowLeft') setInput({ lookLeft: false })
+      if (e.code === 'ArrowRight') setInput({ lookRight: false })
+      if (e.code === 'ArrowDown' || e.code === 'ArrowUp') setInput({ lookBack: false })
+
       if (tiltEnabled) {
         const release = RELEASE_MAP[e.code]
         if (
@@ -243,7 +271,10 @@ export function useKeyboardControls() {
       }
     }
 
-    const onBlur = () => setInput({ ...INITIAL_INPUT })
+    const onBlur = () => {
+      setInput({ ...INITIAL_INPUT })
+      resetLook()
+    }
 
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
@@ -252,8 +283,45 @@ export function useKeyboardControls() {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('blur', onBlur)
+      resetLook()
     }
   }, [screen, setInput, cycleCamera, startFlight, goHome, tiltEnabled])
+}
+
+/** Hold right mouse button and drag to look around (desktop). */
+export function useMouseLook() {
+  const screen = useGameStore((s) => s.screen)
+
+  useEffect(() => {
+    if (screen !== 'flight') return
+
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 2 && e.button !== 1) return
+      e.preventDefault()
+      setMouseLookHeld(true)
+    }
+    const onUp = (e: PointerEvent) => {
+      if (e.button !== 2 && e.button !== 1) return
+      setMouseLookHeld(false)
+    }
+    const onMove = (e: PointerEvent) => {
+      if ((e.buttons & 2) === 0 && (e.buttons & 4) === 0) return
+      addMouseLook(e.movementX, e.movementY)
+    }
+    const onContext = (e: Event) => e.preventDefault()
+
+    window.addEventListener('pointerdown', onDown)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('contextmenu', onContext)
+    return () => {
+      window.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('contextmenu', onContext)
+      setMouseLookHeld(false)
+    }
+  }, [screen])
 }
 
 export function useTiltControls() {

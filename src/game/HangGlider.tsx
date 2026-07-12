@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useGameStore } from './gameStore'
 import { GliderModel } from './GliderModel'
 import { AnimatedPilot, ParachuteCanopy, PILOT_EYE, PILOT_HIP } from './Pilot'
+import { getLookOffsets, setKeyLookTarget, tickLook } from './lookCamera'
 
 export function HangGlider() {
   const groupRef = useRef<THREE.Group>(null)
@@ -17,7 +18,6 @@ export function HangGlider() {
 
   const lookTarget = useRef(new THREE.Vector3())
   const worldQuat = useRef(new THREE.Quaternion())
-  const lookYaw = useRef(0)
 
   useFrame((_, delta) => {
     if (!groupRef.current || !bodyRef.current) return
@@ -45,19 +45,16 @@ export function HangGlider() {
       )
     }
 
-    // Look left / right / behind (local only — not networked)
-    const lookGoal = input.lookBack
-      ? Math.PI
-      : input.lookLeft
-        ? Math.PI * 0.55
-        : input.lookRight
-          ? -Math.PI * 0.55
-          : 0
-    lookYaw.current = THREE.MathUtils.lerp(lookYaw.current, lookGoal, 1 - Math.pow(0.0002, delta))
+    if (input.lookBack) setKeyLookTarget(Math.PI)
+    else if (input.lookLeft) setKeyLookTarget(Math.PI * 0.55)
+    else if (input.lookRight) setKeyLookTarget(-Math.PI * 0.55)
+    else if (!getLookOffsets().mouseHeld) setKeyLookTarget(null)
 
-    const lookQuat = new THREE.Quaternion().setFromAxisAngle(
-      new THREE.Vector3(0, 1, 0),
-      lookYaw.current,
+    tickLook(delta)
+    const look = getLookOffsets()
+
+    const lookQuat = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(look.pitch, look.yaw, 0, 'YXZ'),
     )
 
     worldQuat.current.setFromEuler(
@@ -67,40 +64,40 @@ export function HangGlider() {
 
     const origin = new THREE.Vector3(position.x, position.y, position.z)
     let eye = new THREE.Vector3()
-    let look = new THREE.Vector3()
+    let lookAt = new THREE.Vector3()
     let targetFov = 60
 
     if (phase === 'walking') {
       eye.set(0, PILOT_EYE + 0.15, -6.5)
-      look.set(0, PILOT_EYE * 0.55, 10)
+      lookAt.set(0, PILOT_EYE * 0.55, 10)
       targetFov = 58
     } else if (phase === 'freefall') {
       eye.set(0, 1.6, -10)
-      look.set(0, -3, 14)
+      lookAt.set(0, -3, 14)
       targetFov = 72
     } else if (phase === 'parachuting') {
       eye.set(0, 2.8, -12)
-      look.set(0, -1.5, 10)
+      lookAt.set(0, -1.5, 10)
       targetFov = 64
     } else if (cameraMode === 'chase') {
       eye.set(0, 3.5, -16)
-      look.set(0, -4, 28)
+      lookAt.set(0, -4, 28)
       targetFov = 62
     } else if (cameraMode === 'side') {
       eye.set(18, 4, -4)
-      look.set(0, -2, 12)
+      lookAt.set(0, -2, 12)
       targetFov = 58
     } else {
       eye.set(0, -0.38, -0.35)
-      look.set(0, -2.5, 26)
+      lookAt.set(0, -2.5, 26)
       targetFov = 76
     }
 
     eye.applyQuaternion(worldQuat.current)
-    look.applyQuaternion(worldQuat.current)
+    lookAt.applyQuaternion(worldQuat.current)
 
     const camPos = origin.clone().add(eye)
-    lookTarget.current.copy(origin).add(look)
+    lookTarget.current.copy(origin).add(lookAt)
 
     const lerp = 1 - Math.pow(0.00005, delta)
     camera.position.lerp(camPos, lerp)
@@ -121,10 +118,7 @@ export function HangGlider() {
     flight.tandemRole === 'passenger'
   const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
   const showChute = phase === 'parachuting' || (phase === 'freefall' && flight.chuteDeployed)
-  const showTandemPassenger =
-    peerConnected &&
-    flight.tandemRole === 'pilot' &&
-    showWing
+  const showTandemPassenger = peerConnected && flight.tandemRole === 'pilot' && showWing
 
   return (
     <group ref={groupRef}>
@@ -150,13 +144,7 @@ export function HangGlider() {
           </group>
         )}
         {offGlider && flight.tandemRole !== 'passenger' && (
-          <group
-            position={[
-              0,
-              phase === 'walking' ? 0 : -PILOT_HIP * 0.15,
-              0,
-            ]}
-          >
+          <group position={[0, phase === 'walking' ? 0 : -PILOT_HIP * 0.15, 0]}>
             <AnimatedPilot />
           </group>
         )}
