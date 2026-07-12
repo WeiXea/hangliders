@@ -221,7 +221,7 @@ export function GliderModel({
     smoothRoll.current = THREE.MathUtils.lerp(smoothRoll.current, flight.roll, k)
     smoothPitch.current = THREE.MathUtils.lerp(smoothPitch.current, flight.pitch, k)
     mesh.rotation.z = smoothRoll.current * 0.02
-    mesh.rotation.x = -smoothPitch.current * 0.01
+    mesh.rotation.x = smoothPitch.current * 0.01
   })
 
   return (

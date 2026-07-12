@@ -54,7 +54,7 @@ export function RemotePlayer() {
       remote.phase === 'landed' ||
       remote.phase === 'walking'
     body.current.rotation.set(
-      onGround ? 0 : d.pitch * 0.8,
+      onGround ? 0 : -d.pitch * 0.8,
       0,
       onGround ? 0 : -d.roll,
     )
