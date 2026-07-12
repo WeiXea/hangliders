@@ -1,0 +1,133 @@
+.result {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 20, 35, 0.75);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.card {
+  width: min(400px, 92vw);
+  padding: 32px 24px;
+  background: rgba(20, 35, 55, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  text-align: center;
+  animation: slideUp 0.5s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 36px;
+  color: #fff;
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.subtitle {
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 6px 0 24px;
+}
+
+.scoreBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.scoreLabel {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.scoreValue {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  color: #ffd166;
+  line-height: 1.1;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.statLabel {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.statValue {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  color: #fff;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.retryBtn,
+.homeBtn {
+  flex: 1;
+  padding: 14px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease;
+}
+
+.retryBtn {
+  color: #0a1628;
+  background: linear-gradient(135deg, #ffd166, #f4a261);
+}
+
+.homeBtn {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.retryBtn:active,
+.homeBtn:active {
+  transform: scale(0.97);
+}
