@@ -22,7 +22,7 @@ function ParkedMarker({
   const y = getHeight(x, z) + GROUND_CLEARANCE
   return (
     <group position={[x, y, z]} rotation={[0, yaw, 0]}>
-      <GliderModel hidePilot />
+      <GliderModel hidePilot staticModel />
       {/* Soft beacon so walkers can spot mounts */}
       <mesh position={[0, 0.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[3.2, 3.6, 32]} />

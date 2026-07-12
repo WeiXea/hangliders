@@ -122,7 +122,7 @@ export function MountainScene({ config }: MountainSceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="mountains" segments={200} />
+      <DetailedTerrain config={config} biome="mountains" segments={140} />
       <HorizonRing color="#6b8e4e" y={2} />
       <LaunchRamp config={config} />
       <ScatterRocks config={config} count={80} area={360} />

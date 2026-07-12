@@ -1,16 +1,5 @@
 import { Cloud, Environment, Sky, ContactShadows } from '@react-three/drei'
-import {
-  EffectComposer,
-  Bloom,
-  Vignette,
-  SMAA,
-  N8AO,
-  BrightnessContrast,
-  HueSaturation,
-  Noise,
-  ToneMapping,
-} from '@react-three/postprocessing'
-import { ToneMappingMode } from 'postprocessing'
+import { EffectComposer, Bloom, Vignette, SMAA } from '@react-three/postprocessing'
 import type { BiomeConfig } from '../types/game'
 import { biomeHdriPath } from '../game/pbrMaps'
 
@@ -71,7 +60,7 @@ function CloudLayers({ config }: { config: BiomeConfig }) {
           opacity={0.42}
           speed={0.06}
           bounds={[42 * s, 8, 26 * s]}
-          segments={18}
+          segments={12}
           position={[x, y, z]}
           color="#fff7eb"
         />
@@ -91,12 +80,12 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
         intensity={2.45}
         color="#ffe0b8"
         castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-far={500}
-        shadow-camera-left={-160}
-        shadow-camera-right={160}
-        shadow-camera-top={160}
-        shadow-camera-bottom={-160}
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-far={350}
+        shadow-camera-left={-120}
+        shadow-camera-right={120}
+        shadow-camera-top={120}
+        shadow-camera-bottom={-120}
         shadow-bias={-0.0002}
         shadow-normalBias={0.04}
       />
@@ -110,23 +99,13 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
   )
 }
 
-/** Film-leaning post: ACES, AO, restrained bloom, light grade + grain. */
+/** Lightweight post — avoid multi-pass stacks that stutter on mobile. */
 export function FlightPostFX() {
   return (
-    <EffectComposer multisampling={0} enableNormalPass>
+    <EffectComposer multisampling={0}>
       <SMAA />
-      <N8AO aoRadius={1.1} intensity={1.35} distanceFalloff={0.85} quality="medium" />
-      <Bloom
-        luminanceThreshold={0.92}
-        luminanceSmoothing={0.4}
-        intensity={0.22}
-        mipmapBlur
-      />
-      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      <BrightnessContrast brightness={0.015} contrast={0.07} />
-      <HueSaturation saturation={0.04} />
-      <Noise opacity={0.028} />
-      <Vignette offset={0.28} darkness={0.38} />
+      <Bloom luminanceThreshold={0.95} intensity={0.12} mipmapBlur />
+      <Vignette offset={0.3} darkness={0.32} />
     </EffectComposer>
   )
 }

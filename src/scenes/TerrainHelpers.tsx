@@ -37,7 +37,7 @@ function sampleColor(biome: Biome, h: number, slope: number, x: number, z: numbe
   return c
 }
 
-export function DetailedTerrain({ config, biome, size = 1400, segments = 320 }: DetailedTerrainProps) {
+export function DetailedTerrain({ config, biome, size = 1400, segments = 160 }: DetailedTerrainProps) {
   const ground = useGroundMaps(biome)
 
   const geometry = useMemo(() => {
@@ -163,7 +163,7 @@ export function OceanSurface({
       receiveShadow
       renderOrder={-2}
     >
-      <planeGeometry args={[scale[0], scale[1], 96, 64]} />
+      <planeGeometry args={[scale[0], scale[1], 48, 32]} />
       <shaderMaterial
         ref={matRef}
         uniforms={uniforms}

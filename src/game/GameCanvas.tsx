@@ -38,14 +38,15 @@ export function GameCanvas() {
   return (
     <Canvas
       shadows
-      dpr={[1, 2]}
-      camera={{ position: [config.launchPosition.x, 20, config.launchPosition.z - 15], fov: 58, near: 0.1, far: 2200 }}
+      dpr={[1, 1.5]}
+      camera={{ position: [config.launchPosition.x, 20, config.launchPosition.z - 15], fov: 58, near: 0.1, far: 1800 }}
       gl={{
         antialias: true,
         alpha: false,
         powerPreference: 'high-performance',
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure: 1.05,
+        stencil: false,
       }}
       style={{ width: '100%', height: '100%' }}
     >

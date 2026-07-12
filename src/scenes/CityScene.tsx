@@ -354,7 +354,7 @@ export function CityScene({ config }: CitySceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="city" size={640} segments={160} />
+      <DetailedTerrain config={config} biome="city" size={640} segments={120} />
       <HorizonRing color="#6c757d" y={0} />
       <StreetGrid />
       {CITY_BUILDINGS.map((b) => (

@@ -131,7 +131,7 @@ export function BeachScene({ config }: BeachSceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="beach" />
+      <DetailedTerrain config={config} biome="beach" segments={150} />
       <HorizonRing color="#c9a227" y={-1} />
       <OceanSurface y={-0.55} />
       <LaunchRamp config={config} />
