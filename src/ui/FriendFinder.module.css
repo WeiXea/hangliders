@@ -7,9 +7,9 @@
 
 .radar {
   position: absolute;
-  left: max(14px, env(safe-area-inset-left));
-  bottom: max(24px, env(safe-area-inset-bottom));
-  transform: none;
+  left: 50%;
+  bottom: max(96px, calc(env(safe-area-inset-bottom) + 88px));
+  transform: translateX(-50%);
   width: 76px;
   height: 76px;
   border-radius: 50%;

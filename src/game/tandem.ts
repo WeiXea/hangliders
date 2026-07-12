@@ -37,6 +37,37 @@ function dropOff(flight: FlightState, config: BiomeConfig, near: FlightState): F
   }
 }
 
+/** Passenger (or dumped rider) leaves the wing into freefall — can deploy chute. */
+function bailToFreefall(flight: FlightState, from: FlightState): FlightState {
+  const gy =
+    from.position.y /* keep air position */
+  return {
+    ...flight,
+    phase: 'freefall',
+    position: {
+      x: from.position.x + Math.cos(from.yaw) * 1.2,
+      y: Math.max(from.position.y - 0.5, gy),
+      z: from.position.z - Math.sin(from.yaw) * 1.2,
+    },
+    velocity: {
+      x: from.velocity.x * 0.5,
+      y: Math.min(from.velocity.y, -2),
+      z: from.velocity.z * 0.5,
+    },
+    airspeed: Math.max(8, from.airspeed * 0.55),
+    pitch: 0.25,
+    roll: 0,
+    altitude: from.altitude,
+    tandemRole: 'none',
+    tandemWant: false,
+    landAction: 'none',
+    mountedId: -1,
+    chuteDeployed: false,
+    chuteInflation: 0,
+    chuteSwing: 0,
+  }
+}
+
 function becomePilot(
   flight: FlightState,
   parked: ParkedGlider[],
@@ -124,10 +155,26 @@ export function resolveTandem(
 
   // Leave tandem
   if ((input.tandem || input.jump) && next.tandemRole !== 'none') {
-    // Jump only hops passenger off; pilot jump is handled by normal physics
+    // Pilot jump is handled by normal glider physics
     if (input.jump && next.tandemRole === 'pilot') {
-      /* fall through — pilot may jump off glider normally later */
-    } else {
+      /* fall through */
+    } else if (input.jump && next.tandemRole === 'passenger') {
+      // Passenger jumps off into freefall → can parachute
+      const from = isOnGlider(remote.phase) || remote.tandemRole === 'pilot' ? remote : next
+      if (from.altitude >= 8 || from.phase === 'flying' || from.phase === 'running') {
+        return {
+          flight: bailToFreefall(next, from),
+          parked: parkedOut,
+          followPilot: false,
+        }
+      }
+      return {
+        flight: dropOff(next, config, from),
+        parked: parkedOut,
+        followPilot: false,
+      }
+    } else if (input.tandem) {
+      // T = gentle leave to ground walk
       return {
         flight: dropOff(next, config, isOnGlider(remote.phase) ? remote : next),
         parked: parkedOut,
@@ -155,13 +202,16 @@ export function resolveTandem(
       }
     }
 
-    // Pilot jumped / walked away — hop off
-    if (
-      remote.phase === 'walking' ||
-      remote.phase === 'freefall' ||
-      remote.phase === 'parachuting' ||
-      remote.phase === 'crashed'
-    ) {
+    // Pilot bailed — passenger also freefalls (can chute), don't teleport to ground
+    if (remote.phase === 'freefall' || remote.phase === 'parachuting') {
+      return {
+        flight: bailToFreefall(next, remote),
+        parked: parkedOut,
+        followPilot: false,
+      }
+    }
+
+    if (remote.phase === 'walking' || remote.phase === 'crashed') {
       return {
         flight: dropOff(next, config, remote),
         parked: parkedOut,
@@ -233,7 +283,7 @@ export function canOfferTandem(local: FlightState, remote: FlightState | null): 
 
 export function tandemButtonLabel(local: FlightState, remote: FlightState | null): string {
   if (local.tandemRole === 'pilot') return 'Leave tandem'
-  if (local.tandemRole === 'passenger') return 'Hop off'
+  if (local.tandemRole === 'passenger') return 'Leave tandem'
   if (!remote) return 'Tandem'
   if (remote.tandemRole === 'pilot' || isOnGlider(remote.phase)) return 'Board tandem'
   if (isOnGlider(local.phase)) return 'Invite tandem'

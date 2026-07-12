@@ -222,8 +222,8 @@ export function FlightHUD() {
       {inTandem && (
         <div className={styles.nearGround}>
           {flight.tandemRole === 'pilot'
-            ? `Tandem pilot — friend can board nearby · T to leave`
-            : `Tandem passenger — T or Jump to hop off`}
+            ? `Tandem pilot — friend boards nearby · T to leave`
+            : `Tandem passenger — Jump to freefall & chute · T to leave`}
         </div>
       )}
 
