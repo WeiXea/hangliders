@@ -12,6 +12,8 @@ import { canSocialEmote } from '../game/multiplayerSocial'
 import { canOfferTandem, tandemButtonLabel } from '../game/tandem'
 import { pulseAction } from '../game/actionPulses'
 import { startWindAudio, stopWindAudio } from '../game/audio'
+import { nearestThermal, thermalHint } from '../game/atmosphere'
+import { BIOME_CONFIGS } from '../game/biomeConfigs'
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
 import { FriendFinder } from './FriendFinder'
@@ -105,8 +107,37 @@ export function FlightHUD() {
     flight.altitude < 35 &&
     flight.airspeed <= 14 &&
     flight.velocity.y < 0.5
-  const inLift = flying && vs > 0.6
-  const heavySink = flying && vs < -2.2
+  const biome = useGameStore((s) => s.biome)
+  const simTime = useGameStore((s) => s.simTime)
+  const config = BIOME_CONFIGS[biome]
+  const airLift = flying ? thermalHint(config, simTime, flight.position) : 0
+  const nearTh = flying
+    ? nearestThermal(biome, simTime, flight.position, flight.yaw)
+    : null
+  const liftPct = Math.max(0, Math.min(1, (airLift + 0.4) / 4.2))
+  const liftHot = airLift > 0.85
+  const liftWarm = airLift > 0.35
+
+  const thermalCue = (() => {
+    if (!flying || !nearTh || flight.stallWarning) return null
+    if (nearTh.inCore && vs > 0.2) {
+      return `Core lift — circle to stay · ${vs >= 0 ? '+' : ''}${vs.toFixed(1)} m/s`
+    }
+    if (nearTh.inColumn) {
+      return 'In the column — bank toward the green core'
+    }
+    if (nearTh.dist < nearTh.radius * 2.4) {
+      const abs = Math.abs(nearTh.relBearing)
+      if (abs < 0.35) return `Thermal ahead · ${Math.round(nearTh.dist)} m`
+      if (nearTh.relBearing > 0) return `Thermal to the right · ${Math.round(nearTh.dist)} m`
+      return `Thermal to the left · ${Math.round(nearTh.dist)} m`
+    }
+    if (liftHot) return `Rising air — climb ${vs.toFixed(1)} m/s`
+    return null
+  })()
+
+  const inLift = flying && (vs > 0.6 || liftHot)
+  const heavySink = flying && vs < -2.2 && airLift < 0.2
 
   const onToggleTilt = async () => {
     setTiltBusy(true)
@@ -145,6 +176,16 @@ export function FlightHUD() {
             <span className={styles.instrumentLabel}>Vario</span>
             <span className={`${styles.instrumentValue} ${vsClass}`}>{vsLabel}</span>
             <span className={styles.instrumentUnit}>m/s</span>
+          </div>
+          <div className={styles.divider} />
+          <div className={styles.instrument}>
+            <span className={styles.instrumentLabel}>Lift</span>
+            <div className={styles.liftMeter} title="Air mass lift">
+              <div
+                className={`${styles.liftFill} ${liftHot ? styles.liftHot : liftWarm ? styles.liftWarm : ''}`}
+                style={{ height: `${Math.round(liftPct * 100)}%` }}
+              />
+            </div>
           </div>
           <div className={styles.divider} />
           <div className={styles.instrument}>
@@ -206,12 +247,18 @@ export function FlightHUD() {
         <div className={styles.stallWarning}>Stall — ease the bar forward / build speed</div>
       )}
 
-      {inLift && !flight.stallWarning && (
+      {thermalCue && !flight.stallWarning && (
+        <div className={`${styles.nearGround} ${liftHot ? styles.liftBanner : ''}`}>
+          {thermalCue}
+        </div>
+      )}
+
+      {inLift && !flight.stallWarning && !thermalCue && (
         <div className={styles.nearGround}>Lift! Center the thermal — climb {vs.toFixed(1)} m/s</div>
       )}
 
-      {heavySink && !flight.stallWarning && (
-        <div className={styles.coach}>Strong sink — turn toward lift or speed up</div>
+      {heavySink && !flight.stallWarning && !thermalCue && (
+        <div className={styles.coach}>Strong sink — turn toward a green thermal column</div>
       )}
 
       {onGround && (

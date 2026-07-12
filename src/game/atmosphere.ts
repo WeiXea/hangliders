@@ -10,6 +10,15 @@ export type Thermal = {
   y1: number
 }
 
+export type ThermalSample = {
+  cx: number
+  cz: number
+  radius: number
+  strength: number
+  y0: number
+  y1: number
+}
+
 /** Deterministic thermal field per biome (world-space bubbles). */
 export function getThermals(biomeId: string): Thermal[] {
   if (biomeId === 'mountains') {
@@ -38,6 +47,68 @@ export function getThermals(biomeId: string): Thermal[] {
   ]
 }
 
+/** Live world center of a thermal (matches sampleAtmosphere drift). */
+export function thermalCenter(th: Thermal, time: number): { cx: number; cz: number } {
+  const drift = time * 1.8
+  return {
+    cx: th.x + Math.sin(time * 0.05 + th.z * 0.01) * 8,
+    cz: th.z + drift * 0.15 + Math.cos(time * 0.04) * 6,
+  }
+}
+
+export function listThermalSamples(biomeId: string, time: number): ThermalSample[] {
+  return getThermals(biomeId).map((th) => {
+    const { cx, cz } = thermalCenter(th, time)
+    return {
+      cx,
+      cz,
+      radius: th.radius,
+      strength: th.strength,
+      y0: th.y0,
+      y1: th.y1,
+    }
+  })
+}
+
+export type NearestThermal = {
+  dist: number
+  /** Radians relative to pilot yaw: + = right, − = left */
+  relBearing: number
+  strength: number
+  inCore: boolean
+  inColumn: boolean
+  radius: number
+}
+
+export function nearestThermal(
+  biomeId: string,
+  time: number,
+  pos: Vec3,
+  yaw: number,
+): NearestThermal | null {
+  let best: NearestThermal | null = null
+  for (const th of getThermals(biomeId)) {
+    const { cx, cz } = thermalCenter(th, time)
+    const dist = Math.hypot(pos.x - cx, pos.z - cz)
+    const bearing = Math.atan2(cx - pos.x, cz - pos.z)
+    let rel = bearing - yaw
+    while (rel > Math.PI) rel -= Math.PI * 2
+    while (rel < -Math.PI) rel += Math.PI * 2
+    const inColumn = dist < th.radius && pos.y >= th.y0 && pos.y <= th.y1
+    const inCore = dist < th.radius * 0.45 && inColumn
+    const candidate: NearestThermal = {
+      dist,
+      relBearing: rel,
+      strength: th.strength,
+      inCore,
+      inColumn,
+      radius: th.radius,
+    }
+    if (!best || dist < best.dist) best = candidate
+  }
+  return best
+}
+
 function hashNoise(x: number, z: number, t: number): number {
   return (
     Math.sin(x * 0.031 + t * 0.17) * 0.45 +
@@ -61,11 +132,8 @@ export function sampleAtmosphere(
   const wz = Math.cos(windDir) * windSpeed * (1 + gust * 0.12)
   let wy = hashNoise(pos.x * 0.5, pos.z * 0.5, time * 0.7) * 0.35 * config.thermalStrength
 
-  // Thermal bubbles (drift slowly)
-  const drift = time * 1.8
   for (const th of getThermals(config.id)) {
-    const cx = th.x + Math.sin(time * 0.05 + th.z * 0.01) * 8
-    const cz = th.z + drift * 0.15 + Math.cos(time * 0.04) * 6
+    const { cx, cz } = thermalCenter(th, time)
     const dx = pos.x - cx
     const dz = pos.z - cz
     const dist = Math.hypot(dx, dz)
@@ -82,9 +150,12 @@ export function sampleAtmosphere(
   // Ridge lift: wind blowing into an upslope face
   const sample = 6
   const h0 = config.getHeight(pos.x, pos.z)
-  const hx = (config.getHeight(pos.x + sample, pos.z) - config.getHeight(pos.x - sample, pos.z)) / (2 * sample)
-  const hz = (config.getHeight(pos.x, pos.z + sample) - config.getHeight(pos.x, pos.z - sample)) / (2 * sample)
-  // Slope normal-ish facing
+  const hx =
+    (config.getHeight(pos.x + sample, pos.z) - config.getHeight(pos.x - sample, pos.z)) /
+    (2 * sample)
+  const hz =
+    (config.getHeight(pos.x, pos.z + sample) - config.getHeight(pos.x, pos.z - sample)) /
+    (2 * sample)
   const slopeIntoWind = -(hx * Math.sin(windDir) + hz * Math.cos(windDir))
   if (slopeIntoWind > 0.05 && pos.y - h0 < 55 && pos.y - h0 > 2) {
     const nearGround = 1 - Math.min(1, (pos.y - h0) / 55)

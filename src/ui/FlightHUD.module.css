@@ -76,6 +76,38 @@
   bottom: 4px;
 }
 
+.liftMeter {
+  width: 10px;
+  height: 28px;
+  margin-top: 2px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.liftFill {
+  width: 100%;
+  background: rgba(148, 163, 184, 0.75);
+  border-radius: 4px 4px 0 0;
+  transition: height 0.12s ease-out, background 0.15s ease;
+}
+
+.liftWarm {
+  background: rgba(82, 183, 136, 0.9);
+}
+
+.liftHot {
+  background: rgba(52, 211, 153, 1);
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.55);
+}
+
+.liftBanner {
+  background: rgba(16, 120, 80, 0.9);
+}
+
 .divider {
   width: 1px;
   height: 28px;
