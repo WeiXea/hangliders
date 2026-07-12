@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useGameStore } from '../game/gameStore'
 import { BIOME_CONFIGS } from '../game/biomeConfigs'
+import { readStoredTiltPreference } from '../game/tilt'
 import type { Biome, GameMode } from '../types/game'
 import styles from './HomeScreen.module.css'
 
@@ -11,6 +13,26 @@ export function HomeScreen() {
   const setBiome = useGameStore((s) => s.setBiome)
   const setMode = useGameStore((s) => s.setMode)
   const startFlight = useGameStore((s) => s.startFlight)
+  const tiltSupported = useGameStore((s) => s.tiltSupported)
+  const tiltEnabled = useGameStore((s) => s.tiltEnabled)
+  const setTiltEnabled = useGameStore((s) => s.setTiltEnabled)
+  const [tiltBusy, setTiltBusy] = useState(false)
+
+  const onToggleTilt = async () => {
+    setTiltBusy(true)
+    try {
+      await setTiltEnabled(!tiltEnabled)
+    } finally {
+      setTiltBusy(false)
+    }
+  }
+
+  const onFly = async () => {
+    if (tiltSupported && !tiltEnabled && readStoredTiltPreference()) {
+      await setTiltEnabled(true)
+    }
+    startFlight()
+  }
 
   return (
     <div className={styles.home}>
@@ -55,11 +77,27 @@ export function HomeScreen() {
           </div>
         </div>
 
-        <button type="button" className={styles.flyBtn} onClick={startFlight}>
+        {tiltSupported && (
+          <div className={styles.pickerSection}>
+            <span className={styles.sectionLabel}>Controls</span>
+            <button
+              type="button"
+              className={`${styles.tiltToggle} ${tiltEnabled ? styles.modeActive : ''}`}
+              onClick={onToggleTilt}
+              disabled={tiltBusy}
+            >
+              {tiltEnabled ? 'Tilt steering · On' : 'Tilt steering · Off'}
+            </button>
+          </div>
+        )}
+
+        <button type="button" className={styles.flyBtn} onClick={onFly}>
           Fly
         </button>
         <p className={styles.controlsHint}>
-          Morocco wing · Takeoff: Shift + ↓ climb · Land: slow + gentle sink · R restart
+          {tiltEnabled
+            ? 'Tilt the iPad to bank & pitch · +/− for speed · Level in-flight to recalibrate'
+            : 'Takeoff: Shift + ↓ climb · Land: slow + gentle sink · Enable tilt for iPad'}
         </p>
       </div>
     </div>

@@ -1,6 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useGameStore } from '../game/gameStore'
-import { useKeyboardControls, useTouchControl } from '../game/controls'
+import {
+  calibrateTiltNow,
+  useKeyboardControls,
+  useTiltControls,
+  useTouchControl,
+} from '../game/controls'
 import { startWindAudio, stopWindAudio } from '../game/audio'
 import { GameCanvas } from '../game/GameCanvas'
 import styles from './FlightHUD.module.css'
@@ -43,7 +48,14 @@ export function FlightHUD() {
   const cycleCamera = useGameStore((s) => s.cycleCamera)
   const startFlight = useGameStore((s) => s.startFlight)
   const goHome = useGameStore((s) => s.goHome)
+  const tiltSupported = useGameStore((s) => s.tiltSupported)
+  const tiltEnabled = useGameStore((s) => s.tiltEnabled)
+  const tiltPermission = useGameStore((s) => s.tiltPermission)
+  const setTiltEnabled = useGameStore((s) => s.setTiltEnabled)
+  const [tiltBusy, setTiltBusy] = useState(false)
+
   useKeyboardControls()
+  useTiltControls()
 
   useEffect(() => {
     startWindAudio(flight.airspeed, flight.phase)
@@ -61,6 +73,19 @@ export function FlightHUD() {
     flight.altitude < 35 &&
     flight.airspeed <= 14 &&
     flight.velocity.y < 0.5
+
+  const onToggleTilt = async () => {
+    setTiltBusy(true)
+    try {
+      await setTiltEnabled(!tiltEnabled)
+    } finally {
+      setTiltBusy(false)
+    }
+  }
+
+  const onCalibrate = () => {
+    calibrateTiltNow()
+  }
 
   return (
     <div className={styles.hud}>
@@ -103,6 +128,29 @@ export function FlightHUD() {
           )}
         </div>
         <div className={styles.topActions}>
+          {tiltSupported && (
+            <>
+              <button
+                type="button"
+                className={`${styles.cameraBtn} ${tiltEnabled ? styles.tiltOn : ''}`}
+                onClick={onToggleTilt}
+                disabled={tiltBusy}
+                title="Steer by tilting the device"
+              >
+                {tiltEnabled ? 'Tilt · On' : 'Tilt'}
+              </button>
+              {tiltEnabled && (
+                <button
+                  type="button"
+                  className={styles.cameraBtn}
+                  onClick={onCalibrate}
+                  title="Set current angle as neutral"
+                >
+                  Level
+                </button>
+              )}
+            </>
+          )}
           <button type="button" className={styles.cameraBtn} onClick={cycleCamera} title="Press C">
             Cam · {CAMERA_LABELS[cameraMode]}
           </button>
@@ -115,15 +163,23 @@ export function FlightHUD() {
         </div>
       </header>
 
+      {tiltPermission === 'denied' && (
+        <div className={styles.coach}>Motion access denied — enable it in Safari Settings</div>
+      )}
+
       {flight.stallWarning && flight.phase === 'flying' && (
         <div className={styles.stallWarning}>Stall — speed up (Shift)</div>
       )}
 
       {onGround && (
         <div className={styles.coach}>
-          {canLift
-            ? 'Speed ready — hold ↓ Climb to lift off'
-            : 'Hold + / Shift to build speed, then ↓ Climb to take off'}
+          {tiltEnabled
+            ? canLift
+              ? 'Speed ready — tilt back to climb and lift off'
+              : 'Hold + to build speed, then tilt back to take off'
+            : canLift
+              ? 'Speed ready — hold ↓ Climb to lift off'
+              : 'Hold + / Shift to build speed, then ↓ Climb to take off'}
         </div>
       )}
 
@@ -134,14 +190,22 @@ export function FlightHUD() {
       )}
 
       <div className={styles.controls}>
-        <div className={styles.leftPads}>
-          <ControlPad label="↑" sub="Dive" action="pitchDown" className={styles.padUp} active={input.pitchDown} />
-          <div className={styles.padRow}>
-            <ControlPad label="←" sub="Left" action="bankLeft" active={input.bankLeft} />
-            <ControlPad label="↓" sub="Climb" action="pitchUp" active={input.pitchUp} />
-            <ControlPad label="→" sub="Right" action="bankRight" active={input.bankRight} />
+        {!tiltEnabled && (
+          <div className={styles.leftPads}>
+            <ControlPad label="↑" sub="Dive" action="pitchDown" className={styles.padUp} active={input.pitchDown} />
+            <div className={styles.padRow}>
+              <ControlPad label="←" sub="Left" action="bankLeft" active={input.bankLeft} />
+              <ControlPad label="↓" sub="Climb" action="pitchUp" active={input.pitchUp} />
+              <ControlPad label="→" sub="Right" action="bankRight" active={input.bankRight} />
+            </div>
           </div>
-        </div>
+        )}
+        {tiltEnabled && (
+          <div className={styles.tiltHint} aria-live="polite">
+            <span className={styles.tiltHintTitle}>Tilt to steer</span>
+            <span className={styles.tiltHintSub}>Forward dive · Back climb · Side bank</span>
+          </div>
+        )}
         <div className={styles.rightPads}>
           <ControlPad label="+" sub="Speed" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
           <ControlPad label="−" sub="Slow" action="speedDown" className={styles.padSpeed} active={input.speedDown} />

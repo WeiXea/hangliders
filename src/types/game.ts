@@ -3,6 +3,12 @@ export type GameMode = 'free' | 'challenge'
 export type Screen = 'home' | 'flight' | 'result'
 export type FlightPhase = 'grounded' | 'running' | 'flying' | 'landed' | 'crashed'
 export type CameraMode = 'chase' | 'fpv' | 'side'
+export type TiltPermission = 'unknown' | 'granted' | 'denied'
+
+export interface TiltCalibration {
+  bank: number
+  pitch: number
+}
 
 export interface Vec3 {
   x: number

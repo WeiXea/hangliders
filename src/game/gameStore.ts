@@ -8,12 +8,19 @@ import type {
   GameMode,
   InputState,
   Screen,
+  TiltCalibration,
+  TiltPermission,
 } from '../types/game'
 import { INITIAL_FLIGHT, INITIAL_INPUT } from '../types/game'
 import { BIOME_CONFIGS } from './biomeConfigs'
 import { createInitialFlight, getLandingQuality } from './flightPhysics'
 import { playRingSound } from './audio'
 import { checkRingCollision } from './obstacles'
+import {
+  isTiltSupported,
+  requestTiltPermission,
+  writeStoredTiltPreference,
+} from './tilt'
 
 const CAMERA_CYCLE: CameraMode[] = ['chase', 'fpv', 'side']
 
@@ -27,6 +34,10 @@ interface GameStore {
   rings: ChallengeRing[]
   stats: FlightStats | null
   simTime: number
+  tiltSupported: boolean
+  tiltEnabled: boolean
+  tiltPermission: TiltPermission
+  tiltCalibration: TiltCalibration | null
 
   setScreen: (screen: Screen) => void
   setBiome: (biome: Biome) => void
@@ -35,6 +46,8 @@ interface GameStore {
   cycleCamera: () => void
   setInput: (partial: Partial<InputState>) => void
   resetInput: () => void
+  setTiltEnabled: (enabled: boolean) => Promise<boolean>
+  setTiltCalibration: (calib: TiltCalibration | null) => void
   startFlight: () => void
   updateFlight: (flight: FlightState) => void
   setSimTime: (t: number) => void
@@ -83,6 +96,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   rings: initRings('beach'),
   stats: null,
   simTime: 0,
+  tiltSupported: isTiltSupported(),
+  tiltEnabled: false,
+  tiltPermission: isTiltSupported() ? 'unknown' : 'denied',
+  tiltCalibration: null,
 
   setScreen: (screen) => set({ screen }),
   setBiome: (biome) => set({ biome, rings: initRings(biome) }),
@@ -99,6 +116,52 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   resetInput: () => set({ input: { ...INITIAL_INPUT } }),
 
+  setTiltCalibration: (tiltCalibration) => set({ tiltCalibration }),
+
+  setTiltEnabled: async (enabled) => {
+    if (!enabled) {
+      writeStoredTiltPreference(false)
+      set({
+        tiltEnabled: false,
+        tiltCalibration: null,
+        input: {
+          ...get().input,
+          pitchUp: false,
+          pitchDown: false,
+          bankLeft: false,
+          bankRight: false,
+        },
+      })
+      return true
+    }
+
+    if (!isTiltSupported()) {
+      set({ tiltSupported: false, tiltEnabled: false, tiltPermission: 'denied' })
+      return false
+    }
+
+    let permission = get().tiltPermission
+    if (permission !== 'granted') {
+      permission = await requestTiltPermission()
+    }
+
+    if (permission !== 'granted') {
+      writeStoredTiltPreference(false)
+      set({ tiltEnabled: false, tiltPermission: permission })
+      return false
+    }
+
+    writeStoredTiltPreference(true)
+    set({
+      tiltEnabled: true,
+      tiltPermission: 'granted',
+      tiltSupported: true,
+      // Recalibrate on next orientation sample
+      tiltCalibration: null,
+    })
+    return true
+  },
+
   startFlight: () => {
     const { biome } = get()
     const config = BIOME_CONFIGS[biome]
@@ -109,6 +172,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       rings: initRings(biome),
       stats: null,
       simTime: 0,
+      // Keep tilt on across restarts; re-zero so hold angle is neutral
+      tiltCalibration: null,
     })
   },
 
@@ -184,3 +249,4 @@ export const useGameStore = create<GameStore>((set, get) => ({
       simTime: 0,
     }),
 }))
+

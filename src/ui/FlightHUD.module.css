@@ -156,6 +156,41 @@
   transform: scale(0.97);
 }
 
+.tiltOn {
+  color: #0a1628;
+  background: linear-gradient(135deg, #ffd166, #f4a261);
+  border-color: rgba(255, 209, 102, 0.5);
+}
+
+.tiltHint {
+  align-self: flex-end;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: rgba(8, 16, 28, 0.62);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  max-width: min(220px, 46vw);
+}
+
+.tiltHintTitle {
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.04em;
+}
+
+.tiltHintSub {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.3;
+}
+
 .stallWarning,
 .nearGround,
 .coach {
