@@ -59,16 +59,16 @@ function Building({
 function StreetGrid() {
   const lines = useMemo(() => {
     const result: ReactElement[] = []
-    for (let i = -80; i <= 120; i += 20) {
+    for (let i = -120; i <= 220; i += 22) {
       result.push(
-        <mesh key={`h${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[30, 0.08, i]}>
-          <planeGeometry args={[260, 2]} />
+        <mesh key={`h${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[50, 0.08, i]}>
+          <planeGeometry args={[420, 2.2]} />
           <meshStandardMaterial color="#343a40" roughness={0.88} />
         </mesh>,
       )
       result.push(
-        <mesh key={`v${i}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[i, 0.08, 40]}>
-          <planeGeometry args={[260, 2]} />
+        <mesh key={`v${i}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[i, 0.08, 60]}>
+          <planeGeometry args={[420, 2.2]} />
           <meshStandardMaterial color="#343a40" roughness={0.88} />
         </mesh>,
       )
@@ -91,14 +91,20 @@ const BUILDINGS: BuildingDef[] = [
   [100, 12, 60, 28, '#4a5568', [false, true, false, true]],
   [5, 6, 75, 10, '#cbd5e0', [true, true, false, false]],
   [55, 9, 95, 15, '#718096', [true, false, true, true]],
+  [120, 10, 90, 22, '#4a5568', [true, true, false, true]],
+  [140, 8, 50, 18, '#718096', [false, true, true, false]],
+  [160, 11, 110, 30, '#2d3748', [true, false, true, true]],
+  [180, 9, 70, 16, '#a0aec0', [true, true, true, false]],
+  [90, 7, 130, 12, '#cbd5e0', [false, false, true, true]],
+  [110, 10, 150, 20, '#4a5568', [true, true, false, false]],
 ]
 
 function SkylineSilhouette() {
   return (
-    <group position={[140, 0, 120]}>
-      {Array.from({ length: 12 }, (_, i) => (
-        <mesh key={i} position={[i * 8, 8 + (i % 4) * 6, 0]} castShadow>
-          <boxGeometry args={[6, 16 + (i % 5) * 8, 6]} />
+    <group position={[220, 0, 200]}>
+      {Array.from({ length: 18 }, (_, i) => (
+        <mesh key={i} position={[i * 9, 10 + (i % 5) * 7, (i % 3) * 8]} castShadow>
+          <boxGeometry args={[7, 18 + (i % 6) * 9, 7]} />
           <meshStandardMaterial color="#495057" roughness={0.8} />
         </mesh>
       ))}
@@ -111,7 +117,7 @@ export function CityScene({ config }: CitySceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting />
-      <DetailedTerrain config={config} biome="city" size={320} segments={100} />
+      <DetailedTerrain config={config} biome="city" size={640} segments={140} />
       <HorizonRing color="#6c757d" y={0} />
       <StreetGrid />
       {BUILDINGS.map(([x, w, z, h, color, windows], i) => (
@@ -127,8 +133,8 @@ export function CityScene({ config }: CitySceneProps) {
       ))}
       <SkylineSilhouette />
       <LaunchRamp config={config} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[20, -0.15, -28]}>
-        <planeGeometry args={[280, 28, 1, 1]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[30, -0.15, -40]}>
+        <planeGeometry args={[480, 36, 1, 1]} />
         <meshStandardMaterial
           color="#0077b6"
           roughness={0.15}

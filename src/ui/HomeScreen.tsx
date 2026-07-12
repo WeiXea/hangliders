@@ -59,7 +59,7 @@ export function HomeScreen() {
           Fly
         </button>
         <p className={styles.controlsHint}>
-          Take off: Shift + ↓ climb · Land: slow + gentle descent
+          Morocco wing · Takeoff: Shift + ↓ climb · Land: slow + gentle sink · R restart
         </p>
       </div>
     </div>

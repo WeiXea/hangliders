@@ -14,22 +14,22 @@ interface BeachSceneProps {
   config: BiomeConfig
 }
 
-function PalmTree({ position }: { position: [number, number, number] }) {
+function PalmTree({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
   return (
-    <group position={position}>
-      <mesh castShadow position={[0, 2.2, 0]}>
-        <cylinderGeometry args={[0.18, 0.28, 4.5, 8]} />
+    <group position={position} scale={scale}>
+      <mesh castShadow position={[0, 2.4, 0]}>
+        <cylinderGeometry args={[0.16, 0.28, 5, 8]} />
         <meshStandardMaterial color="#6b4423" roughness={0.88} />
       </mesh>
-      {[0, 1, 2, 3, 4, 5].map((i) => (
+      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
         <mesh
           key={i}
           castShadow
-          position={[Math.sin(i * 1.05) * 1.4, 4.8, Math.cos(i * 1.05) * 1.4]}
-          rotation={[0.55, i * 1.05, 0.15]}
+          position={[Math.sin(i * 0.95) * 1.5, 5.1, Math.cos(i * 0.95) * 1.5]}
+          rotation={[0.55, i * 0.95, 0.12]}
         >
-          <boxGeometry args={[0.35, 2.8, 0.1]} />
-          <meshStandardMaterial color="#2d6a4f" roughness={0.75} />
+          <boxGeometry args={[0.32, 2.9, 0.08]} />
+          <meshStandardMaterial color="#2d6a4f" roughness={0.72} />
         </mesh>
       ))}
     </group>
@@ -39,13 +39,32 @@ function PalmTree({ position }: { position: [number, number, number] }) {
 function DistantIsland({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
   return (
     <group position={position} scale={scale}>
-      <mesh castShadow position={[0, 4, 0]}>
-        <coneGeometry args={[10, 14, 8]} />
+      <mesh castShadow position={[0, 5, 0]}>
+        <coneGeometry args={[12, 16, 8]} />
         <meshStandardMaterial color="#40916c" roughness={0.82} />
       </mesh>
-      <mesh position={[0, 0.5, 0]}>
-        <cylinderGeometry args={[11, 12, 1, 12]} />
+      <mesh position={[4, 3, 2]} castShadow>
+        <coneGeometry args={[6, 10, 7]} />
+        <meshStandardMaterial color="#52796f" roughness={0.85} />
+      </mesh>
+      <mesh position={[0, 0.4, 0]}>
+        <cylinderGeometry args={[14, 15, 1, 14]} />
         <meshStandardMaterial color="#f4d58d" roughness={0.9} />
+      </mesh>
+    </group>
+  )
+}
+
+function BeachHut({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh castShadow position={[0, 1.1, 0]}>
+        <boxGeometry args={[3.2, 2.2, 2.8]} />
+        <meshStandardMaterial color="#d4a373" roughness={0.85} />
+      </mesh>
+      <mesh castShadow position={[0, 2.8, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[2.6, 1.6, 4]} />
+        <meshStandardMaterial color="#6b4226" roughness={0.9} />
       </mesh>
     </group>
   )
@@ -54,10 +73,13 @@ function DistantIsland({ position, scale = 1 }: { position: [number, number, num
 export function BeachScene({ config }: BeachSceneProps) {
   const palms = useMemo(
     () =>
-      Array.from({ length: 28 }, (_, i) => {
-        const x = -55 + i * 6.5 + Math.sin(i * 1.7) * 5
-        const z = -25 + Math.cos(i * 1.1) * 18 + (i % 3) * 8
-        return [x, config.getHeight(x, z), z] as [number, number, number]
+      Array.from({ length: 55 }, (_, i) => {
+        const x = -90 + i * 5.5 + Math.sin(i * 1.7) * 8
+        const z = -40 + Math.cos(i * 1.1) * 28 + (i % 4) * 12
+        return {
+          pos: [x, config.getHeight(x, z), z] as [number, number, number],
+          scale: 0.75 + (Math.sin(i * 9) * 0.5 + 0.5) * 0.55,
+        }
       }),
     [config],
   )
@@ -68,19 +90,23 @@ export function BeachScene({ config }: BeachSceneProps) {
       <SharedLighting />
       <DetailedTerrain config={config} biome="beach" />
       <HorizonRing color="#c9a227" y={-1} />
-      <OceanSurface y={-0.15} />
+      <OceanSurface y={-0.12} />
       <LaunchRamp config={config} />
-      <CliffFace position={[-50, 8, -5]} size={[8, 18, 40]} rotation={0.2} />
-      <CliffFace position={[-45, 5, 20]} size={[6, 12, 25]} rotation={-0.1} />
-      <CliffFace position={[-38, 10, -25]} size={[10, 22, 30]} rotation={0.35} />
-      <ScatterRocks config={config} count={40} area={160} />
+      <CliffFace position={[-70, 10, -10]} size={[12, 24, 55]} rotation={0.18} />
+      <CliffFace position={[-62, 7, 35]} size={[9, 16, 35]} rotation={-0.12} />
+      <CliffFace position={[-55, 12, -40]} size={[14, 28, 40]} rotation={0.32} />
+      <CliffFace position={[-85, 8, 20]} size={[10, 18, 45]} rotation={0.05} />
+      <ScatterRocks config={config} count={70} area={280} />
       {palms.map((p, i) => (
-        <PalmTree key={i} position={p} />
+        <PalmTree key={i} position={p.pos} scale={p.scale} />
       ))}
-      <DistantIsland position={[130, -0.5, 160]} scale={1.2} />
-      <DistantIsland position={[90, -0.3, 190]} scale={0.85} />
-      <DistantIsland position={[170, -0.4, 130]} scale={0.7} />
-      <DistantIsland position={[200, -0.2, 200]} scale={1.5} />
+      <BeachHut position={[20, config.getHeight(20, 55), 55]} />
+      <BeachHut position={[-10, config.getHeight(-10, 70), 70]} />
+      <DistantIsland position={[220, -0.5, 280]} scale={1.6} />
+      <DistantIsland position={[160, -0.3, 320]} scale={1.1} />
+      <DistantIsland position={[300, -0.4, 240]} scale={1.3} />
+      <DistantIsland position={[260, -0.2, 360]} scale={0.9} />
+      <DistantIsland position={[340, -0.3, 300]} scale={1.8} />
     </>
   )
 }

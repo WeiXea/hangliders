@@ -32,7 +32,7 @@ export function GameCanvas() {
     <Canvas
       shadows
       dpr={[1, 2]}
-      camera={{ position: [config.launchPosition.x, 20, config.launchPosition.z - 15], fov: 58, near: 0.1, far: 1400 }}
+      camera={{ position: [config.launchPosition.x, 20, config.launchPosition.z - 15], fov: 58, near: 0.1, far: 2200 }}
       gl={{
         antialias: true,
         alpha: false,

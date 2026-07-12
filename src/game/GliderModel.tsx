@@ -2,63 +2,105 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 
 function makeSailTexture(): THREE.CanvasTexture {
+  const size = 1024
   const c = document.createElement('canvas')
-  c.width = 512
-  c.height = 512
+  c.width = size
+  c.height = size
   const g = c.getContext('2d')!
-  const grad = g.createLinearGradient(0, 0, 512, 0)
-  grad.addColorStop(0, '#9b2226')
-  grad.addColorStop(0.2, '#e63946')
-  grad.addColorStop(0.35, '#f4a261')
-  grad.addColorStop(0.5, '#e9c46a')
-  grad.addColorStop(0.65, '#2a9d8f')
-  grad.addColorStop(0.8, '#457b9d')
-  grad.addColorStop(1, '#1d3557')
-  g.fillStyle = grad
-  g.fillRect(0, 0, 512, 512)
 
-  for (let i = 0; i < 9; i++) {
-    const x = (i / 8) * 512
-    g.strokeStyle = 'rgba(255,255,255,0.18)'
-    g.lineWidth = 3
+  // Morocco flag red field
+  g.fillStyle = '#C1272D'
+  g.fillRect(0, 0, size, size)
+
+  // Subtle fabric weave
+  for (let i = 0; i < 120; i++) {
+    g.strokeStyle = `rgba(0,0,0,${0.02 + Math.random() * 0.03})`
+    g.lineWidth = 1
     g.beginPath()
-    g.moveTo(x, 0)
-    g.lineTo(x, 512)
+    g.moveTo(0, (i / 120) * size)
+    g.lineTo(size, (i / 120) * size)
     g.stroke()
   }
-  for (let i = 0; i < 6; i++) {
-    g.strokeStyle = 'rgba(0,0,0,0.12)'
-    g.lineWidth = 2
+  for (let i = 0; i < 80; i++) {
+    g.strokeStyle = `rgba(255,255,255,${0.015 + Math.random() * 0.02})`
+    g.lineWidth = 1
     g.beginPath()
-    g.moveTo(0, (i / 5) * 512)
-    g.lineTo(512, (i / 5) * 512)
+    g.moveTo((i / 80) * size, 0)
+    g.lineTo((i / 80) * size, size)
     g.stroke()
   }
-  // Nose tip white
-  g.fillStyle = '#f8f9fa'
+
+  // Green pentagram (Seal of Solomon) — centered
+  const cx = size * 0.5
+  const cy = size * 0.52
+  const R = size * 0.22
+  g.save()
+  g.translate(cx, cy)
   g.beginPath()
-  g.moveTo(256, 20)
-  g.lineTo(236, 90)
-  g.lineTo(276, 90)
-  g.fill()
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + (i * 4 * Math.PI) / 5
+    const x = Math.cos(a) * R
+    const y = Math.sin(a) * R
+    if (i === 0) g.moveTo(x, y)
+    else g.lineTo(x, y)
+  }
+  g.closePath()
+  g.strokeStyle = '#006233'
+  g.lineWidth = size * 0.028
+  g.lineJoin = 'miter'
+  g.miterLimit = 2
+  g.stroke()
+  g.restore()
+
+  // Soft vignette / sail edge darkening
+  const edge = g.createRadialGradient(cx, cy, size * 0.2, cx, cy, size * 0.7)
+  edge.addColorStop(0, 'rgba(0,0,0,0)')
+  edge.addColorStop(1, 'rgba(0,0,0,0.18)')
+  g.fillStyle = edge
+  g.fillRect(0, 0, size, size)
+
+  // Leading-edge highlight strip
+  g.fillStyle = 'rgba(255,255,255,0.12)'
+  g.fillRect(0, 0, size, 28)
 
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
-  tex.anisotropy = 8
+  tex.anisotropy = 16
   return tex
 }
 
 function makeBottomSailTexture(): THREE.CanvasTexture {
+  const size = 512
   const c = document.createElement('canvas')
-  c.width = 256
-  c.height = 256
+  c.width = size
+  c.height = size
   const g = c.getContext('2d')!
-  g.fillStyle = '#ffb703'
-  g.fillRect(0, 0, 256, 256)
-  g.fillStyle = '#fb8500'
-  for (let i = 0; i < 8; i++) {
-    g.fillRect((i / 8) * 256, 0, 16, 256)
+  g.fillStyle = '#8B1E24'
+  g.fillRect(0, 0, size, size)
+  // Underside: darker Morocco red with battens
+  for (let i = 0; i < 10; i++) {
+    g.fillStyle = i % 2 === 0 ? '#A32028' : '#7A181E'
+    g.fillRect((i / 10) * size, 0, size / 10 + 1, size)
   }
+  const cx = size * 0.5
+  const cy = size * 0.52
+  const R = size * 0.18
+  g.save()
+  g.translate(cx, cy)
+  g.beginPath()
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + (i * 4 * Math.PI) / 5
+    const x = Math.cos(a) * R
+    const y = Math.sin(a) * R
+    if (i === 0) g.moveTo(x, y)
+    else g.lineTo(x, y)
+  }
+  g.closePath()
+  g.strokeStyle = '#004d28'
+  g.lineWidth = size * 0.022
+  g.stroke()
+  g.restore()
+
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   return tex
@@ -141,16 +183,16 @@ export function GliderModel({ barRef: externalBarRef }: GliderModelProps) {
       <mesh geometry={wingGeo} castShadow receiveShadow>
         <meshStandardMaterial
           map={sailMap}
-          roughness={0.48}
-          metalness={0.06}
+          roughness={0.78}
+          metalness={0.02}
           side={THREE.FrontSide}
         />
       </mesh>
       <mesh geometry={wingGeo} castShadow receiveShadow>
         <meshStandardMaterial
           map={bottomMap}
-          roughness={0.62}
-          metalness={0.04}
+          roughness={0.85}
+          metalness={0.02}
           side={THREE.BackSide}
         />
       </mesh>

@@ -8,14 +8,14 @@ export function SharedSky({ config }: { config: BiomeConfig }) {
       <Sky
         distance={450000}
         sunPosition={[sx, sy, sz]}
-        inclination={0.48}
-        azimuth={0.2}
+        inclination={0.47}
+        azimuth={0.18}
         turbidity={config.skyTurbidity}
         rayleigh={config.skyRayleigh}
-        mieCoefficient={0.0035}
-        mieDirectionalG={0.88}
+        mieCoefficient={0.003}
+        mieDirectionalG={0.9}
       />
-      <Environment preset="sunset" environmentIntensity={0.45} />
+      <Environment preset="sunset" environmentIntensity={0.55} />
       <CloudLayers config={config} />
       <fog attach="fog" args={[config.fogColor, config.fogNear, config.fogFar]} />
     </>
@@ -26,17 +26,19 @@ function CloudLayers({ config }: { config: BiomeConfig }) {
   const clouds: [number, number, number, number][] =
     config.id === 'mountains'
       ? [
-          [50, 95, 40, 1.6], [-30, 115, 70, 2], [90, 105, 90, 1.3],
-          [140, 90, 30, 1.7], [10, 125, 110, 2.2], [-60, 100, 20, 1.4],
+          [80, 110, 60, 1.8], [-60, 130, 100, 2.2], [160, 120, 140, 1.5],
+          [220, 100, 50, 1.9], [20, 140, 180, 2.4], [-100, 115, 40, 1.6],
+          [280, 125, 200, 2], [120, 150, 260, 1.7],
         ]
       : config.id === 'city'
         ? [
-            [40, 75, 50, 1.1], [70, 90, 80, 1.4], [-20, 80, 100, 1],
-            [110, 70, 60, 1.2],
+            [60, 85, 80, 1.2], [120, 100, 140, 1.5], [-40, 90, 160, 1.1],
+            [200, 80, 100, 1.3], [40, 110, 220, 1.4], [260, 95, 180, 1.2],
           ]
         : [
-            [30, 70, 60, 1.2], [80, 85, 90, 1.5], [-40, 75, 110, 1.1],
-            [120, 65, 50, 1], [0, 90, 140, 1.6], [160, 80, 100, 1.3],
+            [50, 80, 90, 1.3], [140, 95, 140, 1.6], [-70, 85, 180, 1.2],
+            [200, 75, 80, 1.1], [20, 105, 230, 1.8], [280, 90, 160, 1.4],
+            [320, 100, 280, 1.5], [-40, 90, 300, 1.3],
           ]
 
   return (
@@ -44,10 +46,10 @@ function CloudLayers({ config }: { config: BiomeConfig }) {
       {clouds.map(([x, y, z, s], i) => (
         <Cloud
           key={i}
-          opacity={0.5}
-          speed={0.12}
-          bounds={[36 * s, 7, 22 * s]}
-          segments={20}
+          opacity={0.55}
+          speed={0.1}
+          bounds={[42 * s, 8, 26 * s]}
+          segments={22}
           position={[x, y, z]}
           color="#ffffff"
         />
@@ -59,22 +61,22 @@ function CloudLayers({ config }: { config: BiomeConfig }) {
 export function SharedLighting() {
   return (
     <>
-      <ambientLight intensity={0.4} color="#dceaf5" />
+      <ambientLight intensity={0.38} color="#e8f1f8" />
       <directionalLight
-        position={[100, 130, 70]}
-        intensity={2.1}
-        color="#fff1d6"
+        position={[140, 160, 90]}
+        intensity={2.35}
+        color="#fff4e0"
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-far={400}
-        shadow-camera-left={-120}
-        shadow-camera-right={120}
-        shadow-camera-top={120}
-        shadow-camera-bottom={-120}
-        shadow-bias={-0.0003}
+        shadow-camera-far={600}
+        shadow-camera-left={-200}
+        shadow-camera-right={200}
+        shadow-camera-top={200}
+        shadow-camera-bottom={-200}
+        shadow-bias={-0.00025}
       />
-      <directionalLight position={[-50, 60, -30]} intensity={0.4} color="#8ecae6" />
-      <hemisphereLight args={['#89C2D9', '#588157', 0.55]} />
+      <directionalLight position={[-70, 70, -40]} intensity={0.45} color="#8ecae6" />
+      <hemisphereLight args={['#9AD0EC', '#5c7a52', 0.6]} />
     </>
   )
 }

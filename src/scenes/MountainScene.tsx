@@ -62,18 +62,17 @@ function RockPillar({
 export function MountainScene({ config }: MountainSceneProps) {
   const trees = useMemo(() => {
     const list: { pos: [number, number, number]; scale: number }[] = []
-    for (let i = 0; i < 40; i++) {
-      const x = (Math.sin(i * 73.1) * 0.5 + 0.5) * 160 - 40
-      const z = (Math.cos(i * 41.9) * 0.5 + 0.5) * 140 - 20
+    for (let i = 0; i < 90; i++) {
+      const x = (Math.sin(i * 73.1) * 0.5 + 0.5) * 320 - 80
+      const z = (Math.cos(i * 41.9) * 0.5 + 0.5) * 300 - 40
       const y = config.getHeight(x, z)
-      // Keep trees off obstacle pillars
       const nearPillar = MOUNTAIN_SCENERY.some(
-        (o) => Math.hypot(o.x - x, o.z - z) < o.radius + 6,
+        (o) => Math.hypot(o.x - x, o.z - z) < o.radius + 8,
       )
-      if (y > 10 && y < 48 && !nearPillar) {
+      if (y > 10 && y < 55 && !nearPillar) {
         list.push({
           pos: [x, y, z],
-          scale: 0.7 + (Math.sin(i * 17) * 0.5 + 0.5) * 0.8,
+          scale: 0.65 + (Math.sin(i * 17) * 0.5 + 0.5) * 0.9,
         })
       }
     }
@@ -84,10 +83,10 @@ export function MountainScene({ config }: MountainSceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting />
-      <DetailedTerrain config={config} biome="mountains" segments={140} />
+      <DetailedTerrain config={config} biome="mountains" segments={200} />
       <HorizonRing color="#6b8e4e" y={2} />
       <LaunchRamp config={config} />
-      <ScatterRocks config={config} count={28} area={180} />
+      <ScatterRocks config={config} count={55} area={320} />
       {MOUNTAIN_SCENERY.map((o, i) => (
         <RockPillar
           key={i}

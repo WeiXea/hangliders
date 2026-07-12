@@ -51,10 +51,10 @@ export function ResultScreen() {
 
         <div className={styles.actions}>
           <button type="button" className={styles.retryBtn} onClick={startFlight}>
-            Fly Again
+            Restart · R
           </button>
           <button type="button" className={styles.homeBtn} onClick={goHome}>
-            Home
+            Home · Esc
           </button>
         </div>
       </div>

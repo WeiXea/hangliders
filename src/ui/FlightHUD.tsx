@@ -41,6 +41,8 @@ export function FlightHUD() {
   const rings = useGameStore((s) => s.rings)
   const cameraMode = useGameStore((s) => s.cameraMode)
   const cycleCamera = useGameStore((s) => s.cycleCamera)
+  const startFlight = useGameStore((s) => s.startFlight)
+  const goHome = useGameStore((s) => s.goHome)
   useKeyboardControls()
 
   useEffect(() => {
@@ -100,9 +102,17 @@ export function FlightHUD() {
             </>
           )}
         </div>
-        <button type="button" className={styles.cameraBtn} onClick={cycleCamera} title="Press C">
-          Cam · {CAMERA_LABELS[cameraMode]}
-        </button>
+        <div className={styles.topActions}>
+          <button type="button" className={styles.cameraBtn} onClick={cycleCamera} title="Press C">
+            Cam · {CAMERA_LABELS[cameraMode]}
+          </button>
+          <button type="button" className={styles.restartBtn} onClick={startFlight} title="Press R">
+            Restart
+          </button>
+          <button type="button" className={styles.homeMiniBtn} onClick={goHome} title="Esc">
+            Home
+          </button>
+        </div>
       </header>
 
       {flight.stallWarning && flight.phase === 'flying' && (

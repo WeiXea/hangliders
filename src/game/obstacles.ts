@@ -13,10 +13,11 @@ export const GROUND_CLEARANCE = 2.15
 
 /** Decorative rock pillars only — kept far from the challenge ring path, no collision */
 export const MOUNTAIN_SCENERY: Obstacle[] = [
-  { x: -80, z: 40, radius: 5, height: 32 },
-  { x: -70, z: 90, radius: 4, height: 28 },
-  { x: 140, z: 40, radius: 6, height: 36 },
-  { x: 130, z: 110, radius: 5, height: 30 },
+  { x: -140, z: 60, radius: 6, height: 38 },
+  { x: -120, z: 160, radius: 5, height: 32 },
+  { x: 260, z: 50, radius: 7, height: 42 },
+  { x: 240, z: 200, radius: 5.5, height: 34 },
+  { x: 300, z: 120, radius: 6, height: 36 },
 ]
 
 /** City buildings still block — but slightly tighter hitboxes */

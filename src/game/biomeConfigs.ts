@@ -1,29 +1,31 @@
 import type { BiomeConfig } from '../types/game'
 
+/** Longer-wavelength terrain for a ~2× world */
 function beachHeight(x: number, z: number): number {
-  const cliff = Math.max(0, Math.sin((x + 55) * 0.035) * 22 + Math.cos(z * 0.02) * 8)
-  const dunes = Math.sin(x * 0.12) * Math.cos(z * 0.09) * 4
-  const terrace = Math.floor(Math.max(0, cliff) / 6) * 0.5
-  const beachFlat = z > 25 ? Math.sin(x * 0.2) * 0.6 : 0
-  return Math.max(0, cliff * 0.85 + dunes + terrace + beachFlat)
+  const cliff = Math.max(0, Math.sin((x + 90) * 0.02) * 28 + Math.cos(z * 0.012) * 10)
+  const dunes = Math.sin(x * 0.07) * Math.cos(z * 0.055) * 5
+  const terrace = Math.floor(Math.max(0, cliff) / 7) * 0.6
+  const beachFlat = z > 40 ? Math.sin(x * 0.12) * 0.7 : 0
+  const farDune = Math.sin(x * 0.025 + z * 0.02) * 3
+  return Math.max(0, cliff * 0.85 + dunes + terrace + beachFlat + farDune)
 }
 
 function mountainHeight(x: number, z: number): number {
   const base =
-    Math.sin(x * 0.022) * 35 +
-    Math.cos(z * 0.018) * 28 +
-    Math.sin((x + z) * 0.015) * 22
+    Math.sin(x * 0.014) * 42 +
+    Math.cos(z * 0.011) * 34 +
+    Math.sin((x + z) * 0.01) * 26
   const peaks =
-    Math.max(0, Math.sin(x * 0.011) * Math.cos(z * 0.009)) ** 1.4 * 75
-  const valley = Math.min(0, Math.sin(z * 0.04) * 12)
-  const ridge = Math.abs(Math.sin(x * 0.05 + z * 0.03)) * 15
+    Math.max(0, Math.sin(x * 0.007) * Math.cos(z * 0.006)) ** 1.35 * 90
+  const valley = Math.min(0, Math.sin(z * 0.025) * 14)
+  const ridge = Math.abs(Math.sin(x * 0.03 + z * 0.02)) * 18
   return Math.max(8, base + peaks + valley + ridge)
 }
 
 function cityHeight(x: number, z: number): number {
-  const park = Math.sin(x * 0.08) * 2.5 + Math.cos(z * 0.07) * 2
-  const hill = Math.max(0, Math.sin((x + 30) * 0.04)) * 6
-  const riverBank = z < -15 ? 0.8 : 0
+  const park = Math.sin(x * 0.05) * 2.8 + Math.cos(z * 0.045) * 2.2
+  const hill = Math.max(0, Math.sin((x + 50) * 0.025)) * 8
+  const riverBank = z < -30 ? 0.8 : 0
   return Math.max(0, park + hill + riverBank)
 }
 
@@ -32,69 +34,69 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
     id: 'beach',
     name: 'Coastal Cliffs',
     tagline: 'Sea breeze and golden dunes',
-    launchPosition: { x: -35, y: 0, z: -15 },
-    launchYaw: Math.PI * 0.15,
-    windStrength: 0.4,
-    thermalStrength: 0.25,
-    fogColor: '#b8d4f0',
-    fogNear: 60,
-    fogFar: 420,
-    skyTurbidity: 6,
-    skyRayleigh: 1.4,
-    sunPosition: [120, 42, 80],
+    launchPosition: { x: -50, y: 0, z: -25 },
+    launchYaw: Math.PI * 0.12,
+    windStrength: 0.45,
+    thermalStrength: 0.28,
+    fogColor: '#c5d9ef',
+    fogNear: 100,
+    fogFar: 780,
+    skyTurbidity: 5,
+    skyRayleigh: 1.5,
+    sunPosition: [140, 48, 90],
     getHeight: beachHeight,
     challengeRings: [
-      { x: -5, y: 28, z: 15 },
-      { x: 20, y: 32, z: 50 },
-      { x: 50, y: 30, z: 85 },
-      { x: 85, y: 26, z: 120 },
+      { x: -5, y: 30, z: 30 },
+      { x: 40, y: 36, z: 90 },
+      { x: 100, y: 34, z: 160 },
+      { x: 170, y: 28, z: 240 },
     ],
-    landingZone: { center: { x: 100, y: 0, z: 145 }, radius: 22 },
+    landingZone: { center: { x: 200, y: 0, z: 290 }, radius: 28 },
   },
   mountains: {
     id: 'mountains',
     name: 'Alpine Ridge',
     tagline: 'Thermals over snow-capped peaks',
-    launchPosition: { x: -20, y: 0, z: -30 },
-    launchYaw: Math.PI * 0.1,
+    launchPosition: { x: -35, y: 0, z: -45 },
+    launchYaw: Math.PI * 0.08,
     windStrength: 0.55,
-    thermalStrength: 0.7,
-    fogColor: '#c8d8e8',
-    fogNear: 55,
-    fogFar: 400,
-    skyTurbidity: 3,
-    skyRayleigh: 0.7,
-    sunPosition: [100, 55, 60],
+    thermalStrength: 0.75,
+    fogColor: '#d0dce8',
+    fogNear: 90,
+    fogFar: 750,
+    skyTurbidity: 2.5,
+    skyRayleigh: 0.65,
+    sunPosition: [120, 60, 70],
     getHeight: mountainHeight,
     challengeRings: [
-      { x: 5, y: 40, z: 5 },
-      { x: 35, y: 48, z: 40 },
-      { x: 70, y: 52, z: 75 },
-      { x: 105, y: 45, z: 110 },
+      { x: 10, y: 45, z: 20 },
+      { x: 70, y: 55, z: 80 },
+      { x: 140, y: 58, z: 150 },
+      { x: 210, y: 50, z: 220 },
     ],
-    landingZone: { center: { x: 120, y: 0, z: 140 }, radius: 22 },
+    landingZone: { center: { x: 240, y: 0, z: 280 }, radius: 28 },
   },
   city: {
     id: 'city',
     name: 'Urban Skyline',
     tagline: 'Glide above rooftops and rivers',
-    launchPosition: { x: -25, y: 0, z: -20 },
+    launchPosition: { x: -40, y: 0, z: -35 },
     launchYaw: Math.PI * 0.05,
     windStrength: 0.35,
     thermalStrength: 0.15,
-    fogColor: '#a8b8c8',
-    fogNear: 50,
-    fogFar: 360,
-    skyTurbidity: 8,
-    skyRayleigh: 1.3,
-    sunPosition: [80, 38, 100],
+    fogColor: '#b4c0cc',
+    fogNear: 80,
+    fogFar: 680,
+    skyTurbidity: 7,
+    skyRayleigh: 1.35,
+    sunPosition: [100, 42, 110],
     getHeight: cityHeight,
     challengeRings: [
-      { x: 0, y: 35, z: 10 },
-      { x: 25, y: 42, z: 45 },
-      { x: 55, y: 38, z: 80 },
-      { x: 90, y: 32, z: 115 },
+      { x: 5, y: 38, z: 25 },
+      { x: 55, y: 48, z: 90 },
+      { x: 115, y: 42, z: 160 },
+      { x: 180, y: 36, z: 230 },
     ],
-    landingZone: { center: { x: 105, y: 0, z: 140 }, radius: 20 },
+    landingZone: { center: { x: 210, y: 0, z: 280 }, radius: 26 },
   },
 }

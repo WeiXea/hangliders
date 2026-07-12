@@ -21,7 +21,7 @@ function makeNoiseTexture(base: string, accent: string, size = 256): THREE.Canva
   }
   const tex = new THREE.CanvasTexture(c)
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-  tex.repeat.set(24, 24)
+  tex.repeat.set(48, 48)
   tex.colorSpace = THREE.SRGBColorSpace
   tex.anisotropy = 8
   return tex
@@ -60,11 +60,11 @@ function sampleColor(biome: Biome, h: number, slope: number, x: number, z: numbe
   return c
 }
 
-export function DetailedTerrain({ config, biome, size = 700, segments = 200 }: DetailedTerrainProps) {
+export function DetailedTerrain({ config, biome, size = 1400, segments = 240 }: DetailedTerrainProps) {
   const map = useMemo(() => {
-    if (biome === 'beach') return makeNoiseTexture('#e9c46a', '#d4a373')
-    if (biome === 'mountains') return makeNoiseTexture('#588157', '#3a5a40')
-    return makeNoiseTexture('#52b788', '#40916c')
+    if (biome === 'beach') return makeNoiseTexture('#e9c46a', '#d4a373', 512)
+    if (biome === 'mountains') return makeNoiseTexture('#588157', '#3a5a40', 512)
+    return makeNoiseTexture('#52b788', '#40916c', 512)
   }, [biome])
 
   const geometry = useMemo(() => {
@@ -147,7 +147,7 @@ const oceanFrag = /* glsl */ `
 
 export function OceanSurface({
   y = -0.35,
-  scale = [900, 520] as [number, number],
+  scale = [1600, 900] as [number, number],
   deep = '#012a4a',
   shallow = '#48cae4',
 }: {
@@ -172,8 +172,8 @@ export function OceanSurface({
   })
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[60, y, 120]} receiveShadow>
-      <planeGeometry args={[scale[0], scale[1], 160, 160]} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[80, y, 200]} receiveShadow>
+      <planeGeometry args={[scale[0], scale[1], 180, 180]} />
       <shaderMaterial
         ref={matRef}
         uniforms={uniforms}
@@ -260,8 +260,8 @@ export function ScatterRocks({
 /** Distant horizon ring so the world never looks empty at altitude */
 export function HorizonRing({ color = '#7cb518', y = -2 }: { color?: string; y?: number }) {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 80]}>
-      <ringGeometry args={[280, 520, 64]} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 120]}>
+      <ringGeometry args={[480, 920, 72]} />
       <meshStandardMaterial color={color} roughness={1} metalness={0} side={THREE.DoubleSide} />
     </mesh>
   )
