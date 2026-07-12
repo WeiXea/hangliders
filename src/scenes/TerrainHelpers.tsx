@@ -2,54 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Biome, BiomeConfig } from '../types/game'
-
-function makeNoiseTexture(base: string, accent: string, size = 256): THREE.CanvasTexture {
-  const c = document.createElement('canvas')
-  c.width = size
-  c.height = size
-  const g = c.getContext('2d')!
-  g.fillStyle = base
-  g.fillRect(0, 0, size, size)
-  for (let i = 0; i < 4000; i++) {
-    const x = Math.random() * size
-    const y = Math.random() * size
-    const r = Math.random() * 3
-    g.fillStyle = Math.random() > 0.5 ? accent : 'rgba(0,0,0,0.08)'
-    g.beginPath()
-    g.arc(x, y, r, 0, Math.PI * 2)
-    g.fill()
-  }
-  const tex = new THREE.CanvasTexture(c)
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-  tex.repeat.set(48, 48)
-  tex.colorSpace = THREE.SRGBColorSpace
-  tex.anisotropy = 8
-  return tex
-}
-
-function makeNormalTexture(size = 256): THREE.CanvasTexture {
-  const c = document.createElement('canvas')
-  c.width = size
-  c.height = size
-  const g = c.getContext('2d')!
-  g.fillStyle = '#8080ff'
-  g.fillRect(0, 0, size, size)
-  for (let i = 0; i < 2200; i++) {
-    const x = Math.random() * size
-    const y = Math.random() * size
-    const n = 110 + Math.random() * 40
-    g.fillStyle = `rgb(${n},${n},${180 + Math.random() * 40})`
-    g.beginPath()
-    g.arc(x, y, 0.8 + Math.random() * 2.2, 0, Math.PI * 2)
-    g.fill()
-  }
-  const tex = new THREE.CanvasTexture(c)
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-  tex.repeat.set(64, 64)
-  tex.colorSpace = THREE.NoColorSpace
-  tex.anisotropy = 8
-  return tex
-}
+import { useGroundMaps } from '../game/pbrMaps'
 
 interface DetailedTerrainProps {
   config: BiomeConfig
@@ -85,13 +38,7 @@ function sampleColor(biome: Biome, h: number, slope: number, x: number, z: numbe
 }
 
 export function DetailedTerrain({ config, biome, size = 1400, segments = 320 }: DetailedTerrainProps) {
-  const map = useMemo(() => {
-    if (biome === 'beach') return makeNoiseTexture('#e9c46a', '#d4a373', 512)
-    if (biome === 'mountains') return makeNoiseTexture('#588157', '#3a5a40', 512)
-    return makeNoiseTexture('#52b788', '#40916c', 512)
-  }, [biome])
-
-  const normalMap = useMemo(() => makeNormalTexture(384), [])
+  const ground = useGroundMaps(biome)
 
   const geometry = useMemo(() => {
     const geo = new THREE.PlaneGeometry(size, size, segments, segments)
@@ -108,6 +55,8 @@ export function DetailedTerrain({ config, biome, size = 1400, segments = 320 }: 
       const hz = config.getHeight(x, z + 1.2) - config.getHeight(x, z - 1.2)
       const slope = Math.hypot(hx, hz) / 2.4
       const col = sampleColor(biome, h, slope, x, z)
+      // Soften vertex tint so PBR albedo reads through
+      col.offsetHSL(0, -0.05, 0.08)
       colors[i * 3] = col.r
       colors[i * 3 + 1] = col.g
       colors[i * 3 + 2] = col.b
@@ -120,12 +69,14 @@ export function DetailedTerrain({ config, biome, size = 1400, segments = 320 }: 
   return (
     <mesh geometry={geometry} receiveShadow castShadow>
       <meshStandardMaterial
-        map={map}
-        normalMap={normalMap}
-        normalScale={new THREE.Vector2(0.7, 0.7)}
+        map={ground.map}
+        normalMap={ground.normalMap}
+        normalScale={ground.normalScale}
+        roughnessMap={ground.roughnessMap}
+        roughness={ground.roughness}
+        metalness={0.02}
         vertexColors
-        roughness={0.88}
-        metalness={0.04}
+        envMapIntensity={0.55}
       />
     </mesh>
   )

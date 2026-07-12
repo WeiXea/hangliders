@@ -518,27 +518,27 @@ export function AnimatedPilot({
         {/* Pelvis */}
         <mesh position={[0, -0.02, 0]} castShadow>
           <sphereGeometry args={[0.14, 14, 12]} />
-          <meshStandardMaterial color={suit} roughness={0.78} />
+          <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
         </mesh>
 
         <group ref={torso} position={[0, 0.28, 0]}>
           {/* Chest / abdomen — thicker than stick figure */}
           <mesh position={[0, 0.08, 0]} castShadow>
             <capsuleGeometry args={[0.2, 0.36, 8, 14]} />
-            <meshStandardMaterial color={suit} roughness={0.78} />
+            <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
           </mesh>
           <mesh position={[0, 0.22, 0.04]} castShadow>
             <sphereGeometry args={[0.22, 14, 12]} />
-            <meshStandardMaterial color={SUIT_LT} roughness={0.75} />
+            <meshStandardMaterial color={SUIT_LT} roughness={0.7} metalness={0.04} />
           </mesh>
           {/* Shoulders */}
           <mesh position={[-0.22, 0.28, 0]} castShadow>
             <sphereGeometry args={[0.09, 10, 10]} />
-            <meshStandardMaterial color={suit} roughness={0.78} />
+            <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
           </mesh>
           <mesh position={[0.22, 0.28, 0]} castShadow>
             <sphereGeometry args={[0.09, 10, 10]} />
-            <meshStandardMaterial color={suit} roughness={0.78} />
+            <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
           </mesh>
           {/* Harness */}
           <mesh position={[0, 0.05, 0.16]} rotation={[0.12, 0, 0]}>
@@ -554,24 +554,39 @@ export function AnimatedPilot({
           <group position={[0, 0.48, 0.02]}>
             <mesh castShadow>
               <sphereGeometry args={[0.125, 16, 16]} />
-              <meshStandardMaterial color={SKIN} roughness={0.7} />
+              <meshPhysicalMaterial
+                color={SKIN}
+                roughness={0.48}
+                metalness={0.0}
+                sheen={0.4}
+                sheenRoughness={0.55}
+                sheenColor="#ffd6b8"
+              />
             </mesh>
             <mesh position={[0, 0.02, 0.04]} castShadow>
               <sphereGeometry args={[0.08, 10, 10]} />
-              <meshStandardMaterial color={SKIN_SH} roughness={0.72} />
+              <meshPhysicalMaterial color={SKIN_SH} roughness={0.52} sheen={0.3} sheenRoughness={0.6} />
             </mesh>
             <mesh position={[0, 0.035, 0]} castShadow>
               <sphereGeometry args={[0.14, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.58]} />
-              <meshStandardMaterial color={HELMET} roughness={0.5} metalness={0.2} />
+              <meshPhysicalMaterial
+                color={HELMET}
+                roughness={0.28}
+                metalness={0.25}
+                clearcoat={0.65}
+                clearcoatRoughness={0.2}
+              />
             </mesh>
             <mesh position={[0, 0.02, 0.08]} rotation={[0.2, 0, 0]}>
               <sphereGeometry args={[0.095, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.42]} />
-              <meshStandardMaterial
+              <meshPhysicalMaterial
                 color="#1d3557"
                 transparent
-                opacity={0.4}
-                roughness={0.15}
-                metalness={0.45}
+                opacity={0.45}
+                roughness={0.08}
+                metalness={0.55}
+                transmission={0.15}
+                thickness={0.4}
               />
             </mesh>
             <mesh position={[0, -0.04, 0.11]}>
@@ -620,7 +635,7 @@ export function AnimatedPilot({
           <group ref={armL} position={[-0.26, 0.26, 0]}>
             <mesh position={[0, -0.18, 0]} castShadow>
               <capsuleGeometry args={[0.065, 0.22, 6, 10]} />
-              <meshStandardMaterial color={suit} roughness={0.78} />
+              <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
             </mesh>
             <group ref={foreL} position={[0, -0.36, 0]}>
               <mesh position={[0, -0.14, 0]} castShadow>
@@ -638,7 +653,7 @@ export function AnimatedPilot({
           <group ref={armR} position={[0.26, 0.26, 0]}>
             <mesh position={[0, -0.18, 0]} castShadow>
               <capsuleGeometry args={[0.065, 0.22, 6, 10]} />
-              <meshStandardMaterial color={suit} roughness={0.78} />
+              <meshStandardMaterial color={suit} roughness={0.72} metalness={0.04} />
             </mesh>
             <group ref={foreR} position={[0, -0.36, 0]}>
               <mesh position={[0, -0.14, 0]} castShadow>

@@ -45,7 +45,7 @@ export function GameCanvas() {
         alpha: false,
         powerPreference: 'high-performance',
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.1,
+        toneMappingExposure: 1.05,
       }}
       style={{ width: '100%', height: '100%' }}
     >

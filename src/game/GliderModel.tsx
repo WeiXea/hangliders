@@ -2,9 +2,10 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from './gameStore'
+import { useSailFabricMaps } from './pbrMaps'
 import { PilotFigure } from './Pilot'
 
-function makeSailTexture(): THREE.CanvasTexture {
+function makeSailBranding(): THREE.CanvasTexture {
   const size = 1024
   const c = document.createElement('canvas')
   c.width = size
@@ -14,20 +15,22 @@ function makeSailTexture(): THREE.CanvasTexture {
   g.fillStyle = '#C1272D'
   g.fillRect(0, 0, size, size)
 
-  for (let i = 0; i < 160; i++) {
-    g.strokeStyle = `rgba(0,0,0,${0.02 + Math.random() * 0.035})`
+  for (let i = 0; i < 180; i++) {
+    g.strokeStyle = `rgba(0,0,0,${0.015 + Math.random() * 0.03})`
     g.lineWidth = 1
     g.beginPath()
-    g.moveTo(0, (i / 160) * size)
-    g.lineTo(size, (i / 160) * size)
+    g.moveTo(0, (i / 180) * size)
+    g.lineTo(size, (i / 180) * size)
     g.stroke()
   }
-  for (let i = 0; i < 100; i++) {
-    g.strokeStyle = `rgba(255,255,255,${0.012 + Math.random() * 0.02})`
-    g.lineWidth = 1
+
+  for (let i = 1; i < 8; i++) {
+    const x = (i / 8) * size
+    g.strokeStyle = 'rgba(0,0,0,0.18)'
+    g.lineWidth = 3
     g.beginPath()
-    g.moveTo((i / 100) * size, 0)
-    g.lineTo((i / 100) * size, size)
+    g.moveTo(x, 0)
+    g.lineTo(x, size)
     g.stroke()
   }
 
@@ -48,21 +51,19 @@ function makeSailTexture(): THREE.CanvasTexture {
   g.strokeStyle = '#006233'
   g.lineWidth = size * 0.028
   g.lineJoin = 'miter'
-  g.miterLimit = 2
   g.stroke()
   g.restore()
 
   const edge = g.createRadialGradient(cx, cy, size * 0.2, cx, cy, size * 0.7)
   edge.addColorStop(0, 'rgba(0,0,0,0)')
-  edge.addColorStop(1, 'rgba(0,0,0,0.18)')
+  edge.addColorStop(1, 'rgba(0,0,0,0.2)')
   g.fillStyle = edge
   g.fillRect(0, 0, size, size)
 
-  g.fillStyle = 'rgba(255,255,255,0.12)'
+  g.fillStyle = 'rgba(255,255,255,0.1)'
   g.fillRect(0, 0, size, 28)
 
-  // Dirt / wear along trailing edge and tips
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < 80; i++) {
     const x = Math.random() * size
     const y = size * 0.55 + Math.random() * size * 0.42
     g.fillStyle = `rgba(40,28,18,${0.04 + Math.random() * 0.08})`
@@ -70,48 +71,10 @@ function makeSailTexture(): THREE.CanvasTexture {
     g.ellipse(x, y, 8 + Math.random() * 28, 4 + Math.random() * 10, Math.random(), 0, Math.PI * 2)
     g.fill()
   }
-  g.fillStyle = 'rgba(20,30,40,0.1)'
-  g.fillRect(0, size * 0.88, size, size * 0.12)
 
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   tex.anisotropy = 16
-  return tex
-}
-
-function makeSailNormalMap(): THREE.CanvasTexture {
-  const size = 512
-  const c = document.createElement('canvas')
-  c.width = size
-  c.height = size
-  const g = c.getContext('2d')!
-  // Flat normal base
-  g.fillStyle = '#8080ff'
-  g.fillRect(0, 0, size, size)
-  // Fabric weave bumps
-  for (let y = 0; y < size; y += 3) {
-    const n = 128 + Math.sin(y * 0.4) * 18
-    g.fillStyle = `rgb(${n * 0.85},${n * 0.85},${200 + (n - 128) * 0.3})`
-    g.fillRect(0, y, size, 2)
-  }
-  for (let x = 0; x < size; x += 4) {
-    g.fillStyle = `rgba(140,140,220,${0.08 + (x % 8) * 0.01})`
-    g.fillRect(x, 0, 1, size)
-  }
-  // Soft panel seams
-  for (let i = 1; i < 8; i++) {
-    const x = (i / 8) * size
-    g.strokeStyle = 'rgba(90,90,180,0.35)'
-    g.lineWidth = 2
-    g.beginPath()
-    g.moveTo(x, 0)
-    g.lineTo(x, size)
-    g.stroke()
-  }
-  const tex = new THREE.CanvasTexture(c)
-  tex.colorSpace = THREE.NoColorSpace
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-  tex.anisotropy = 8
   return tex
 }
 
@@ -158,26 +121,28 @@ type WingGrid = {
   cols: number
 }
 
+/** Dense sail mesh — Phase B hero detail without external GLB. */
 function createDeltaWingGeometry(): WingGrid {
-  const rows = 22
-  const cols = 40
-  const span = 10
+  const rows = 34
+  const cols = 56
+  const span = 10.2
   const positions: number[] = []
   const uvs: number[] = []
   const indices: number[] = []
 
   for (let i = 0; i <= rows; i++) {
     const t = i / rows
-    const halfSpan = span * (0.12 + 0.88 * t)
-    const z = -3.6 + t * 7.2
-    const y = 0.78 * (1 - t * 0.3) + Math.sin(t * Math.PI) * 0.22
+    const halfSpan = span * (0.1 + 0.9 * t)
+    const z = -3.7 + t * 7.4
+    const y = 0.82 * (1 - t * 0.32) + Math.sin(t * Math.PI) * 0.24
 
     for (let j = 0; j <= cols; j++) {
       const s = j / cols
       const x = (s - 0.5) * 2 * halfSpan
-      const dihedral = Math.abs(s - 0.5) * 0.34
-      const billow = Math.cos((s - 0.5) * Math.PI) * 0.18 * (1 - t * 0.4)
-      positions.push(x, y + dihedral + billow, z)
+      const dihedral = Math.abs(s - 0.5) * 0.36
+      const billow = Math.cos((s - 0.5) * Math.PI) * 0.2 * (1 - t * 0.42)
+      const tipWash = Math.pow(Math.abs(s - 0.5) * 2, 2.2) * 0.08 * t
+      positions.push(x, y + dihedral + billow - tipWash, z)
       uvs.push(s, t)
     }
   }
@@ -201,10 +166,14 @@ function createDeltaWingGeometry(): WingGrid {
 
 function createLeadingEdgeCurve(): THREE.CatmullRomCurve3 {
   const points: THREE.Vector3[] = []
-  for (let i = 0; i <= 28; i++) {
-    const s = i / 28
+  for (let i = 0; i <= 40; i++) {
+    const s = i / 40
     points.push(
-      new THREE.Vector3((s - 0.5) * 10, 0.95 + Math.abs(s - 0.5) * 0.35, 3.5),
+      new THREE.Vector3(
+        (s - 0.5) * 10.2,
+        0.98 + Math.abs(s - 0.5) * 0.38,
+        3.55 - Math.abs(s - 0.5) * 0.15,
+      ),
     )
   }
   return new THREE.CatmullRomCurve3(points)
@@ -221,22 +190,24 @@ export function GliderModel({ barRef: externalBarRef, hidePilot }: GliderModelPr
   const bottomRef = useRef<THREE.Mesh>(null)
   const wing = useMemo(() => createDeltaWingGeometry(), [])
   const edgeCurve = useMemo(() => createLeadingEdgeCurve(), [])
-  const sailMap = useMemo(() => makeSailTexture(), [])
-  const sailNormal = useMemo(() => makeSailNormalMap(), [])
+  const sailMap = useMemo(() => makeSailBranding(), [])
   const bottomMap = useMemo(() => makeBottomSailTexture(), [])
+  const fabric = useSailFabricMaps()
   const normalTick = useRef(0)
 
   const frameMat = useMemo(
     () =>
-      new THREE.MeshStandardMaterial({
-        color: '#1a1a2e',
-        roughness: 0.25,
-        metalness: 0.85,
+      new THREE.MeshPhysicalMaterial({
+        color: '#1c1c24',
+        roughness: 0.28,
+        metalness: 0.92,
+        clearcoat: 0.45,
+        clearcoatRoughness: 0.25,
+        envMapIntensity: 1.1,
       }),
     [],
   )
 
-  // Vertex morph: fabric billow + wing flex from airspeed / weight-shift
   useFrame(({ clock }) => {
     const mesh = wingRef.current
     if (!mesh) return
@@ -283,83 +254,116 @@ export function GliderModel({ barRef: externalBarRef, hidePilot }: GliderModelPr
   return (
     <group>
       <mesh ref={wingRef} geometry={wing.geo} castShadow receiveShadow>
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           map={sailMap}
-          normalMap={sailNormal}
-          normalScale={new THREE.Vector2(0.55, 0.55)}
-          roughness={0.62}
-          metalness={0.06}
-          envMapIntensity={0.85}
+          normalMap={fabric.normalMap}
+          normalScale={new THREE.Vector2(0.85, 0.85)}
+          roughnessMap={fabric.roughnessMap}
+          roughness={0.72}
+          metalness={0.02}
+          sheen={0.55}
+          sheenRoughness={0.72}
+          sheenColor={new THREE.Color('#ffffff')}
+          envMapIntensity={0.95}
           side={THREE.FrontSide}
         />
       </mesh>
       <mesh ref={bottomRef} geometry={wing.geo} castShadow receiveShadow>
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           map={bottomMap}
-          roughness={0.82}
-          metalness={0.03}
+          normalMap={fabric.normalMap}
+          roughnessMap={fabric.roughnessMap}
+          roughness={0.85}
+          metalness={0.02}
+          sheen={0.35}
+          sheenRoughness={0.8}
           side={THREE.BackSide}
         />
       </mesh>
 
-      <mesh castShadow position={[0, 0.9, 3.55]}>
-        <sphereGeometry args={[0.16, 16, 16]} />
-        <meshStandardMaterial color="#f8f9fa" metalness={0.35} roughness={0.35} />
+      <mesh castShadow position={[0, 0.92, 3.58]}>
+        <sphereGeometry args={[0.17, 20, 18]} />
+        <meshPhysicalMaterial
+          color="#f1f3f5"
+          metalness={0.45}
+          roughness={0.28}
+          clearcoat={0.6}
+          clearcoatRoughness={0.2}
+        />
       </mesh>
 
       <mesh castShadow>
-        <tubeGeometry args={[edgeCurve, 48, 0.08, 12, false]} />
+        <tubeGeometry args={[edgeCurve, 64, 0.075, 14, false]} />
         <primitive object={frameMat} attach="material" />
       </mesh>
 
       <mesh position={[0, 0.55, 0.4]} rotation={[0, 0, Math.PI / 2]} castShadow>
-        <cylinderGeometry args={[0.045, 0.045, 9.4, 14]} />
+        <cylinderGeometry args={[0.042, 0.042, 9.6, 16]} />
         <primitive object={frameMat} attach="material" />
       </mesh>
 
-      <mesh position={[0, 0.3, 2.3]} rotation={[0.4, 0, 0]} castShadow>
-        <cylinderGeometry args={[0.03, 0.03, 2.3, 10]} />
+      <mesh position={[0, 1.35, 0.2]} castShadow>
+        <cylinderGeometry args={[0.028, 0.032, 1.15, 10]} />
         <primitive object={frameMat} attach="material" />
       </mesh>
+      {[-1, 1].map((side) => (
+        <mesh
+          key={`kc${side}`}
+          position={[side * 2.2, 1.05, 0.8]}
+          rotation={[0.35, 0, side * -0.55]}
+        >
+          <cylinderGeometry args={[0.006, 0.006, 4.2, 5]} />
+          <meshStandardMaterial color="#adb5bd" metalness={0.85} roughness={0.25} />
+        </mesh>
+      ))}
 
-      {[-4, -2, 0, 2, 4].map((x) => (
-        <mesh key={x} position={[x * 0.95, 0.62, 0.9]} rotation={[0.12, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.01, 0.01, 7.8, 6]} />
-          <meshStandardMaterial color="#ced4da" metalness={0.55} roughness={0.4} />
+      <mesh position={[0, 0.15, 0.25]} castShadow>
+        <torusGeometry args={[0.08, 0.018, 8, 16]} />
+        <meshPhysicalMaterial color="#c9a227" metalness={0.9} roughness={0.22} />
+      </mesh>
+      <mesh position={[0, -0.05, 0.25]} castShadow>
+        <cylinderGeometry args={[0.012, 0.012, 0.35, 8]} />
+        <meshStandardMaterial color="#212529" roughness={0.5} />
+      </mesh>
+
+      {[-4.2, -2.8, -1.4, 0, 1.4, 2.8, 4.2].map((x) => (
+        <mesh key={x} position={[x * 0.95, 0.62, 0.85]} rotation={[0.1, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.009, 0.009, 7.6, 6]} />
+          <meshStandardMaterial color="#ced4da" metalness={0.6} roughness={0.35} />
         </mesh>
       ))}
 
       {[-1, 1].map((side) => (
         <mesh
           key={side}
-          position={[side * 4, 0.2, 1]}
+          position={[side * 4.1, 0.2, 1]}
           rotation={[0.55, side * 0.22, side * 0.9]}
         >
-          <cylinderGeometry args={[0.015, 0.015, 3.8, 6]} />
-          <meshStandardMaterial color="#868e96" metalness={0.7} roughness={0.3} />
+          <cylinderGeometry args={[0.012, 0.012, 3.9, 6]} />
+          <meshStandardMaterial color="#868e96" metalness={0.75} roughness={0.28} />
         </mesh>
       ))}
 
       <group ref={barRef} position={[0, -0.55, 0.15]}>
         {[-0.55, 0.55].map((x) => (
           <mesh key={x} position={[x * 0.15, 0.35, -0.1]} rotation={[0.35, 0, x > 0 ? -0.25 : 0.25]}>
-            <cylinderGeometry args={[0.022, 0.022, 0.9, 8]} />
-            <meshStandardMaterial color="#212529" metalness={0.6} roughness={0.35} />
+            <cylinderGeometry args={[0.022, 0.022, 0.9, 10]} />
+            <meshPhysicalMaterial color="#1a1a1a" metalness={0.7} roughness={0.3} />
           </mesh>
         ))}
         <mesh rotation={[0, 0, Math.PI / 2]} position={[0, 0, 0]}>
-          <cylinderGeometry args={[0.035, 0.035, 1.2, 14]} />
-          <meshStandardMaterial color="#111" metalness={0.5} roughness={0.4} />
+          <cylinderGeometry args={[0.032, 0.032, 1.25, 16]} />
+          <meshPhysicalMaterial color="#111" metalness={0.55} roughness={0.35} clearcoat={0.3} />
         </mesh>
         {[-0.55, 0.55].map((x) => (
           <group key={x} position={[x, 0, 0]}>
             <mesh position={[0, 0, 0.06]} rotation={[0.25, 0, x < 0 ? 0.35 : -0.35]}>
-              <capsuleGeometry args={[0.055, 0.32, 4, 8]} />
-              <meshStandardMaterial color="#264653" roughness={0.7} />
+              <capsuleGeometry args={[0.055, 0.32, 6, 10]} />
+              <meshStandardMaterial color="#264653" roughness={0.65} />
             </mesh>
             <mesh>
-              <sphereGeometry args={[0.06, 12, 12]} />
-              <meshStandardMaterial color="#e9c46a" roughness={0.75} />
+              <sphereGeometry args={[0.06, 14, 14]} />
+              <meshPhysicalMaterial color="#e9c46a" roughness={0.55} clearcoat={0.2} />
             </mesh>
           </group>
         ))}

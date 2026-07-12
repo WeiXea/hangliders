@@ -1,5 +1,6 @@
-import { useMemo, type ReactElement } from 'react'
+import { useMemo, useEffect, type ReactElement } from 'react'
 import * as THREE from 'three'
+import { useTexture } from '@react-three/drei'
 import type { BiomeConfig } from '../types/game'
 import {
   CITY_BUILDINGS,
@@ -14,12 +15,13 @@ import {
   OceanSurface,
 } from './TerrainHelpers'
 import { SharedSky, SharedLighting } from './SharedSky'
+import { prepMap } from '../game/pbrMaps'
 
 interface CitySceneProps {
   config: BiomeConfig
 }
 
-function makeFacadeTexture(color: string): THREE.CanvasTexture {
+function makeFacadeTexture(color: string, concrete?: THREE.Texture): THREE.CanvasTexture {
   const size = 256
   const c = document.createElement('canvas')
   c.width = size
@@ -27,12 +29,23 @@ function makeFacadeTexture(color: string): THREE.CanvasTexture {
   const g = c.getContext('2d')!
   g.fillStyle = color
   g.fillRect(0, 0, size, size)
-  // Concrete noise
+  if (concrete?.image) {
+    try {
+      g.globalAlpha = 0.55
+      g.drawImage(concrete.image as CanvasImageSource, 0, 0, size, size)
+      g.globalAlpha = 1
+      g.fillStyle = color
+      g.globalCompositeOperation = 'multiply'
+      g.fillRect(0, 0, size, size)
+      g.globalCompositeOperation = 'source-over'
+    } catch {
+      /* canvas draw may fail if image not ready */
+    }
+  }
   for (let i = 0; i < 900; i++) {
     g.fillStyle = `rgba(0,0,0,${Math.random() * 0.07})`
     g.fillRect(Math.random() * size, Math.random() * size, 2, 2)
   }
-  // Floor lines
   for (let y = 24; y < size; y += 28) {
     g.fillStyle = 'rgba(0,0,0,0.12)'
     g.fillRect(0, y, size, 2)
@@ -47,13 +60,17 @@ function makeFacadeTexture(color: string): THREE.CanvasTexture {
 function Building({
   building,
   groundY,
+  concreteMap,
+  concreteNor,
 }: {
   building: CityBuilding
   groundY: number
+  concreteMap?: THREE.Texture
+  concreteNor?: THREE.Texture
 }) {
   const { width, height, color, windows, enterable, roofLandable } = building
   const depth = buildingDepth(building)
-  const facade = useMemo(() => makeFacadeTexture(color), [color])
+  const facade = useMemo(() => makeFacadeTexture(color, concreteMap), [color, concreteMap])
   const rows = Math.floor(height / 3)
   const cols = Math.max(1, Math.floor(width / 2))
   const doorW = 1.8
@@ -63,10 +80,13 @@ function Building({
   const halfD = depth / 2
   const facadeProps = {
     map: facade,
+    normalMap: concreteNor,
+    normalScale: new THREE.Vector2(0.45, 0.45),
     color,
-    roughness: 0.72,
-    metalness: 0.12,
+    roughness: 0.78,
+    metalness: 0.08,
     side: THREE.DoubleSide,
+    envMapIntensity: 0.5,
   } as const
 
   return (
@@ -74,7 +94,15 @@ function Building({
       {!enterable ? (
         <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
           <boxGeometry args={[width, height, depth]} />
-          <meshStandardMaterial map={facade} color={color} roughness={0.72} metalness={0.12} />
+          <meshStandardMaterial
+            map={facade}
+            normalMap={concreteNor}
+            normalScale={new THREE.Vector2(0.45, 0.45)}
+            color={color}
+            roughness={0.78}
+            metalness={0.08}
+            envMapIntensity={0.5}
+          />
         </mesh>
       ) : (
         <>
@@ -313,6 +341,15 @@ function Billboard({ position }: { position: [number, number, number] }) {
 }
 
 export function CityScene({ config }: CitySceneProps) {
+  const concrete = useTexture({
+    map: '/textures/concrete_diff_1k.jpg',
+    nor: '/textures/concrete_nor_1k.jpg',
+  })
+  useEffect(() => {
+    prepMap(concrete.map, 2, THREE.SRGBColorSpace)
+    prepMap(concrete.nor, 2)
+  }, [concrete])
+
   return (
     <>
       <SharedSky config={config} />
@@ -325,6 +362,8 @@ export function CityScene({ config }: CitySceneProps) {
           key={b.id}
           building={b}
           groundY={config.getHeight(b.x, b.z)}
+          concreteMap={concrete.map}
+          concreteNor={concrete.nor}
         />
       ))}
       <BuildingInterior config={config} />
