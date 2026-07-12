@@ -338,6 +338,77 @@
   letter-spacing: 0.04em;
 }
 
+.centerActions {
+  position: absolute;
+  left: 50%;
+  bottom: max(100px, calc(env(safe-area-inset-bottom) + 96px));
+  transform: translateX(-50%);
+  z-index: 14;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.bigJump {
+  min-width: 148px;
+  height: 64px;
+  padding: 0 22px;
+  border-radius: 18px;
+  border: 2px solid rgba(255, 209, 102, 0.75);
+  background: linear-gradient(135deg, rgba(255, 209, 102, 0.95), rgba(244, 162, 97, 0.95));
+  color: #0a1628;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.bigJump:disabled {
+  opacity: 0.45;
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(8, 16, 28, 0.72);
+  color: rgba(255, 255, 255, 0.7);
+  box-shadow: none;
+}
+
+.bigJumpReady {
+  animation: pulse 0.7s ease infinite alternate;
+}
+
+.bigJumpSub {
+  display: block;
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 2px;
+  opacity: 0.75;
+}
+
+.bigChute {
+  min-width: 148px;
+  height: 64px;
+  padding: 0 22px;
+  border-radius: 18px;
+  border: 2px solid rgba(82, 183, 136, 0.85);
+  background: linear-gradient(135deg, #52b788, #2d6a4f);
+  color: #fff;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  animation: pulse 0.55s ease infinite alternate;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 @keyframes pulse {
   from { opacity: 0.75; }
   to { opacity: 1; }

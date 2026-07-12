@@ -112,7 +112,7 @@ export interface BiomeConfig {
   parkedGliders: { x: number; z: number; yaw: number }[]
 }
 
-export const JUMP_MIN_ALTITUDE = 35
+export const JUMP_MIN_ALTITUDE = 25
 export const MOUNT_RANGE = 6
 export const WALK_EYE = 1.95
 

@@ -191,8 +191,14 @@ export function FlightHUD() {
         </div>
       )}
 
+      {flying && !canJump && flight.altitude >= 10 && (
+        <div className={styles.coach}>
+          Climb to {JUMP_MIN_ALTITUDE}m to jump — Alt {Math.round(flight.altitude)}m
+        </div>
+      )}
+
       {canJump && (
-        <div className={styles.coach}>Jump ready — Space / Jump to leave the glider</div>
+        <div className={styles.nearGround}>Jump ready — tap Jump (bottom right) or press Space</div>
       )}
 
       {freefall && (
@@ -233,6 +239,41 @@ export function FlightHUD() {
         </div>
       )}
 
+      {/* Big center actions — hard to miss while flying */}
+      {flying && (
+        <div className={styles.centerActions}>
+          <button
+            type="button"
+            className={`${styles.bigJump} ${canJump ? styles.bigJumpReady : ''}`}
+            disabled={!canJump}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              if (canJump) useGameStore.getState().setInput({ jump: true })
+            }}
+          >
+            JUMP
+            <span className={styles.bigJumpSub}>
+              {canJump ? 'Leave glider · Space' : `Need ${JUMP_MIN_ALTITUDE}m alt`}
+            </span>
+          </button>
+        </div>
+      )}
+      {freefall && (
+        <div className={styles.centerActions}>
+          <button
+            type="button"
+            className={styles.bigChute}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              useGameStore.getState().setInput({ deployChute: true })
+            }}
+          >
+            CHUTE
+            <span className={styles.bigJumpSub}>Deploy parachute · F</span>
+          </button>
+        </div>
+      )}
+
       <div className={styles.controls}>
         {showSteerPads && (
           <div className={styles.leftPads}>
@@ -262,15 +303,6 @@ export function FlightHUD() {
           </div>
         )}
         <div className={styles.rightPads}>
-          {flying && (
-            <ControlPad
-              label="Jump"
-              sub={canJump ? 'Ready' : `Need ${JUMP_MIN_ALTITUDE}m`}
-              action="jump"
-              className={styles.padAction}
-              active={input.jump}
-            />
-          )}
           {freefall && (
             <ControlPad
               label="Chute"
