@@ -49,6 +49,10 @@ export interface FlightState {
   distance: number
   maxAltitude: number
   airtime: number
+  /** Peak climb rate (m/s) this flight */
+  maxClimbRate: number
+  /** Seconds spent in rising air / climbing */
+  timeInLift: number
   /** Which parked glider is currently mounted (-1 = launch ramp) */
   mountedId: number
   chuteDeployed: boolean
@@ -97,6 +101,8 @@ export interface FlightStats {
   airtime: number
   maxAltitude: number
   distance: number
+  maxClimbRate: number
+  timeInLift: number
   ringsPassed: number
   totalRings: number
   landingQuality: 'perfect' | 'good' | 'hard' | 'crash' | null
@@ -146,6 +152,8 @@ export const INITIAL_FLIGHT: FlightState = {
   distance: 0,
   maxAltitude: 0,
   airtime: 0,
+  maxClimbRate: 0,
+  timeInLift: 0,
   mountedId: -1,
   chuteDeployed: false,
   chuteInflation: 0,

@@ -19,6 +19,7 @@ import {
   getLandingQuality,
   initParkedGliders,
 } from './flightPhysics'
+import { buildChallengeRings } from './challengeCourse'
 import { playRingSound } from './audio'
 import { checkRingCollision } from './obstacles'
 import {
@@ -27,6 +28,7 @@ import {
   writeStoredTiltPreference,
 } from './tilt'
 import { setRoomSession } from './netSync'
+import { resetTandemRejoin } from './tandem'
 
 const CAMERA_CYCLE: CameraMode[] = ['chase', 'fpv', 'side']
 
@@ -70,6 +72,7 @@ interface GameStore {
   setSimTime: (t: number) => void
   checkRings: () => void
   finishFlight: () => void
+  endFlightFromWalk: () => void
   goHome: () => void
 
   setPlayerName: (name: string) => void
@@ -85,17 +88,7 @@ interface GameStore {
 }
 
 function initRings(biome: Biome): ChallengeRing[] {
-  const config = BIOME_CONFIGS[biome]
-  return config.challengeRings.map((pos, i) => {
-    const ground = config.getHeight(pos.x, pos.z)
-    const airHeight = Math.max(pos.y, ground + 22)
-    return {
-      id: i,
-      position: { x: pos.x, y: airHeight, z: pos.z },
-      radius: 12,
-      passed: false,
-    }
-  })
+  return buildChallengeRings(biome)
 }
 
 function calcScore(
@@ -104,10 +97,17 @@ function calcScore(
   mode: GameMode,
   landingQuality: FlightStats['landingQuality'],
 ): number {
-  let score = Math.round(flight.distance * 2 + flight.maxAltitude * 3 + flight.airtime * 10)
+  let score = Math.round(
+    flight.distance * 2 +
+      flight.maxAltitude * 3 +
+      flight.airtime * 10 +
+      flight.timeInLift * 40 +
+      flight.maxClimbRate * 80,
+  )
   if (mode === 'challenge') {
     const passed = rings.filter((r) => r.passed).length
     score += passed * 500
+    score += Math.round(flight.timeInLift * 60)
     if (landingQuality === 'perfect') score += 1000
     else if (landingQuality === 'good') score += 500
   }
@@ -207,6 +207,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   startFlight: () => {
     const { biome } = get()
     const config = BIOME_CONFIGS[biome]
+    resetTandemRejoin()
     set({
       screen: 'flight',
       flight: createInitialFlight(config),
@@ -262,13 +263,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const config = BIOME_CONFIGS[biome]
     let landingQuality = getLandingQuality(flight)
 
-    if (mode === 'challenge' && flight.phase === 'landed') {
+    if (
+      mode === 'challenge' &&
+      (flight.phase === 'landed' || flight.phase === 'walking')
+    ) {
       const lz = config.landingZone
       const dx = flight.position.x - lz.center.x
       const dz = flight.position.z - lz.center.z
       const dist = Math.sqrt(dx * dx + dz * dz)
-      if (dist <= lz.radius) {
-        landingQuality = flight.airspeed === 0 ? 'perfect' : 'good'
+      if (dist <= lz.radius * 1.35) {
+        landingQuality = 'perfect'
+      } else if (landingQuality == null) {
+        landingQuality = 'good'
       }
     }
 
@@ -276,12 +282,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
       airtime: flight.airtime,
       maxAltitude: flight.maxAltitude,
       distance: flight.distance,
+      maxClimbRate: flight.maxClimbRate,
+      timeInLift: flight.timeInLift,
       ringsPassed: rings.filter((r) => r.passed).length,
       totalRings: rings.length,
       landingQuality,
       score: calcScore(flight, rings, mode, landingQuality),
     }
     set({ stats, screen: 'result' })
+  },
+
+  endFlightFromWalk: () => {
+    const { flight } = get()
+    if (flight.phase !== 'walking' && flight.phase !== 'grounded' && flight.phase !== 'running') {
+      return
+    }
+    if (flight.airtime < 2.5) return
+    set({
+      flight: {
+        ...flight,
+        phase: 'landed',
+        airspeed: 0,
+        velocity: { x: 0, y: 0, z: 0 },
+        tandemRole: 'none',
+        tandemWant: false,
+      },
+    })
+    get().finishFlight()
   },
 
   goHome: () => {

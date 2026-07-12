@@ -33,17 +33,19 @@ export function getThermals(biomeId: string): Thermal[] {
   }
   if (biomeId === 'city') {
     return [
-      { x: 80, z: 100, radius: 30, strength: 2.4, y0: 15, y1: 90 },
-      { x: 160, z: 160, radius: 35, strength: 2.8, y0: 18, y1: 100 },
-      { x: 40, z: 200, radius: 28, strength: 2.2, y0: 12, y1: 85 },
+      { x: 80, z: 100, radius: 32, strength: 3.0, y0: 15, y1: 100 },
+      { x: 160, z: 160, radius: 36, strength: 3.4, y0: 18, y1: 110 },
+      { x: 40, z: 200, radius: 30, strength: 2.8, y0: 12, y1: 95 },
+      { x: 120, z: 70, radius: 28, strength: 2.6, y0: 14, y1: 90 },
     ]
   }
-  // beach — fewer, coastal thermals off cliffs/dunes
+  // beach — coastal thermals off cliffs/dunes
   return [
-    { x: 20, z: 50, radius: 32, strength: 2.6, y0: 12, y1: 95 },
-    { x: 100, z: 120, radius: 40, strength: 3.0, y0: 15, y1: 110 },
-    { x: 180, z: 80, radius: 28, strength: 2.2, y0: 10, y1: 90 },
-    { x: 140, z: 200, radius: 36, strength: 2.8, y0: 14, y1: 100 },
+    { x: 20, z: 50, radius: 34, strength: 3.2, y0: 12, y1: 105 },
+    { x: 100, z: 120, radius: 42, strength: 3.6, y0: 15, y1: 120 },
+    { x: 180, z: 80, radius: 30, strength: 2.8, y0: 10, y1: 100 },
+    { x: 140, z: 200, radius: 38, strength: 3.4, y0: 14, y1: 110 },
+    { x: 60, z: 160, radius: 28, strength: 2.6, y0: 12, y1: 95 },
   ]
 }
 
@@ -168,4 +170,42 @@ export function sampleAtmosphere(
 /** Strength of lift at position for HUD / audio (positive = climb air). */
 export function thermalHint(config: BiomeConfig, time: number, pos: Vec3): number {
   return sampleAtmosphere(config, time, pos).y
+}
+
+export type RidgeMarker = { x: number; y: number; z: number; facing: number }
+
+/** Soft ridge-lift cue points for mountain faces (visual only). */
+export function listRidgeMarkers(config: BiomeConfig): RidgeMarker[] {
+  if (config.id !== 'mountains') return []
+  const windDir = 0.35
+  const markers: RidgeMarker[] = []
+  const samples: [number, number][] = [
+    [20, 40],
+    [60, 90],
+    [110, 70],
+    [150, 130],
+    [190, 100],
+    [80, 160],
+    [220, 170],
+    [40, 120],
+    [170, 50],
+    [100, 200],
+  ]
+  for (const [x, z] of samples) {
+    const sample = 6
+    const h0 = config.getHeight(x, z)
+    const hx =
+      (config.getHeight(x + sample, z) - config.getHeight(x - sample, z)) / (2 * sample)
+    const hz =
+      (config.getHeight(x, z + sample) - config.getHeight(x, z - sample)) / (2 * sample)
+    const slopeIntoWind = -(hx * Math.sin(windDir) + hz * Math.cos(windDir))
+    if (slopeIntoWind < 0.08) continue
+    markers.push({
+      x,
+      y: h0 + 6 + slopeIntoWind * 12,
+      z,
+      facing: windDir + Math.PI,
+    })
+  }
+  return markers
 }

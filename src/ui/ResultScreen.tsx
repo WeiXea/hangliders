@@ -44,6 +44,8 @@ export function ResultScreen() {
           <Stat label="Airtime" value={`${stats.airtime.toFixed(1)}s`} />
           <Stat label="Max Alt" value={`${Math.round(stats.maxAltitude)}m`} />
           <Stat label="Distance" value={`${Math.round(stats.distance)}m`} />
+          <Stat label="Max climb" value={`+${stats.maxClimbRate.toFixed(1)} m/s`} />
+          <Stat label="Time in lift" value={`${stats.timeInLift.toFixed(1)}s`} />
           {mode === 'challenge' && (
             <Stat label="Rings" value={`${stats.ringsPassed}/${stats.totalRings}`} />
           )}

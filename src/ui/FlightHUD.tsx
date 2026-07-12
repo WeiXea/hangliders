@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useGameStore } from '../game/gameStore'
 import {
   calibrateTiltNow,
@@ -14,6 +14,12 @@ import { pulseAction } from '../game/actionPulses'
 import { startWindAudio, stopWindAudio } from '../game/audio'
 import { nearestThermal, thermalHint } from '../game/atmosphere'
 import { BIOME_CONFIGS } from '../game/biomeConfigs'
+import {
+  readTutorialDone,
+  tutorialCopy,
+  writeTutorialDone,
+  type TutorialStep,
+} from '../game/tutorial'
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
 import { FriendFinder } from './FriendFinder'
@@ -62,7 +68,10 @@ export function FlightHUD() {
   const tiltEnabled = useGameStore((s) => s.tiltEnabled)
   const tiltPermission = useGameStore((s) => s.tiltPermission)
   const setTiltEnabled = useGameStore((s) => s.setTiltEnabled)
+  const endFlightFromWalk = useGameStore((s) => s.endFlightFromWalk)
   const [tiltBusy, setTiltBusy] = useState(false)
+  const [tutorialOn, setTutorialOn] = useState(() => !readTutorialDone())
+  const [tutStep, setTutStep] = useState<TutorialStep>('speed')
 
   useKeyboardControls()
   useTiltControls()
@@ -82,6 +91,40 @@ export function FlightHUD() {
     window.addEventListener('pointerdown', warm, { once: true })
     return () => window.removeEventListener('pointerdown', warm)
   }, [])
+
+  // Advance first-flight coach: speed → climb → thermal → land
+  useEffect(() => {
+    if (!tutorialOn || tutStep === 'done') return
+    if (tutStep === 'speed' && flight.airspeed >= 11) setTutStep('climb')
+    else if (tutStep === 'climb' && flight.phase === 'flying' && flight.altitude > 3) {
+      setTutStep('thermal')
+    } else if (
+      tutStep === 'thermal' &&
+      (flight.timeInLift > 2.5 || flight.velocity.y > 0.8)
+    ) {
+      setTutStep('land')
+    } else if (
+      tutStep === 'land' &&
+      (flight.phase === 'walking' || flight.phase === 'landed' || flight.phase === 'crashed')
+    ) {
+      setTutStep('done')
+      writeTutorialDone()
+      setTutorialOn(false)
+    }
+  }, [
+    tutorialOn,
+    tutStep,
+    flight.airspeed,
+    flight.phase,
+    flight.altitude,
+    flight.timeInLift,
+    flight.velocity.y,
+  ])
+
+  const tut = useMemo(
+    () => (tutorialOn ? tutorialCopy(tutStep) : null),
+    [tutorialOn, tutStep],
+  )
 
   const passedRings = rings.filter((r) => r.passed).length
   const vs = flight.velocity.y
@@ -243,25 +286,43 @@ export function FlightHUD() {
         <div className={styles.coach}>Motion access denied — enable it in Safari Settings</div>
       )}
 
+      {tut && !flight.stallWarning && (
+        <div className={styles.tutorial}>
+          <div className={styles.tutorialTitle}>{tut.title}</div>
+          <div className={styles.tutorialBody}>{tut.body}</div>
+          <button
+            type="button"
+            className={styles.tutorialSkip}
+            onClick={() => {
+              writeTutorialDone()
+              setTutorialOn(false)
+              setTutStep('done')
+            }}
+          >
+            Skip tips
+          </button>
+        </div>
+      )}
+
       {flight.stallWarning && flying && (
         <div className={styles.stallWarning}>Stall — ease the bar forward / build speed</div>
       )}
 
-      {thermalCue && !flight.stallWarning && (
+      {thermalCue && !flight.stallWarning && !tut && (
         <div className={`${styles.nearGround} ${liftHot ? styles.liftBanner : ''}`}>
           {thermalCue}
         </div>
       )}
 
-      {inLift && !flight.stallWarning && !thermalCue && (
+      {inLift && !flight.stallWarning && !thermalCue && !tut && (
         <div className={styles.nearGround}>Lift! Center the thermal — climb {vs.toFixed(1)} m/s</div>
       )}
 
-      {heavySink && !flight.stallWarning && !thermalCue && (
+      {heavySink && !flight.stallWarning && !thermalCue && !tut && (
         <div className={styles.coach}>Strong sink — turn toward a green thermal column</div>
       )}
 
-      {onGround && (
+      {onGround && !tut && (
         <div className={styles.coach}>
           {tiltEnabled
             ? canLift
@@ -470,6 +531,16 @@ export function FlightHUD() {
                 className={nearMount ? styles.padLand : styles.padAction}
                 active={input.interact}
               />
+              {flight.airtime >= 2.5 && (
+                <button
+                  type="button"
+                  className={`${styles.pad} ${styles.padLand}`}
+                  onClick={() => endFlightFromWalk()}
+                >
+                  <span className={styles.padLabel}>End</span>
+                  <span className={styles.padSub}>Results</span>
+                </button>
+              )}
             </>
           )}
           {tandemOk && (

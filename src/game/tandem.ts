@@ -18,6 +18,10 @@ export function blockTandemRejoin(ms = 1200) {
   rejoinBlockUntil = performance.now() + ms
 }
 
+export function resetTandemRejoin() {
+  rejoinBlockUntil = 0
+}
+
 function rejoinBlocked() {
   return performance.now() < rejoinBlockUntil
 }

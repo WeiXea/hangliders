@@ -78,6 +78,8 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     distance: 0,
     maxAltitude: 0,
     airtime: 0,
+    maxClimbRate: 0,
+    timeInLift: 0,
     mountedId: -1,
     chuteDeployed: false,
     chuteInflation: 0,
@@ -146,6 +148,31 @@ function parkMountedGlider(
 
   const nextId = parked.reduce((m, g) => Math.max(m, g.id), -1) + 1
   return [...parked, { id: nextId, x, z, yaw, available: true }]
+}
+
+function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
+  const groundY = config.getHeight(next.position.x, next.position.z)
+  return {
+    ...next,
+    phase: 'landed',
+    position: {
+      ...next.position,
+      y: groundY + WALK_FEET,
+    },
+    velocity: { x: 0, y: 0, z: 0 },
+    airspeed: 0,
+    pitch: 0,
+    roll: 0,
+    altitude: 0,
+    mountedId: -1,
+    chuteDeployed: false,
+    chuteInflation: 0,
+    chuteSwing: 0,
+    landAction: 'none',
+    tandemRole: 'none',
+    tandemWant: false,
+    stallWarning: false,
+  }
 }
 
 function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
@@ -580,6 +607,15 @@ export function tickFlight(
   next.velocity.y = vy
   next.velocity.z = fz * speed + wind.z * 0.55
 
+  // Track climb / time in lift for results + challenge score
+  if (next.velocity.y > next.maxClimbRate) {
+    next.maxClimbRate = next.velocity.y
+  }
+  const airLift = wind.y
+  if (airLift > 0.35 || next.velocity.y > 0.55) {
+    next.timeInLift += dt
+  }
+
   // Mild wing-drop only in deep AoA stall
   if (aoaStall) {
     next.roll += (Math.sin(time * 3.1) > 0 ? 1 : -1) * stallSeverity * 0.45 * dt
@@ -612,7 +648,10 @@ export function tickFlight(
     const intentional =
       input.land && next.airspeed <= 12 && sink < 10 && !takeoffGrace
 
-    if (softLand || intentional) {
+    if (intentional) {
+      parked = parkMountedGlider(next, parked)
+      next = beginLanded(next, config)
+    } else if (softLand) {
       parked = parkMountedGlider(next, parked)
       next = beginWalking(next, config)
     } else if (sink > 11 || next.airspeed > 24 || next.pitch < -0.45) {
@@ -638,7 +677,7 @@ export function getLandingQuality(
   state: FlightState,
 ): 'perfect' | 'good' | 'hard' | 'crash' | null {
   if (state.phase === 'crashed') return 'crash'
-  if (state.phase !== 'landed') return null
-  if (state.airspeed === 0) return 'perfect'
-  return 'good'
+  if (state.phase === 'landed') return 'perfect'
+  if (state.phase === 'walking' && state.airtime > 4) return 'good'
+  return null
 }

@@ -13,6 +13,7 @@ import { CityScene } from '../scenes/CityScene'
 import { ChallengeRings, LandingZone } from '../scenes/ChallengeObjects'
 import { FlightPostFX } from '../scenes/SharedSky'
 import { ThermalMarkers } from '../scenes/ThermalMarkers'
+import { RidgeLiftMarkers } from '../scenes/RidgeLiftMarkers'
 
 function BiomeWorld() {
   const biome = useGameStore((s) => s.biome)
@@ -55,6 +56,7 @@ export function GameCanvas() {
         <ChallengeRings />
         <LandingZone />
         <ThermalMarkers />
+        <RidgeLiftMarkers />
         <FlightSimulator />
         <FlightPostFX />
       </Suspense>

@@ -333,8 +333,8 @@ export function HomeScreen() {
 
         <p className={styles.controlsHint}>
           {tiltEnabled
-            ? 'Hold landscape like a wheel — turn to bank · pull/push to pitch'
-            : 'Takeoff: Shift + ↓ climb · Jump at 25m altitude'}
+            ? 'Hold landscape like a wheel — turn to bank · pull/push to pitch · green columns = lift'
+            : 'Speed (Shift) → Climb (↓) → green thermals → Land (L) or End flight'}
         </p>
       </div>
     </div>

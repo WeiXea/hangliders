@@ -108,6 +108,49 @@
   background: rgba(16, 120, 80, 0.9);
 }
 
+.tutorial {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 14;
+  width: min(420px, 92vw);
+  padding: 14px 16px 12px;
+  border-radius: 14px;
+  background: rgba(8, 22, 36, 0.88);
+  border: 1px solid rgba(125, 211, 160, 0.35);
+  backdrop-filter: blur(12px);
+  text-align: center;
+  pointer-events: auto;
+}
+
+.tutorialTitle {
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #9ae6b4;
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+
+.tutorialBody {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.4;
+}
+
+.tutorialSkip {
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .divider {
   width: 1px;
   height: 28px;
