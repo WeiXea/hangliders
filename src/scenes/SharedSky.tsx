@@ -1,4 +1,4 @@
-import { Cloud, Environment, Sky, ContactShadows, SoftShadows } from '@react-three/drei'
+import { Cloud, Environment, Sky, ContactShadows } from '@react-three/drei'
 import {
   EffectComposer,
   Bloom,
@@ -11,7 +11,6 @@ import {
   ToneMapping,
 } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
-import * as THREE from 'three'
 import type { BiomeConfig } from '../types/game'
 import { biomeHdriPath } from '../game/pbrMaps'
 
@@ -85,11 +84,11 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
   const [sx, sy, sz] = config?.sunPosition ?? [140, 160, 90]
   return (
     <>
-      <SoftShadows size={22} samples={14} focus={0.45} />
-      <ambientLight intensity={0.22} color="#ffd6a5" />
+      {/* SoftShadows removed — caused shimmer / “landscape changing” on large flats */}
+      <ambientLight intensity={0.24} color="#ffd6a5" />
       <directionalLight
         position={[sx, sy, sz]}
-        intensity={2.55}
+        intensity={2.45}
         color="#ffe0b8"
         castShadow
         shadow-mapSize={[2048, 2048]}
@@ -99,7 +98,7 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
         shadow-camera-top={160}
         shadow-camera-bottom={-160}
         shadow-bias={-0.0002}
-        shadow-normalBias={0.035}
+        shadow-normalBias={0.04}
       />
       <directionalLight position={[-70, 55, -40]} intensity={0.38} color="#9ec9e8" />
       <hemisphereLight args={['#ffc97a', '#4a6741', 0.55]} />
@@ -107,22 +106,6 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
         <sphereGeometry args={[18, 16, 16]} />
         <meshBasicMaterial color="#ffe8c8" transparent opacity={0.14} depthWrite={false} />
       </mesh>
-      {[0, 0.35, -0.35].map((a, i) => (
-        <mesh
-          key={i}
-          position={[sx * 0.22, sy * 0.22, sz * 0.22]}
-          rotation={[0.55 + a * 0.15, a, 0.2]}
-        >
-          <coneGeometry args={[14 + i * 3, 220, 4, 1, true]} />
-          <meshBasicMaterial
-            color="#ffe4c4"
-            transparent
-            opacity={0.028 - i * 0.005}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      ))}
     </>
   )
 }

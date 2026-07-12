@@ -9,10 +9,21 @@ export interface Obstacle {
   height: number
 }
 
+/** Axis-aligned box obstacle (world space, no rotation). */
+export interface BoxObstacle {
+  x: number
+  z: number
+  halfW: number
+  halfD: number
+  /** Bottom of box above terrain (usually 0) */
+  y0: number
+  height: number
+}
+
 /** Clearance from terrain to glider origin so pilot feet sit on the ground */
 export const GROUND_CLEARANCE = 2.15
 
-/** Decorative rock pillars only — kept far from the challenge ring path, no collision */
+/** Rock pillars — now collidable */
 export const MOUNTAIN_SCENERY: Obstacle[] = [
   { x: -140, z: 60, radius: 6, height: 38 },
   { x: -120, z: 160, radius: 5, height: 32 },
@@ -21,8 +32,34 @@ export const MOUNTAIN_SCENERY: Obstacle[] = [
   { x: 300, z: 120, radius: 6, height: 36 },
 ]
 
-export function getObstacles(biome: Biome): Obstacle[] {
-  if (biome === 'city') return []
+const MOUNTAIN_CABINS: BoxObstacle[] = [
+  { x: 55, z: 70, halfW: 2.2, halfD: 1.8, y0: 0, height: 3.5 },
+  { x: 160, z: 50, halfW: 2.2, halfD: 1.8, y0: 0, height: 3.5 },
+]
+
+/** Match BeachScene hut / cliff footprints */
+const BEACH_HUTS: BoxObstacle[] = [
+  { x: 20, z: 55, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
+  { x: -10, z: 70, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
+  { x: 55, z: 95, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
+]
+
+/** Approximate cliff volumes (expanded AABB covers slight rotation) */
+const BEACH_CLIFFS: BoxObstacle[] = [
+  { x: -70, z: -10, halfW: 8, halfD: 30, y0: 0, height: 28 },
+  { x: -62, z: 35, halfW: 7, halfD: 20, y0: 0, height: 20 },
+  { x: -55, z: -40, halfW: 10, halfD: 24, y0: 0, height: 32 },
+  { x: -85, z: 20, halfW: 8, halfD: 26, y0: 0, height: 22 },
+]
+
+export function getCylinderObstacles(biome: Biome): Obstacle[] {
+  if (biome === 'mountains') return MOUNTAIN_SCENERY
+  return []
+}
+
+export function getBoxObstacles(biome: Biome): BoxObstacle[] {
+  if (biome === 'beach') return [...BEACH_HUTS, ...BEACH_CLIFFS]
+  if (biome === 'mountains') return MOUNTAIN_CABINS
   return []
 }
 
@@ -39,6 +76,19 @@ export function hitObstacle(
   return pos.y > groundY - 1 && pos.y < top + 1.5
 }
 
+function hitBoxObstacle(
+  pos: Vec3,
+  box: BoxObstacle,
+  groundY: number,
+  margin = 0.45,
+): boolean {
+  if (Math.abs(pos.x - box.x) > box.halfW + margin) return false
+  if (Math.abs(pos.z - box.z) > box.halfD + margin) return false
+  const bottom = groundY + box.y0
+  const top = bottom + box.height
+  return pos.y > bottom - 0.5 && pos.y < top + 1.2
+}
+
 /** True if slamming into a building wall (roofs are landable). */
 export function hitCityBuildings(
   pos: Vec3,
@@ -46,6 +96,69 @@ export function hitCityBuildings(
   interiorId = -1,
 ): boolean {
   return buildingWallCrash(pos, getHeight, interiorId)
+}
+
+/** Flight crash vs biome props (huts, cliffs, pillars). */
+export function hitWorldProps(
+  biome: Biome,
+  pos: Vec3,
+  getHeight: (x: number, z: number) => number,
+): boolean {
+  for (const o of getCylinderObstacles(biome)) {
+    const gy = getHeight(o.x, o.z)
+    if (hitObstacle(pos, o, gy)) return true
+  }
+  for (const b of getBoxObstacles(biome)) {
+    const gy = getHeight(b.x, b.z)
+    if (hitBoxObstacle(pos, b, gy)) return true
+  }
+  return false
+}
+
+/** Push a walker out of solid props. */
+export function resolvePropPush(
+  biome: Biome,
+  pos: { x: number; y: number; z: number },
+  getHeight: (x: number, z: number) => number,
+  radius = 0.4,
+): { x: number; z: number } {
+  let x = pos.x
+  let z = pos.z
+
+  for (const o of getCylinderObstacles(biome)) {
+    const gy = getHeight(o.x, o.z)
+    if (pos.y > gy + o.height + 0.3) continue
+    const dx = x - o.x
+    const dz = z - o.z
+    const d = Math.hypot(dx, dz)
+    const minD = o.radius + radius
+    if (d < minD && d > 1e-4) {
+      const s = minD / d
+      x = o.x + dx * s
+      z = o.z + dz * s
+    } else if (d < minD) {
+      x = o.x + minD
+    }
+  }
+
+  for (const b of getBoxObstacles(biome)) {
+    const gy = getHeight(b.x, b.z)
+    if (pos.y > gy + b.y0 + b.height + 0.3) continue
+    const hw = b.halfW + radius
+    const hd = b.halfD + radius
+    const dx = x - b.x
+    const dz = z - b.z
+    if (Math.abs(dx) > hw || Math.abs(dz) > hd) continue
+    const ox = hw - Math.abs(dx)
+    const oz = hd - Math.abs(dz)
+    if (ox < oz) {
+      x = b.x + Math.sign(dx || 1) * hw
+    } else {
+      z = b.z + Math.sign(dz || 1) * hd
+    }
+  }
+
+  return { x, z }
 }
 
 /**

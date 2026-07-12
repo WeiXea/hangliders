@@ -141,11 +141,11 @@ function dancePose(t: number): FullPose {
 
 function sitPose(): FullPose {
   return {
-    L: { thigh: 1.3, shin: 1.4, upperArm: 0.3, foreArm: 0.85, shoulderZ: 0.12 },
-    R: { thigh: 1.3, shin: 1.4, upperArm: 0.3, foreArm: 0.85, shoulderZ: -0.12 },
-    bob: -0.38,
+    L: { thigh: 1.35, shin: 1.45, upperArm: 0.3, foreArm: 0.85, shoulderZ: 0.12 },
+    R: { thigh: 1.35, shin: 1.45, upperArm: 0.3, foreArm: 0.85, shoulderZ: -0.12 },
+    bob: 0,
     sway: 0,
-    lean: 0.12,
+    lean: 0.1,
     rootX: 0,
     rootZ: 0,
   }
@@ -497,8 +497,14 @@ export function AnimatedPilot({
     applyLimb(thighL.current, shinL.current, armL.current, foreL.current, c.L, -1)
     applyLimb(thighR.current, shinR.current, armR.current, foreR.current, c.R, 1)
 
-    const hipBase = standing ? PILOT_HIP : 0
-    hips.current.position.y = hipBase + c.bob
+    const hipBase =
+      standing && landAction === 'sit'
+        ? PILOT_HIP * 0.42
+        : standing
+          ? PILOT_HIP
+          : 0
+    // Never sink soles below local Y=0 while standing
+    hips.current.position.y = hipBase + (standing ? Math.max(0, c.bob) : c.bob)
     hips.current.rotation.z = c.sway
     hips.current.rotation.y = c.sway * 0.3
     torso.current.rotation.x = c.lean

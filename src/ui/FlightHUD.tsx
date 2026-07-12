@@ -167,8 +167,9 @@ export function FlightHUD() {
 
   useEffect(() => {
     startWindAudio(flight.airspeed, flight.phase, flight.roll, airLift)
-    return () => stopWindAudio()
   }, [flight.airspeed, flight.phase, flight.roll, airLift])
+
+  useEffect(() => () => stopWindAudio(), [])
 
   const xcNav = mode === 'xc' && xcTask ? xcNavTarget(xcTask) : null
   const xcDist = xcNav
@@ -251,8 +252,15 @@ export function FlightHUD() {
           </div>
           <div className={styles.divider} />
           <div className={styles.instrument}>
-            <span className={styles.instrumentLabel}>Lift</span>
-            <div className={styles.liftMeter} title="Air mass lift">
+            <span className={styles.instrumentLabel}>Thermal</span>
+            <div
+              className={styles.liftMeter}
+              title={
+                airLift > 0.2
+                  ? `Rising air ${airLift.toFixed(1)} m/s — circle green columns`
+                  : 'No lift here — fly into a green thermal column'
+              }
+            >
               <div
                 className={`${styles.liftFill} ${liftHot ? styles.liftHot : liftWarm ? styles.liftWarm : ''}`}
                 style={{ height: `${Math.round(liftPct * 100)}%` }}

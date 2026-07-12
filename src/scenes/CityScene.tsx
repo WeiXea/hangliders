@@ -378,7 +378,7 @@ export function CityScene({ config }: CitySceneProps) {
       <Billboard position={[35, config.getHeight(35, 75), 75]} />
       <Billboard position={[125, config.getHeight(125, 140), 140]} />
       <OceanSurface
-        y={-0.2}
+        y={-0.55}
         scale={[520, 90]}
         deep="#023e8a"
         shallow="#48cae4"

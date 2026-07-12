@@ -33,7 +33,7 @@ export function tutorialCopy(step: TutorialStep): { title: string; body: string 
     case 'thermal':
       return {
         title: '3 · Find lift',
-        body: 'Steer into a green thermal column — Lift meter fills, vario beeps.',
+        body: 'Steer into a green thermal column — Thermal meter fills when air rises under you.',
       }
     case 'land':
       return {

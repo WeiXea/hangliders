@@ -207,55 +207,13 @@ export function playRingSound() {
   osc.stop(ac.currentTime + 0.3)
 }
 
-/* --- Variometer --- */
-let varioOsc: OscillatorNode | null = null
+/* --- Variometer (muted — kept stubs so callers stay stable) --- */
 let varioGain: GainNode | null = null
 let varioTimer: number | null = null
-let lastVarioBeep = 0
 
-function ensureVario() {
-  const ac = getCtx()
-  if (varioOsc) return
-  varioOsc = ac.createOscillator()
-  varioOsc.type = 'sine'
-  varioOsc.frequency.value = 600
-  varioGain = ac.createGain()
-  varioGain.gain.value = 0
-  varioOsc.connect(varioGain)
-  varioGain.connect(ac.destination)
-  varioOsc.start()
-}
-
-/** Climb/sink audio: rising chirps when climbing, slow low tones when sinking hard. */
-export function tickVario(vs: number, phase: string, lift = 0) {
-  if (phase !== 'flying' && phase !== 'parachuting') {
-    stopVario()
-    return
-  }
-  const ac = getCtx()
-  if (ac.state === 'suspended') return
-  ensureVario()
-  if (!varioOsc || !varioGain) return
-
-  const now = performance.now()
-  const coreBoost = lift > 0.85 ? 1.35 : lift > 0.35 ? 1.15 : 1
-  if (vs > 0.4) {
-    const interval = Math.max(80, (420 - vs * 70) / coreBoost)
-    const freq = 520 + Math.min(520, vs * 90 + lift * 40)
-    if (now - lastVarioBeep > interval) {
-      lastVarioBeep = now
-      varioOsc.frequency.setTargetAtTime(freq, ac.currentTime, 0.02)
-      varioGain.gain.cancelScheduledValues(ac.currentTime)
-      varioGain.gain.setValueAtTime(0.001, ac.currentTime)
-      varioGain.gain.exponentialRampToValueAtTime(0.045 * coreBoost, ac.currentTime + 0.02)
-      varioGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08)
-    }
-  } else if (vs < -2.5) {
-    varioOsc.frequency.setTargetAtTime(180 + Math.max(0, 8 + vs) * 8, ac.currentTime, 0.08)
-    varioGain.gain.setTargetAtTime(0.018, ac.currentTime, 0.12)
-  } else {
-    varioGain.gain.setTargetAtTime(0.0001, ac.currentTime, 0.1)
-  }
+/** Climb/sink audio disabled — wind noise covers airspeed feel without beeps. */
+export function tickVario(_vs: number, _phase: string, _lift = 0) {
+  stopVario()
 }
 
 export function stopVario() {

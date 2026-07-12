@@ -133,7 +133,7 @@ export function BeachScene({ config }: BeachSceneProps) {
       <SharedLighting config={config} />
       <DetailedTerrain config={config} biome="beach" />
       <HorizonRing color="#c9a227" y={-1} />
-      <OceanSurface y={-0.12} />
+      <OceanSurface y={-0.55} />
       <LaunchRamp config={config} />
       <CliffFace position={[-70, 10, -10]} size={[12, 24, 55]} rotation={0.18} />
       <CliffFace position={[-62, 7, 35]} size={[9, 16, 35]} rotation={-0.12} />

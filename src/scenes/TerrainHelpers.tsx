@@ -90,9 +90,10 @@ const oceanVert = /* glsl */ `
   void main() {
     vUv = uv;
     vec3 pos = position;
-    float wave = sin(pos.x * 0.07 + uTime * 1.1) * 0.55
-               + sin(pos.y * 0.05 + uTime * 0.85) * 0.4
-               + sin((pos.x + pos.y) * 0.035 + uTime * 0.65) * 0.3;
+    // Gentle waves — keep amplitude low to avoid terrain z-fighting
+    float wave = sin(pos.x * 0.045 + uTime * 0.55) * 0.12
+               + sin(pos.y * 0.035 + uTime * 0.4) * 0.08
+               + sin((pos.x + pos.y) * 0.02 + uTime * 0.3) * 0.06;
     pos.z += wave;
     vElevation = wave;
     vec4 wp = modelMatrix * vec4(pos, 1.0);
@@ -110,27 +111,25 @@ const oceanFrag = /* glsl */ `
   uniform vec3 uSunDir;
   void main() {
     vec3 n = normalize(vec3(
-      -cos(vWorldPos.x * 0.07 + uTime * 0.2) * 0.35,
+      -cos(vWorldPos.x * 0.05 + uTime * 0.15) * 0.25,
       1.0,
-      -cos(vWorldPos.z * 0.05 + uTime * 0.15) * 0.35
+      -cos(vWorldPos.z * 0.04 + uTime * 0.12) * 0.25
     ));
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
-    float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 2.8);
-    float depth = smoothstep(-1.2, 1.4, vElevation);
-    vec3 col = mix(uDeep, uShallow, depth * 0.5 + fresnel * 0.4);
-    float spec = pow(max(dot(reflect(-viewDir, n), uSunDir), 0.0), 80.0);
-    col += vec3(1.0) * spec * 0.45;
-    col += vec3(0.7, 0.85, 1.0) * fresnel * 0.25;
-    // Soft foam streaks
-    float foam = smoothstep(0.55, 1.0, vElevation)
-      * (0.35 + 0.65 * sin(vWorldPos.x * 0.35 + uTime * 1.2) * sin(vWorldPos.z * 0.28));
-    col = mix(col, vec3(0.92, 0.97, 1.0), foam * 0.55);
-    gl_FragColor = vec4(col, 0.95);
+    float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 2.6);
+    float depth = smoothstep(-0.4, 0.5, vElevation);
+    vec3 col = mix(uDeep, uShallow, depth * 0.35 + fresnel * 0.35);
+    float spec = pow(max(dot(reflect(-viewDir, n), uSunDir), 0.0), 90.0);
+    col += vec3(1.0) * spec * 0.35;
+    col += vec3(0.7, 0.85, 1.0) * fresnel * 0.2;
+    float foam = smoothstep(0.25, 0.55, vElevation) * 0.25;
+    col = mix(col, vec3(0.9, 0.95, 1.0), foam);
+    gl_FragColor = vec4(col, 1.0);
   }
 `
 
 export function OceanSurface({
-  y = -0.35,
+  y = -0.55,
   scale = [1600, 900] as [number, number],
   deep = '#012a4a',
   shallow = '#48cae4',
@@ -162,15 +161,19 @@ export function OceanSurface({
       rotation={[-Math.PI / 2, 0, 0]}
       position={[position[0], y, position[2]]}
       receiveShadow
+      renderOrder={-2}
     >
-      <planeGeometry args={[scale[0], scale[1], 160, 100]} />
+      <planeGeometry args={[scale[0], scale[1], 96, 64]} />
       <shaderMaterial
         ref={matRef}
         uniforms={uniforms}
         vertexShader={oceanVert}
         fragmentShader={oceanFrag}
-        transparent
-        side={THREE.DoubleSide}
+        depthWrite
+        polygonOffset
+        polygonOffsetFactor={-2}
+        polygonOffsetUnits={-2}
+        side={THREE.FrontSide}
       />
     </mesh>
   )

@@ -64,9 +64,9 @@ export function useGroundMaps(biome: Biome): GroundMaps {
       map = maps.sandDiff
       normalMap = maps.sandNor
       roughnessMap = maps.sandRough
-      repeat = 72
+      repeat = 28
       roughness = 0.92
-      normalScale = new THREE.Vector2(0.9, 0.9)
+      normalScale = new THREE.Vector2(0.55, 0.55)
     } else if (biome === 'mountains') {
       map = maps.rockDiff
       normalMap = maps.rockNor

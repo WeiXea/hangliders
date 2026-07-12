@@ -141,7 +141,7 @@ export const SOCIAL_RANGE = 5.5
 /** Must be this close to form a tandem pair */
 export const TANDEM_RANGE = 18
 /** Standing pilot: physics Y is soles of the feet (+ tiny clearance) */
-export const WALK_FEET = 0.04
+export const WALK_FEET = 0.02
 
 export const INITIAL_FLIGHT: FlightState = {
   position: { x: 0, y: 0, z: 0 },

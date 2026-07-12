@@ -11,9 +11,9 @@ import {
 } from '../types/game'
 import {
   GROUND_CLEARANCE,
-  getObstacles,
-  hitObstacle,
   hitCityBuildings,
+  hitWorldProps,
+  resolvePropPush,
 } from './obstacles'
 import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos } from './cityBuildings'
 import { liftCoeff, groundEffectFactor } from './aero'
@@ -125,18 +125,15 @@ function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
     }
   }
 
-  const obstacles = getObstacles(config.id)
-  for (const ob of obstacles) {
-    const gy = config.getHeight(ob.x, ob.z)
-    if (hitObstacle(next.position, ob, gy)) {
-      return {
-        ...next,
-        phase: 'crashed',
-        airspeed: 0,
-        velocity: { x: 0, y: 0, z: 0 },
-      }
+  if (hitWorldProps(config.id, next.position, config.getHeight)) {
+    return {
+      ...next,
+      phase: 'crashed',
+      airspeed: 0,
+      velocity: { x: 0, y: 0, z: 0 },
     }
   }
+
   return next
 }
 
@@ -370,14 +367,17 @@ export function tickFlight(
         next.position.z = clamped.z
         groundY = config.getHeight(b.x, b.z) + 0.15
       }
-    } else if (config.id === 'city') {
-      const pushed = resolveBuildingPush(next.position, config.getHeight, 0.35, next.interiorId)
-      next.position.x = pushed.x
-      next.position.z = pushed.z
+    } else {
+      if (config.id === 'city') {
+        const pushed = resolveBuildingPush(next.position, config.getHeight, 0.35, next.interiorId)
+        next.position.x = pushed.x
+        next.position.z = pushed.z
+      }
+      const props = resolvePropPush(config.id, next.position, config.getHeight, 0.42)
+      next.position.x = props.x
+      next.position.z = props.z
       support = supportY(config, next.position.x, next.position.z)
       groundY = support.y
-    } else {
-      groundY = config.getHeight(next.position.x, next.position.z)
     }
 
     if (next.position.y < groundY + WALK_FEET) {
