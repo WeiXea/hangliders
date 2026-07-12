@@ -5,6 +5,7 @@ import { useGameStore } from './gameStore'
 import { GliderModel } from './GliderModel'
 import { AnimatedPilot, ParachuteCanopy, PILOT_EYE, PILOT_HIP } from './Pilot'
 import { getLookOffsets, setKeyLookTarget, tickLook } from './lookCamera'
+import { GliderContactShadow } from '../scenes/SharedSky'
 
 export function HangGlider() {
   const groupRef = useRef<THREE.Group>(null)
@@ -81,13 +82,26 @@ export function HangGlider() {
       lookAt.set(0, -3, 14)
       targetFov = 72
     } else if (ph === 'parachuting') {
-      eye.set(0, 2.8, -12)
-      lookAt.set(0, -1.5, 10)
-      targetFov = 64
+      // Landing approach cam when low
+      if (flight.altitude < 28) {
+        eye.set(0, 4.2, -14)
+        lookAt.set(0, -6, 8)
+        targetFov = 68
+      } else {
+        eye.set(0, 2.8, -12)
+        lookAt.set(0, -1.5, 10)
+        targetFov = 64
+      }
     } else if (cameraMode === 'chase') {
-      eye.set(0, 3.5, -16)
-      lookAt.set(0, -4, 28)
-      targetFov = 62
+      if (ph === 'flying' && flight.altitude < 22) {
+        eye.set(0, 5.2, -14)
+        lookAt.set(0, -8, 18)
+        targetFov = 66
+      } else {
+        eye.set(0, 3.5, -16)
+        lookAt.set(0, -4, 28)
+        targetFov = 62
+      }
     } else if (cameraMode === 'side') {
       eye.set(18, 4, -4)
       lookAt.set(0, -2, 12)
@@ -160,6 +174,9 @@ export function HangGlider() {
         )}
         {showChute && (
           <ParachuteCanopy inflation={chuteInflation} swing={chuteSwing} />
+        )}
+        {(phase === 'walking' || phase === 'grounded' || phase === 'running') && (
+          <GliderContactShadow />
         )}
       </group>
     </group>

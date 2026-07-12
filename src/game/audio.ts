@@ -25,7 +25,12 @@ function makeNoiseBuffer(ac: AudioContext, seconds = 2): AudioBuffer {
   return buf
 }
 
-export function startWindAudio(airspeed: number, phase: string) {
+export function startWindAudio(
+  airspeed: number,
+  phase: string,
+  bank = 0,
+  lift = 0,
+) {
   if (phase !== 'flying' && phase !== 'running' && phase !== 'freefall' && phase !== 'parachuting') {
     stopWindAudio()
     lastPhase = phase
@@ -78,14 +83,16 @@ export function startWindAudio(airspeed: number, phase: string) {
     const flying = phase === 'flying'
     const fall = phase === 'freefall'
     const chute = phase === 'parachuting'
+    const bankBoost = Math.min(0.04, Math.abs(bank) * 0.05)
+    const liftBoost = Math.min(0.035, Math.max(0, lift) * 0.012)
     const base = fall ? 0.08 : chute ? 0.035 : flying ? 0.045 : 0.02
-    const level = Math.min(0.16, base + airspeed * 0.0035)
+    const level = Math.min(0.2, base + airspeed * 0.0035 + bankBoost + liftBoost)
     const freq = fall
       ? 380 + airspeed * 8
       : chute
         ? 180 + airspeed * 5
         : flying
-          ? 220 + airspeed * 12
+          ? 220 + airspeed * 12 + Math.abs(bank) * 40
           : 160 + airspeed * 6
     windFilter.frequency.setTargetAtTime(freq, ac.currentTime, 0.12)
     windGain.gain.setTargetAtTime(level, ac.currentTime, 0.15)
@@ -220,7 +227,7 @@ function ensureVario() {
 }
 
 /** Climb/sink audio: rising chirps when climbing, slow low tones when sinking hard. */
-export function tickVario(vs: number, phase: string) {
+export function tickVario(vs: number, phase: string, lift = 0) {
   if (phase !== 'flying' && phase !== 'parachuting') {
     stopVario()
     return
@@ -231,20 +238,19 @@ export function tickVario(vs: number, phase: string) {
   if (!varioOsc || !varioGain) return
 
   const now = performance.now()
+  const coreBoost = lift > 0.85 ? 1.35 : lift > 0.35 ? 1.15 : 1
   if (vs > 0.4) {
-    // Climb — faster beeps, higher pitch
-    const interval = Math.max(90, 420 - vs * 70)
-    const freq = 520 + Math.min(500, vs * 90)
+    const interval = Math.max(80, (420 - vs * 70) / coreBoost)
+    const freq = 520 + Math.min(520, vs * 90 + lift * 40)
     if (now - lastVarioBeep > interval) {
       lastVarioBeep = now
       varioOsc.frequency.setTargetAtTime(freq, ac.currentTime, 0.02)
       varioGain.gain.cancelScheduledValues(ac.currentTime)
       varioGain.gain.setValueAtTime(0.001, ac.currentTime)
-      varioGain.gain.exponentialRampToValueAtTime(0.045, ac.currentTime + 0.02)
+      varioGain.gain.exponentialRampToValueAtTime(0.045 * coreBoost, ac.currentTime + 0.02)
       varioGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08)
     }
   } else if (vs < -2.5) {
-    // Strong sink — soft continuous low tone
     varioOsc.frequency.setTargetAtTime(180 + Math.max(0, 8 + vs) * 8, ac.currentTime, 0.08)
     varioGain.gain.setTargetAtTime(0.018, ac.currentTime, 0.12)
   } else {

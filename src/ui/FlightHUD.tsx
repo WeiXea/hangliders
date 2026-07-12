@@ -20,7 +20,8 @@ import {
   writeTutorialDone,
   type TutorialStep,
 } from '../game/tutorial'
-import { xcProgressLabel } from '../game/xcTask'
+import { xcProgressLabel, xcNavTarget, xcElapsedMs, formatXCTime, xcRelBearing } from '../game/xcTask'
+import { nearestEnterableDoor, sampleCitySupport } from '../game/cityBuildings'
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
 import { FriendFinder } from './FriendFinder'
@@ -78,11 +79,6 @@ export function FlightHUD() {
   useKeyboardControls()
   useTiltControls()
   useMouseLook()
-
-  useEffect(() => {
-    startWindAudio(flight.airspeed, flight.phase)
-    return () => stopWindAudio()
-  }, [flight.airspeed, flight.phase])
 
   // Keep audio context warm on first gesture
   useEffect(() => {
@@ -152,6 +148,12 @@ export function FlightHUD() {
     flight.altitude < 35 &&
     flight.airspeed <= 14 &&
     flight.velocity.y < 0.5
+  const flareCue =
+    flying &&
+    flight.altitude < 22 &&
+    flight.altitude > 2 &&
+    flight.velocity.y < -0.3 &&
+    !flight.stallWarning
   const biome = useGameStore((s) => s.biome)
   const simTime = useGameStore((s) => s.simTime)
   const config = BIOME_CONFIGS[biome]
@@ -162,6 +164,31 @@ export function FlightHUD() {
   const liftPct = Math.max(0, Math.min(1, (airLift + 0.4) / 4.2))
   const liftHot = airLift > 0.85
   const liftWarm = airLift > 0.35
+
+  useEffect(() => {
+    startWindAudio(flight.airspeed, flight.phase, flight.roll, airLift)
+    return () => stopWindAudio()
+  }, [flight.airspeed, flight.phase, flight.roll, airLift])
+
+  const xcNav = mode === 'xc' && xcTask ? xcNavTarget(xcTask) : null
+  const xcDist = xcNav
+    ? Math.hypot(xcNav.x - flight.position.x, xcNav.z - flight.position.z)
+    : 0
+  const xcBearing = xcNav
+    ? xcRelBearing(flight.yaw, flight.position, xcNav)
+    : 0
+  const xcTimeMs = xcTask ? xcElapsedMs(xcTask) : null
+  const nearDoor =
+    walking &&
+    biome === 'city' &&
+    flight.interiorId < 0 &&
+    nearestEnterableDoor(flight.position.x, flight.position.z, config.getHeight)
+  const onRoof =
+    walking &&
+    biome === 'city' &&
+    flight.interiorId < 0 &&
+    sampleCitySupport(flight.position.x, flight.position.z, config.getHeight).onRoof
+  const inside = walking && flight.interiorId >= 0
 
   const thermalCue = (() => {
     if (!flying || !nearTh || flight.stallWarning) return null
@@ -256,6 +283,27 @@ export function FlightHUD() {
                   {xcProgressLabel(xcTask)}
                 </span>
               </div>
+              {xcTimeMs != null && (
+                <>
+                  <div className={styles.divider} />
+                  <div className={styles.instrument}>
+                    <span className={styles.instrumentLabel}>Time</span>
+                    <span className={styles.instrumentValue} style={{ fontSize: 18 }}>
+                      {formatXCTime(xcTimeMs)}
+                    </span>
+                  </div>
+                </>
+              )}
+              {xcNav && (
+                <>
+                  <div className={styles.divider} />
+                  <div className={styles.instrument}>
+                    <span className={styles.instrumentLabel}>TP</span>
+                    <span className={styles.instrumentValue}>{Math.round(xcDist)}</span>
+                    <span className={styles.instrumentUnit}>m</span>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -294,6 +342,16 @@ export function FlightHUD() {
           </button>
         </div>
       </header>
+
+      {mode === 'xc' && xcNav && (flying || freefall || parachuting) && (
+        <div className={styles.xcCompass} aria-hidden>
+          <div
+            className={styles.xcArrow}
+            style={{ transform: `rotate(${xcBearing}rad)` }}
+          />
+          <span className={styles.xcCompassLabel}>{xcNav.label}</span>
+        </div>
+      )}
 
       {tiltPermission === 'denied' && (
         <div className={styles.coach}>Motion access denied — enable it in Safari Settings</div>
@@ -391,7 +449,7 @@ export function FlightHUD() {
         </div>
       )}
 
-      {walking && !nearMount && flight.landAction === 'none' && (
+      {walking && !nearMount && !nearDoor && !inside && !onRoof && flight.landAction === 'none' && (
         <div className={styles.coach}>
           Explore — Wave · Dance · Sit (1 / 2 / 3) · find gold-ringed gliders
         </div>
@@ -417,10 +475,28 @@ export function FlightHUD() {
         <div className={styles.nearGround}>Hang glider nearby — press E / Mount to fly again</div>
       )}
 
-      {approach && (
+      {approach && !flareCue && (
         <div className={styles.nearGround}>
           Good approach — keep slow and sink gently to land & walk
         </div>
+      )}
+
+      {flareCue && !tut && !flight.stallWarning && (
+        <div className={styles.nearGround}>
+          Flare! Ease ↑ Climb and bleed speed for a soft walk-off
+        </div>
+      )}
+
+      {nearDoor && !nearMount && (
+        <div className={styles.nearGround}>Green door mat — press E / Mount to enter</div>
+      )}
+
+      {inside && (
+        <div className={styles.coach}>Inside — press E near the doorway to leave</div>
+      )}
+
+      {onRoof && !nearDoor && !nearMount && flight.landAction === 'none' && (
+        <div className={styles.coach}>Rooftop — walk the deck or find a way down</div>
       )}
 
       {freefall && (

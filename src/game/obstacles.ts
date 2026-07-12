@@ -1,5 +1,5 @@
 import type { Biome, Vec3 } from '../types/game'
-import { CITY_BUILDINGS, hitBuildingBox } from './cityBuildings'
+import { buildingWallCrash } from './cityBuildings'
 
 /** Vertical solid obstacle — cylinder standing on the ground */
 export interface Obstacle {
@@ -22,7 +22,6 @@ export const MOUNTAIN_SCENERY: Obstacle[] = [
 ]
 
 export function getObstacles(biome: Biome): Obstacle[] {
-  // City uses box buildings via hitCityBuildings — not cylinders
   if (biome === 'city') return []
   return []
 }
@@ -40,15 +39,13 @@ export function hitObstacle(
   return pos.y > groundY - 1 && pos.y < top + 1.5
 }
 
-/** True if position intersects any city building volume. */
+/** True if slamming into a building wall (roofs are landable). */
 export function hitCityBuildings(
   pos: Vec3,
   getHeight: (x: number, z: number) => number,
+  interiorId = -1,
 ): boolean {
-  for (const b of CITY_BUILDINGS) {
-    if (hitBuildingBox(pos, b, getHeight(b.x, b.z))) return true
-  }
-  return false
+  return buildingWallCrash(pos, getHeight, interiorId)
 }
 
 /**
@@ -73,9 +70,7 @@ export function checkRingCollision(
   const depth = 4.5
 
   if (Math.abs(localZ) > depth) return 'none'
-  // Wide pass — almost anything through the opening counts
   if (radial < ring.radius - 0.2) return 'pass'
-  // Only crash if squarely into the rim
   if (radial < ring.radius + tube && Math.abs(localZ) < 1.2) return 'crash'
   return 'none'
 }

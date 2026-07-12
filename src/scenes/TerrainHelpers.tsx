@@ -153,14 +153,15 @@ const oceanVert = /* glsl */ `
 const oceanFrag = /* glsl */ `
   varying float vElevation;
   varying vec3 vWorldPos;
+  uniform float uTime;
   uniform vec3 uDeep;
   uniform vec3 uShallow;
   uniform vec3 uSunDir;
   void main() {
     vec3 n = normalize(vec3(
-      -cos(vWorldPos.x * 0.07) * 0.35,
+      -cos(vWorldPos.x * 0.07 + uTime * 0.2) * 0.35,
       1.0,
-      -cos(vWorldPos.z * 0.05) * 0.35
+      -cos(vWorldPos.z * 0.05 + uTime * 0.15) * 0.35
     ));
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
     float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 2.8);
@@ -169,6 +170,10 @@ const oceanFrag = /* glsl */ `
     float spec = pow(max(dot(reflect(-viewDir, n), uSunDir), 0.0), 80.0);
     col += vec3(1.0) * spec * 0.45;
     col += vec3(0.7, 0.85, 1.0) * fresnel * 0.25;
+    // Soft foam streaks
+    float foam = smoothstep(0.55, 1.0, vElevation)
+      * (0.35 + 0.65 * sin(vWorldPos.x * 0.35 + uTime * 1.2) * sin(vWorldPos.z * 0.28));
+    col = mix(col, vec3(0.92, 0.97, 1.0), foam * 0.55);
     gl_FragColor = vec4(col, 0.95);
   }
 `
@@ -178,11 +183,13 @@ export function OceanSurface({
   scale = [1600, 900] as [number, number],
   deep = '#012a4a',
   shallow = '#48cae4',
+  position = [80, 0, 200] as [number, number, number],
 }: {
   y?: number
   scale?: [number, number]
   deep?: string
   shallow?: string
+  position?: [number, number, number]
 }) {
   const matRef = useRef<THREE.ShaderMaterial>(null)
   const uniforms = useMemo(
@@ -200,8 +207,12 @@ export function OceanSurface({
   })
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[80, y, 200]} receiveShadow>
-      <planeGeometry args={[scale[0], scale[1], 180, 180]} />
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[position[0], y, position[2]]}
+      receiveShadow
+    >
+      <planeGeometry args={[scale[0], scale[1], 160, 100]} />
       <shaderMaterial
         ref={matRef}
         uniforms={uniforms}

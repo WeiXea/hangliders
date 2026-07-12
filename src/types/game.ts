@@ -65,6 +65,8 @@ export interface FlightState {
   tandemRole: TandemRole
   /** Multiplayer: pressed Tandem — pairs when both want it nearby */
   tandemWant: boolean
+  /** City: inside enterable building id, or -1 */
+  interiorId: number
 }
 
 export interface InputState {
@@ -164,6 +166,7 @@ export const INITIAL_FLIGHT: FlightState = {
   landAction: 'none',
   tandemRole: 'none',
   tandemWant: false,
+  interiorId: -1,
 }
 
 export const INITIAL_INPUT: InputState = {

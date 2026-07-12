@@ -15,7 +15,7 @@ import {
   hitObstacle,
   hitCityBuildings,
 } from './obstacles'
-import { resolveBuildingPush } from './cityBuildings'
+import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos } from './cityBuildings'
 import { liftCoeff, groundEffectFactor } from './aero'
 import { sampleAtmosphere } from './atmosphere'
 
@@ -93,6 +93,7 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     landAction: 'none',
     tandemRole: 'none',
     tandemWant: false,
+    interiorId: -1,
   }
 }
 
@@ -112,7 +113,10 @@ function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
     return next
   }
 
-  if (config.id === 'city' && hitCityBuildings(next.position, config.getHeight)) {
+  if (
+    config.id === 'city' &&
+    hitCityBuildings(next.position, config.getHeight, next.interiorId)
+  ) {
     return {
       ...next,
       phase: 'crashed',
@@ -134,6 +138,18 @@ function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
     }
   }
   return next
+}
+
+function supportY(
+  config: BiomeConfig,
+  x: number,
+  z: number,
+): { y: number; onRoof: boolean } {
+  if (config.id !== 'city') {
+    return { y: config.getHeight(x, z), onRoof: false }
+  }
+  const s = sampleCitySupport(x, z, config.getHeight)
+  return { y: s.y, onRoof: s.onRoof }
 }
 
 function parkMountedGlider(
@@ -178,17 +194,18 @@ function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
     tandemRole: 'none',
     tandemWant: false,
     stallWarning: false,
+    interiorId: -1,
   }
 }
 
 function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
-  const groundY = config.getHeight(next.position.x, next.position.z)
+  const support = supportY(config, next.position.x, next.position.z)
   return {
     ...next,
     phase: 'walking',
     position: {
       ...next.position,
-      y: groundY + WALK_FEET,
+      y: support.y + WALK_FEET,
     },
     velocity: { x: 0, y: 0, z: 0 },
     airspeed: 0,
@@ -203,6 +220,7 @@ function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
     tandemRole: 'none',
     tandemWant: false,
     stallWarning: false,
+    interiorId: -1,
   }
 }
 
@@ -247,7 +265,8 @@ export function tickFlight(
 ): TickResult {
   let next = { ...state, position: { ...state.position }, velocity: { ...state.velocity } }
   let parked = parkedIn
-  let groundY = config.getHeight(next.position.x, next.position.z)
+  let support = supportY(config, next.position.x, next.position.z)
+  let groundY = support.y
   next.altitude = Math.max(0, next.position.y - groundY)
 
   if (next.phase === 'landed' || next.phase === 'crashed') {
@@ -287,12 +306,17 @@ export function tickFlight(
     const speedMul =
       next.landAction === 'dance' || next.landAction === 'wave' ? 0.55 : 1
     const speed = (input.speedUp ? WALK_SPRINT : WALK_SPEED) * speedMul
-    const onGround = next.position.y <= groundY + WALK_FEET + 0.05
+    support = supportY(config, next.position.x, next.position.z)
+    groundY =
+      next.interiorId >= 0
+        ? config.getHeight(next.position.x, next.position.z) + 0.15
+        : support.y
+    const onGround = next.position.y <= groundY + WALK_FEET + 0.08
 
     if (onGround) {
       next.velocity.y = 0
       next.position.y = groundY + WALK_FEET
-      if (input.jump && next.landAction !== 'sit') {
+      if (input.jump && next.landAction !== 'sit' && next.interiorId < 0) {
         next.velocity.y = 8.5
         if (
           next.landAction === 'wave' ||
@@ -315,13 +339,47 @@ export function tickFlight(
     next.position.z += next.velocity.z * dt
     next.position.y += next.velocity.y * dt
 
-    if (config.id === 'city') {
-      const pushed = resolveBuildingPush(next.position, config.getHeight)
-      next.position.x = pushed.x
-      next.position.z = pushed.z
+    // Enter / leave buildings
+    if (input.interact && config.id === 'city') {
+      if (next.interiorId >= 0) {
+        const b = getBuildingById(next.interiorId)
+        if (b) {
+          const door = doorWorldPos(b, config.getHeight)
+          next.interiorId = -1
+          next.position.x = door.x
+          next.position.z = door.z + 1.2
+          next.position.y = config.getHeight(door.x, door.z) + WALK_FEET
+        }
+      } else {
+        const doorB = nearestEnterableDoor(next.position.x, next.position.z, config.getHeight)
+        if (doorB && !findNearestGlider(next.position.x, next.position.z, parked)) {
+          next.interiorId = doorB.id
+          next.position.x = doorB.x
+          next.position.z = doorB.z
+          next.position.y = config.getHeight(doorB.x, doorB.z) + 0.15 + WALK_FEET
+          next.landAction = 'none'
+        }
+      }
     }
 
-    groundY = config.getHeight(next.position.x, next.position.z)
+    if (next.interiorId >= 0) {
+      const b = getBuildingById(next.interiorId)
+      if (b) {
+        const clamped = clampInsideBuilding(next.position.x, next.position.z, b)
+        next.position.x = clamped.x
+        next.position.z = clamped.z
+        groundY = config.getHeight(b.x, b.z) + 0.15
+      }
+    } else if (config.id === 'city') {
+      const pushed = resolveBuildingPush(next.position, config.getHeight, 0.35, next.interiorId)
+      next.position.x = pushed.x
+      next.position.z = pushed.z
+      support = supportY(config, next.position.x, next.position.z)
+      groundY = support.y
+    } else {
+      groundY = config.getHeight(next.position.x, next.position.z)
+    }
+
     if (next.position.y < groundY + WALK_FEET) {
       next.position.y = groundY + WALK_FEET
       next.velocity.y = 0
@@ -330,7 +388,7 @@ export function tickFlight(
     next.airspeed = Math.hypot(next.velocity.x, next.velocity.z)
     next.distance += next.airspeed * dt
 
-    if (input.interact) {
+    if (input.interact && next.interiorId < 0) {
       const target = findNearestGlider(next.position.x, next.position.z, parked)
       if (target) {
         parked = parked.map((g) =>
@@ -352,6 +410,7 @@ export function tickFlight(
           chuteInflation: 0,
           chuteSwing: 0,
           landAction: 'none',
+          interiorId: -1,
         }
       }
     }
@@ -388,7 +447,8 @@ export function tickFlight(
     next.position.y += next.velocity.y * dt
     next.position.z += next.velocity.z * dt
 
-    groundY = config.getHeight(next.position.x, next.position.z)
+    support = supportY(config, next.position.x, next.position.z)
+    groundY = support.y
     next.altitude = Math.max(0, next.position.y - groundY)
     next.maxAltitude = Math.max(next.maxAltitude, next.altitude)
     next.distance += Math.hypot(next.velocity.x, next.velocity.z) * dt
@@ -462,7 +522,8 @@ export function tickFlight(
     next.position.y += next.velocity.y * dt
     next.position.z += next.velocity.z * dt
 
-    groundY = config.getHeight(next.position.x, next.position.z)
+    support = supportY(config, next.position.x, next.position.z)
+    groundY = support.y
     next.altitude = Math.max(0, next.position.y - groundY)
     next.distance += next.airspeed * dt
 
@@ -634,7 +695,8 @@ export function tickFlight(
   next.position.y += next.velocity.y * dt
   next.position.z += next.velocity.z * dt
 
-  groundY = config.getHeight(next.position.x, next.position.z)
+  support = supportY(config, next.position.x, next.position.z)
+  groundY = support.y
   next.altitude = Math.max(0, next.position.y - groundY)
   next.maxAltitude = Math.max(next.maxAltitude, next.altitude)
   next.distance += Math.hypot(next.velocity.x, next.velocity.z) * dt
@@ -648,8 +710,9 @@ export function tickFlight(
   if (next.position.y <= groundY + GROUND_CLEARANCE) {
     next.position.y = groundY + GROUND_CLEARANCE
     const sink = Math.abs(Math.min(0, next.velocity.y))
-    const crawl = next.airspeed <= 6.5
-    const gentle = sink <= 6.5 && next.pitch > -0.35
+    const flaring = input.pitchUp && next.altitude < 18
+    const crawl = next.airspeed <= (flaring ? 8.5 : 6.5)
+    const gentle = sink <= (flaring ? 8.5 : 6.5) && next.pitch > -0.35
     const steadyDescent = next.velocity.y <= 0.5 && next.velocity.y >= -7
     const takeoffGrace = next.airtime < 2.2
     const softLand = crawl && gentle && steadyDescent && !takeoffGrace

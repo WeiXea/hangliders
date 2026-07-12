@@ -1,56 +1,222 @@
 import { useMemo, type ReactElement } from 'react'
+import * as THREE from 'three'
 import type { BiomeConfig } from '../types/game'
-import { CITY_BUILDINGS, buildingDepth } from '../game/cityBuildings'
-import { DetailedTerrain, HorizonRing, LaunchRamp } from './TerrainHelpers'
+import {
+  CITY_BUILDINGS,
+  buildingDepth,
+  type CityBuilding,
+} from '../game/cityBuildings'
+import { useGameStore } from '../game/gameStore'
+import {
+  DetailedTerrain,
+  HorizonRing,
+  LaunchRamp,
+  OceanSurface,
+} from './TerrainHelpers'
 import { SharedSky, SharedLighting } from './SharedSky'
 
 interface CitySceneProps {
   config: BiomeConfig
 }
 
+function makeFacadeTexture(color: string): THREE.CanvasTexture {
+  const size = 256
+  const c = document.createElement('canvas')
+  c.width = size
+  c.height = size
+  const g = c.getContext('2d')!
+  g.fillStyle = color
+  g.fillRect(0, 0, size, size)
+  // Concrete noise
+  for (let i = 0; i < 900; i++) {
+    g.fillStyle = `rgba(0,0,0,${Math.random() * 0.07})`
+    g.fillRect(Math.random() * size, Math.random() * size, 2, 2)
+  }
+  // Floor lines
+  for (let y = 24; y < size; y += 28) {
+    g.fillStyle = 'rgba(0,0,0,0.12)'
+    g.fillRect(0, y, size, 2)
+  }
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.anisotropy = 8
+  return tex
+}
+
 function Building({
-  position,
-  width,
-  depth,
-  height,
-  color,
-  windows,
+  building,
+  groundY,
 }: {
-  position: [number, number, number]
-  width: number
-  depth: number
-  height: number
-  color: string
-  windows: boolean[]
+  building: CityBuilding
+  groundY: number
 }) {
+  const { width, height, color, windows, enterable, roofLandable } = building
+  const depth = buildingDepth(building)
+  const facade = useMemo(() => makeFacadeTexture(color), [color])
   const rows = Math.floor(height / 3)
-  const cols = Math.floor(width / 2)
+  const cols = Math.max(1, Math.floor(width / 2))
+  const doorW = 1.8
+  const doorH = 2.5
+  const wallT = 0.28
+  const halfW = width / 2
+  const halfD = depth / 2
+  const facadeProps = {
+    map: facade,
+    color,
+    roughness: 0.72,
+    metalness: 0.12,
+    side: THREE.DoubleSide,
+  } as const
 
   return (
-    <group position={position}>
-      <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
-        <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial color={color} roughness={0.65} metalness={0.2} />
-      </mesh>
+    <group position={[building.x, groundY, building.z]}>
+      {!enterable ? (
+        <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
+          <boxGeometry args={[width, height, depth]} />
+          <meshStandardMaterial map={facade} color={color} roughness={0.72} metalness={0.12} />
+        </mesh>
+      ) : (
+        <>
+          <mesh castShadow receiveShadow position={[0, height / 2, -halfD + wallT / 2]}>
+            <boxGeometry args={[width, height, wallT]} />
+            <meshStandardMaterial {...facadeProps} />
+          </mesh>
+          <mesh castShadow receiveShadow position={[-halfW + wallT / 2, height / 2, 0]}>
+            <boxGeometry args={[wallT, height, depth]} />
+            <meshStandardMaterial {...facadeProps} />
+          </mesh>
+          <mesh castShadow receiveShadow position={[halfW - wallT / 2, height / 2, 0]}>
+            <boxGeometry args={[wallT, height, depth]} />
+            <meshStandardMaterial {...facadeProps} />
+          </mesh>
+          <mesh
+            castShadow
+            receiveShadow
+            position={[-(doorW / 2 + (halfW - doorW / 2) / 2), height / 2, halfD - wallT / 2]}
+          >
+            <boxGeometry args={[halfW - doorW / 2, height, wallT]} />
+            <meshStandardMaterial {...facadeProps} />
+          </mesh>
+          <mesh
+            castShadow
+            receiveShadow
+            position={[(doorW / 2 + (halfW - doorW / 2) / 2), height / 2, halfD - wallT / 2]}
+          >
+            <boxGeometry args={[halfW - doorW / 2, height, wallT]} />
+            <meshStandardMaterial {...facadeProps} />
+          </mesh>
+          <mesh
+            castShadow
+            receiveShadow
+            position={[0, doorH + (height - doorH) / 2, halfD - wallT / 2]}
+          >
+            <boxGeometry args={[doorW, height - doorH, wallT]} />
+            <meshStandardMaterial {...facadeProps} />
+          </mesh>
+        </>
+      )}
+
+      {roofLandable && (
+        <>
+          <mesh
+            castShadow
+            receiveShadow
+            position={[0, height + 0.08, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <planeGeometry args={[width * 0.96, depth * 0.96]} />
+            <meshStandardMaterial color="#5c6770" roughness={0.9} metalness={0.05} />
+          </mesh>
+          {[
+            [0, height + 0.45, depth * 0.48, width, 0.9, 0.22],
+            [0, height + 0.45, -depth * 0.48, width, 0.9, 0.22],
+            [width * 0.48, height + 0.45, 0, 0.22, 0.9, depth],
+            [-width * 0.48, height + 0.45, 0, 0.22, 0.9, depth],
+          ].map(([x, y, z, w, h, d], i) => (
+            <mesh key={i} castShadow position={[x, y, z]}>
+              <boxGeometry args={[w, h, d]} />
+              <meshStandardMaterial color="#495057" roughness={0.85} />
+            </mesh>
+          ))}
+          <mesh castShadow position={[width * 0.22, height + 0.55, -depth * 0.15]}>
+            <boxGeometry args={[1.4, 0.9, 1.1]} />
+            <meshStandardMaterial color="#868e96" metalness={0.45} roughness={0.4} />
+          </mesh>
+          <mesh castShadow position={[-width * 0.18, height + 0.35, depth * 0.18]}>
+            <cylinderGeometry args={[0.35, 0.35, 0.55, 10]} />
+            <meshStandardMaterial color="#adb5bd" metalness={0.5} roughness={0.35} />
+          </mesh>
+        </>
+      )}
+
       {Array.from({ length: rows }).map((_, row) =>
         Array.from({ length: cols }).map((_, col) => {
           const idx = row * cols + col
           const lit = windows[idx % windows.length]
+          const wx = (col - cols / 2 + 0.5) * (width / cols)
+          if (enterable && row === 0 && Math.abs(wx) < doorW * 0.55) return null
           return (
-            <mesh
-              key={`${row}-${col}`}
-              position={[(col - cols / 2 + 0.5) * 2, row * 3 + 1.5, depth / 2 + 0.06]}
-            >
-              <planeGeometry args={[1.3, 2.2]} />
+            <mesh key={`${row}-${col}`} position={[wx, row * 3 + 1.5, halfD + 0.04]}>
+              <planeGeometry args={[Math.min(1.4, width / cols - 0.3), 2.0]} />
               <meshStandardMaterial
-                color={lit ? '#ffe066' : '#2d3748'}
+                color={lit ? '#ffe066' : '#1a2332'}
                 emissive={lit ? '#ffe066' : '#000000'}
-                emissiveIntensity={lit ? 0.45 : 0}
+                emissiveIntensity={lit ? 0.5 : 0}
+                roughness={0.35}
+                metalness={0.2}
               />
             </mesh>
           )
         }),
       )}
+
+      {enterable && (
+        <group position={[0, 0, halfD + 0.02]}>
+          <mesh position={[0, doorH + 0.12, 0]}>
+            <boxGeometry args={[doorW + 0.25, 0.2, 0.12]} />
+            <meshStandardMaterial color="#212529" roughness={0.6} />
+          </mesh>
+          <mesh position={[0, 0.02, 0.55]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[doorW * 1.35, 1.2]} />
+            <meshStandardMaterial color="#2d6a4f" roughness={0.9} />
+          </mesh>
+        </group>
+      )}
+    </group>
+  )
+}
+
+function BuildingInterior({ config }: { config: BiomeConfig }) {
+  const interiorId = useGameStore((s) => s.flight.interiorId)
+  const b = CITY_BUILDINGS.find((x) => x.id === interiorId)
+  if (!b || !b.enterable) return null
+  const gy = config.getHeight(b.x, b.z)
+  const depth = buildingDepth(b)
+  const roomH = 3.2
+  const inset = 0.2
+
+  return (
+    <group position={[b.x, gy + 0.12, b.z]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0, 0]}>
+        <planeGeometry args={[b.width - inset * 2, depth - inset * 2]} />
+        <meshStandardMaterial color="#d6ccc2" roughness={0.92} />
+      </mesh>
+      <mesh position={[0, roomH, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[b.width - inset * 2, depth - inset * 2]} />
+        <meshStandardMaterial color="#e9ecef" roughness={0.95} />
+      </mesh>
+      {/* Simple furniture */}
+      <mesh castShadow position={[-b.width * 0.22, 0.45, -depth * 0.15]}>
+        <boxGeometry args={[1.8, 0.9, 0.7]} />
+        <meshStandardMaterial color="#6b4423" roughness={0.8} />
+      </mesh>
+      <mesh castShadow position={[b.width * 0.2, 0.55, depth * 0.1]}>
+        <boxGeometry args={[1.2, 1.1, 0.5]} />
+        <meshStandardMaterial color="#495057" roughness={0.7} />
+      </mesh>
+      <pointLight position={[0, roomH - 0.4, 0]} intensity={1.4} color="#ffe8c8" distance={12} />
+      <ambientLight intensity={0.35} />
     </group>
   )
 }
@@ -76,8 +242,6 @@ function StreetGrid() {
   }, [])
   return <>{lines}</>
 }
-
-const BUILDINGS = CITY_BUILDINGS
 
 function SkylineSilhouette() {
   return (
@@ -152,21 +316,18 @@ export function CityScene({ config }: CitySceneProps) {
   return (
     <>
       <SharedSky config={config} />
-      <SharedLighting />
-      <DetailedTerrain config={config} biome="city" size={640} segments={140} />
+      <SharedLighting config={config} />
+      <DetailedTerrain config={config} biome="city" size={640} segments={160} />
       <HorizonRing color="#6c757d" y={0} />
       <StreetGrid />
-      {BUILDINGS.map((b, i) => (
+      {CITY_BUILDINGS.map((b) => (
         <Building
-          key={i}
-          position={[b.x, config.getHeight(b.x, b.z), b.z]}
-          width={b.width}
-          depth={buildingDepth(b)}
-          height={b.height}
-          color={b.color}
-          windows={b.windows}
+          key={b.id}
+          building={b}
+          groundY={config.getHeight(b.x, b.z)}
         />
       ))}
+      <BuildingInterior config={config} />
       <SkylineSilhouette />
       <LaunchRamp config={config} />
       <ParkBench position={[22, config.getHeight(22, 48), 48]} yaw={0.3} />
@@ -177,16 +338,13 @@ export function CityScene({ config }: CitySceneProps) {
       <StreetLamp position={[105, config.getHeight(105, 120), 120]} />
       <Billboard position={[35, config.getHeight(35, 75), 75]} />
       <Billboard position={[125, config.getHeight(125, 140), 140]} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[30, -0.15, -40]}>
-        <planeGeometry args={[480, 36, 1, 1]} />
-        <meshStandardMaterial
-          color="#0077b6"
-          roughness={0.15}
-          metalness={0.55}
-          transparent
-          opacity={0.88}
-        />
-      </mesh>
+      <OceanSurface
+        y={-0.2}
+        scale={[520, 90]}
+        deep="#023e8a"
+        shallow="#48cae4"
+        position={[30, 0, -40]}
+      />
     </>
   )
 }

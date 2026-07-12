@@ -8,6 +8,7 @@ import { bearingTo, horizontalDist } from './multiplayerSocial'
 import { resolveTandem } from './tandem'
 import { applyPulses, clearPulses } from './actionPulses'
 import { tickVario } from './audio'
+import { thermalHint } from './atmosphere'
 import type { InputState } from '../types/game'
 
 const FIXED_DT = 1 / 60
@@ -173,7 +174,11 @@ export function FlightSimulator() {
     }
 
     updateFlight(flight, parkedOut)
-    tickVario(flight.velocity.y, flight.phase)
+    const liftHint =
+      flight.phase === 'flying'
+        ? thermalHint(config, useGameStore.getState().simTime, flight.position)
+        : 0
+    tickVario(flight.velocity.y, flight.phase, liftHint)
     // Hold one-shot pulses until a fixed step actually consumes them
     if (steps > 0) finishInput(frameInput)
     checkRings()

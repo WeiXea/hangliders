@@ -61,6 +61,18 @@ function makeSailTexture(): THREE.CanvasTexture {
   g.fillStyle = 'rgba(255,255,255,0.12)'
   g.fillRect(0, 0, size, 28)
 
+  // Dirt / wear along trailing edge and tips
+  for (let i = 0; i < 70; i++) {
+    const x = Math.random() * size
+    const y = size * 0.55 + Math.random() * size * 0.42
+    g.fillStyle = `rgba(40,28,18,${0.04 + Math.random() * 0.08})`
+    g.beginPath()
+    g.ellipse(x, y, 8 + Math.random() * 28, 4 + Math.random() * 10, Math.random(), 0, Math.PI * 2)
+    g.fill()
+  }
+  g.fillStyle = 'rgba(20,30,40,0.1)'
+  g.fillRect(0, size * 0.88, size, size * 0.12)
+
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   tex.anisotropy = 16
