@@ -8,9 +8,28 @@ import { bearingTo, horizontalDist } from './multiplayerSocial'
 import { resolveTandem } from './tandem'
 import { applyPulses, clearPulses } from './actionPulses'
 import { tickVario } from './audio'
+import type { InputState } from '../types/game'
 
 const FIXED_DT = 1 / 60
 const MAX_STEPS = 5
+
+/** One-shots must only fire on the first fixed step of a frame. */
+function stripOneShots(input: InputState): InputState {
+  return {
+    ...input,
+    jump: false,
+    deployChute: false,
+    interact: false,
+    emoteWave: false,
+    emoteDance: false,
+    emoteSit: false,
+    emoteHug: false,
+    emoteHighFive: false,
+    tandem: false,
+    takeOff: false,
+    land: false,
+  }
+}
 
 export function FlightSimulator() {
   const biome = useGameStore((s) => s.biome)
@@ -53,6 +72,8 @@ export function FlightSimulator() {
     let flight = startFlight
     let parkedOut = parkedGliders
     let steps = 0
+    // Same pressed T/emote must not re-fire on extra catch-up steps
+    let stepInput = frameInput
 
     while (accRef.current >= FIXED_DT && steps < MAX_STEPS) {
       accRef.current -= FIXED_DT
@@ -64,7 +85,7 @@ export function FlightSimulator() {
         const tandem = resolveTandem(
           flight,
           remoteFlight,
-          frameInput,
+          stepInput,
           parkedOut,
           config,
           FIXED_DT,
@@ -73,16 +94,17 @@ export function FlightSimulator() {
         parkedOut = tandem.parked
 
         if (tandem.followPilot) {
+          stepInput = stripOneShots(stepInput)
           tickNetSync(FIXED_DT)
           continue
         }
       }
 
       const physicsInput = {
-        ...frameInput,
+        ...stepInput,
         tandem: false,
         jump:
-          frameInput.jump &&
+          stepInput.jump &&
           !(flight.tandemRole === 'passenger' && flight.phase === 'freefall'),
       }
 
@@ -126,10 +148,11 @@ export function FlightSimulator() {
         flight = { ...flight, tandemRole: 'pilot', tandemWant: false }
       }
 
+      stepInput = stripOneShots(stepInput)
       tickNetSync(FIXED_DT)
     }
 
-    // Display-rate passenger follow when no fixed step ran this frame
+    // Display-rate passenger follow — no one-shots (avoid leave/board on render ticks)
     if (
       steps === 0 &&
       peerConnected &&
@@ -139,7 +162,7 @@ export function FlightSimulator() {
       const tandem = resolveTandem(
         startFlight,
         remoteFlight,
-        frameInput,
+        stripOneShots(frameInput),
         parkedOut,
         config,
         frameDt,
@@ -150,7 +173,8 @@ export function FlightSimulator() {
 
     updateFlight(flight, parkedOut)
     tickVario(flight.velocity.y, flight.phase)
-    finishInput(frameInput)
+    // Hold one-shot pulses until a fixed step actually consumes them
+    if (steps > 0) finishInput(frameInput)
     checkRings()
   })
 
