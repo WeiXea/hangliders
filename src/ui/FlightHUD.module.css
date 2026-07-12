@@ -424,6 +424,23 @@
   touch-action: manipulation;
 }
 
+.bigTandem {
+  min-width: 168px;
+  height: 64px;
+  padding: 0 22px;
+  border-radius: 18px;
+  border: 2px solid rgba(100, 180, 255, 0.85);
+  background: linear-gradient(135deg, #4cc9f0, #4361ee);
+  color: #fff;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 @keyframes pulse {
   from { opacity: 0.75; }
   to { opacity: 1; }

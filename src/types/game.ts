@@ -128,7 +128,7 @@ export const MOUNT_RANGE = 6
 /** Standing pilots can hug / high-five within this range */
 export const SOCIAL_RANGE = 3.4
 /** Must be this close to form a tandem pair */
-export const TANDEM_RANGE = 6
+export const TANDEM_RANGE = 18
 /** Standing pilot: physics Y is soles of the feet (+ tiny clearance) */
 export const WALK_FEET = 0.04
 

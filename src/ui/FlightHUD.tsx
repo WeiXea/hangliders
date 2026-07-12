@@ -8,7 +8,8 @@ import {
   useTouchControl,
 } from '../game/controls'
 import { nearestMountable } from '../game/flightPhysics'
-import { canOfferTandem, canSocialEmote } from '../game/multiplayerSocial'
+import { canSocialEmote } from '../game/multiplayerSocial'
+import { canOfferTandem, tandemButtonLabel } from '../game/tandem'
 import { startWindAudio, stopWindAudio } from '../game/audio'
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
@@ -221,14 +222,14 @@ export function FlightHUD() {
       {inTandem && (
         <div className={styles.nearGround}>
           {flight.tandemRole === 'pilot'
-            ? `Tandem pilot — ${remoteName || 'friend'} is riding with you (T to leave)`
-            : `Tandem passenger — hang on · Jump/T to hop off`}
+            ? `Tandem pilot — friend can board nearby · T to leave`
+            : `Tandem passenger — T or Jump to hop off`}
         </div>
       )}
 
-      {flight.tandemWant && !inTandem && (
-        <div className={styles.coach}>
-          Waiting for {remoteName || 'friend'} to press Tandem too…
+      {tandemOk && !inTandem && (
+        <div className={styles.nearGround}>
+          {remoteName || 'Friend'} nearby — press T or Board tandem
         </div>
       )}
 
@@ -290,6 +291,22 @@ export function FlightHUD() {
           >
             CHUTE
             <span className={styles.bigJumpSub}>Deploy parachute · F</span>
+          </button>
+        </div>
+      )}
+
+      {tandemOk && (
+        <div className={styles.centerActions}>
+          <button
+            type="button"
+            className={styles.bigTandem}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              useGameStore.getState().setInput({ tandem: true })
+            }}
+          >
+            {tandemButtonLabel(flight, remoteFlight)}
+            <span className={styles.bigJumpSub}>Press T · within {Math.round(18)}m</span>
           </button>
         </div>
       )}
@@ -385,11 +402,11 @@ export function FlightHUD() {
           )}
           {tandemOk && (
             <ControlPad
-              label={inTandem ? 'Leave' : flight.tandemWant ? 'Waiting…' : 'Tandem'}
+              label={inTandem ? 'Leave' : 'Tandem'}
               sub="T"
               action="tandem"
-              className={inTandem || flight.tandemWant ? styles.padLand : styles.padAction}
-              active={input.tandem || flight.tandemWant || inTandem}
+              className={styles.padLand}
+              active={input.tandem || inTandem}
             />
           )}
           {!walking && !freefall && (

@@ -213,11 +213,6 @@ export function tickFlight(
   let groundY = config.getHeight(next.position.x, next.position.z)
   next.altitude = Math.max(0, next.position.y - groundY)
 
-  if (input.tandem) {
-    next.tandemWant = !next.tandemWant
-    if (!next.tandemWant) next.tandemRole = 'none'
-  }
-
   if (next.phase === 'landed' || next.phase === 'crashed') {
     return { flight: next, parked }
   }
