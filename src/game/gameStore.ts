@@ -7,13 +7,18 @@ import type {
   FlightStats,
   GameMode,
   InputState,
+  ParkedGlider,
   Screen,
   TiltCalibration,
   TiltPermission,
 } from '../types/game'
 import { INITIAL_FLIGHT, INITIAL_INPUT } from '../types/game'
 import { BIOME_CONFIGS } from './biomeConfigs'
-import { createInitialFlight, getLandingQuality } from './flightPhysics'
+import {
+  createInitialFlight,
+  getLandingQuality,
+  initParkedGliders,
+} from './flightPhysics'
 import { playRingSound } from './audio'
 import { checkRingCollision } from './obstacles'
 import {
@@ -32,6 +37,7 @@ interface GameStore {
   flight: FlightState
   input: InputState
   rings: ChallengeRing[]
+  parkedGliders: ParkedGlider[]
   stats: FlightStats | null
   simTime: number
   tiltSupported: boolean
@@ -49,7 +55,7 @@ interface GameStore {
   setTiltEnabled: (enabled: boolean) => Promise<boolean>
   setTiltCalibration: (calib: TiltCalibration | null) => void
   startFlight: () => void
-  updateFlight: (flight: FlightState) => void
+  updateFlight: (flight: FlightState, parked?: ParkedGlider[]) => void
   setSimTime: (t: number) => void
   checkRings: () => void
   finishFlight: () => void
@@ -94,6 +100,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   flight: { ...INITIAL_FLIGHT },
   input: { ...INITIAL_INPUT },
   rings: initRings('beach'),
+  parkedGliders: initParkedGliders(BIOME_CONFIGS.beach),
   stats: null,
   simTime: 0,
   tiltSupported: isTiltSupported(),
@@ -102,7 +109,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   tiltCalibration: null,
 
   setScreen: (screen) => set({ screen }),
-  setBiome: (biome) => set({ biome, rings: initRings(biome) }),
+  setBiome: (biome) =>
+    set({
+      biome,
+      rings: initRings(biome),
+      parkedGliders: initParkedGliders(BIOME_CONFIGS[biome]),
+    }),
   setMode: (mode) => set({ mode }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
   cycleCamera: () => {
@@ -170,6 +182,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       flight: createInitialFlight(config),
       input: { ...INITIAL_INPUT },
       rings: initRings(biome),
+      parkedGliders: initParkedGliders(config),
       stats: null,
       simTime: 0,
       // Keep tilt on across restarts; re-zero so hold angle is neutral
@@ -177,7 +190,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })
   },
 
-  updateFlight: (flight) => set({ flight }),
+  updateFlight: (flight, parked) =>
+    set(parked ? { flight, parkedGliders: parked } : { flight }),
 
   setSimTime: (simTime) => set({ simTime }),
 

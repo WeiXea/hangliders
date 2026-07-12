@@ -6,8 +6,10 @@ import {
   useTiltControls,
   useTouchControl,
 } from '../game/controls'
+import { nearestMountable } from '../game/flightPhysics'
 import { startWindAudio, stopWindAudio } from '../game/audio'
 import { GameCanvas } from '../game/GameCanvas'
+import { JUMP_MIN_ALTITUDE } from '../types/game'
 import styles from './FlightHUD.module.css'
 
 const CAMERA_LABELS = { chase: 'Chase', fpv: 'Cockpit', side: 'Side' } as const
@@ -44,6 +46,7 @@ export function FlightHUD() {
   const input = useGameStore((s) => s.input)
   const mode = useGameStore((s) => s.mode)
   const rings = useGameStore((s) => s.rings)
+  const parkedGliders = useGameStore((s) => s.parkedGliders)
   const cameraMode = useGameStore((s) => s.cameraMode)
   const cycleCamera = useGameStore((s) => s.cycleCamera)
   const startFlight = useGameStore((s) => s.startFlight)
@@ -67,9 +70,15 @@ export function FlightHUD() {
   const vsLabel = vs > 0.35 ? `↑${Math.abs(vs).toFixed(0)}` : vs < -0.35 ? `↓${Math.abs(vs).toFixed(0)}` : '—'
   const vsClass = vs > 0.35 ? styles.vsUp : vs < -0.35 ? styles.vsDown : ''
   const onGround = flight.phase === 'grounded' || flight.phase === 'running'
+  const walking = flight.phase === 'walking'
+  const freefall = flight.phase === 'freefall'
+  const parachuting = flight.phase === 'parachuting'
+  const flying = flight.phase === 'flying'
   const canLift = onGround && flight.airspeed >= 13
+  const canJump = flying && flight.altitude >= JUMP_MIN_ALTITUDE
+  const nearMount = nearestMountable(flight, parkedGliders)
   const approach =
-    flight.phase === 'flying' &&
+    flying &&
     flight.altitude < 35 &&
     flight.airspeed <= 14 &&
     flight.velocity.y < 0.5
@@ -83,9 +92,8 @@ export function FlightHUD() {
     }
   }
 
-  const onCalibrate = () => {
-    calibrateTiltNow()
-  }
+  const showSteerPads =
+    !tiltEnabled || walking || freefall || parachuting
 
   return (
     <div className={styles.hud}>
@@ -128,7 +136,7 @@ export function FlightHUD() {
           )}
         </div>
         <div className={styles.topActions}>
-          {tiltSupported && (
+          {tiltSupported && !walking && (
             <>
               <button
                 type="button"
@@ -143,7 +151,7 @@ export function FlightHUD() {
                 <button
                   type="button"
                   className={styles.cameraBtn}
-                  onClick={onCalibrate}
+                  onClick={() => calibrateTiltNow()}
                   title="Set current angle as neutral"
                 >
                   Level
@@ -167,7 +175,7 @@ export function FlightHUD() {
         <div className={styles.coach}>Motion access denied — enable it in Safari Settings</div>
       )}
 
-      {flight.stallWarning && flight.phase === 'flying' && (
+      {flight.stallWarning && flying && (
         <div className={styles.stallWarning}>Stall — speed up (Shift)</div>
       )}
 
@@ -183,32 +191,102 @@ export function FlightHUD() {
         </div>
       )}
 
+      {canJump && (
+        <div className={styles.coach}>Jump ready — Space / Jump to leave the glider</div>
+      )}
+
+      {freefall && (
+        <div className={styles.stallWarning}>Freefall — deploy parachute (F / Chute)</div>
+      )}
+
+      {parachuting && (
+        <div className={styles.nearGround}>Parachute open — steer left/right, land gently</div>
+      )}
+
+      {walking && !nearMount && (
+        <div className={styles.coach}>
+          Explore — find gold-ringed hang gliders to mount (WASD · Space jump)
+        </div>
+      )}
+
+      {walking && nearMount && (
+        <div className={styles.nearGround}>Hang glider nearby — press E / Mount to fly again</div>
+      )}
+
       {approach && (
         <div className={styles.nearGround}>
-          Good approach — keep slow and sink gently to land
+          Good approach — keep slow and sink gently to land & walk
         </div>
       )}
 
       <div className={styles.controls}>
-        {!tiltEnabled && (
+        {showSteerPads && (
           <div className={styles.leftPads}>
-            <ControlPad label="↑" sub="Dive" action="pitchDown" className={styles.padUp} active={input.pitchDown} />
+            <ControlPad
+              label="↑"
+              sub={walking ? 'Fwd' : freefall || parachuting ? 'Brake' : 'Dive'}
+              action="pitchDown"
+              className={styles.padUp}
+              active={input.pitchDown}
+            />
             <div className={styles.padRow}>
               <ControlPad label="←" sub="Left" action="bankLeft" active={input.bankLeft} />
-              <ControlPad label="↓" sub="Climb" action="pitchUp" active={input.pitchUp} />
+              <ControlPad
+                label="↓"
+                sub={walking ? 'Back' : freefall || parachuting ? 'Sink' : 'Climb'}
+                action="pitchUp"
+                active={input.pitchUp}
+              />
               <ControlPad label="→" sub="Right" action="bankRight" active={input.bankRight} />
             </div>
           </div>
         )}
-        {tiltEnabled && (
+        {tiltEnabled && !showSteerPads && (
           <div className={styles.tiltHint} aria-live="polite">
             <span className={styles.tiltHintTitle}>Tilt to steer</span>
             <span className={styles.tiltHintSub}>Forward dive · Back climb · Side bank</span>
           </div>
         )}
         <div className={styles.rightPads}>
-          <ControlPad label="+" sub="Speed" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
-          <ControlPad label="−" sub="Slow" action="speedDown" className={styles.padSpeed} active={input.speedDown} />
+          {flying && (
+            <ControlPad
+              label="Jump"
+              sub={canJump ? 'Ready' : `Need ${JUMP_MIN_ALTITUDE}m`}
+              action="jump"
+              className={styles.padAction}
+              active={input.jump}
+            />
+          )}
+          {freefall && (
+            <ControlPad
+              label="Chute"
+              sub="Deploy"
+              action="deployChute"
+              className={styles.padLand}
+              active={input.deployChute}
+            />
+          )}
+          {walking && (
+            <>
+              <ControlPad label="Jump" sub="Hop" action="jump" className={styles.padAction} active={input.jump} />
+              <ControlPad
+                label="Mount"
+                sub={nearMount ? 'Ready' : 'Near'}
+                action="interact"
+                className={nearMount ? styles.padLand : styles.padAction}
+                active={input.interact}
+              />
+            </>
+          )}
+          {!walking && !freefall && (
+            <>
+              <ControlPad label="+" sub="Speed" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
+              <ControlPad label="−" sub="Slow" action="speedDown" className={styles.padSpeed} active={input.speedDown} />
+            </>
+          )}
+          {walking && (
+            <ControlPad label="Sprint" sub="Shift" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
+          )}
         </div>
       </div>
     </div>

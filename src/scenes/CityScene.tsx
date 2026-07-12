@@ -112,6 +112,62 @@ function SkylineSilhouette() {
   )
 }
 
+function ParkBench({ position, yaw = 0 }: { position: [number, number, number]; yaw?: number }) {
+  return (
+    <group position={position} rotation={[0, yaw, 0]}>
+      <mesh castShadow position={[0, 0.45, 0]}>
+        <boxGeometry args={[1.8, 0.08, 0.5]} />
+        <meshStandardMaterial color="#6b4423" roughness={0.85} />
+      </mesh>
+      <mesh castShadow position={[0, 0.75, -0.2]}>
+        <boxGeometry args={[1.8, 0.45, 0.08]} />
+        <meshStandardMaterial color="#6b4423" roughness={0.85} />
+      </mesh>
+      {[-0.7, 0.7].map((x) => (
+        <mesh key={x} castShadow position={[x, 0.25, 0]}>
+          <boxGeometry args={[0.08, 0.5, 0.45]} />
+          <meshStandardMaterial color="#343a40" />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function StreetLamp({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh castShadow position={[0, 2.2, 0]}>
+        <cylinderGeometry args={[0.06, 0.08, 4.4, 8]} />
+        <meshStandardMaterial color="#212529" metalness={0.6} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 4.5, 0]}>
+        <sphereGeometry args={[0.22, 10, 10]} />
+        <meshStandardMaterial
+          color="#ffe066"
+          emissive="#ffe066"
+          emissiveIntensity={0.55}
+          roughness={0.4}
+        />
+      </mesh>
+    </group>
+  )
+}
+
+function Billboard({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh castShadow position={[0, 2.5, 0]}>
+        <boxGeometry args={[0.12, 5, 0.12]} />
+        <meshStandardMaterial color="#495057" metalness={0.4} />
+      </mesh>
+      <mesh castShadow position={[0, 5.2, 0]}>
+        <boxGeometry args={[3.2, 1.8, 0.15]} />
+        <meshStandardMaterial color="#c1272d" roughness={0.7} />
+      </mesh>
+    </group>
+  )
+}
+
 export function CityScene({ config }: CitySceneProps) {
   return (
     <>
@@ -133,6 +189,14 @@ export function CityScene({ config }: CitySceneProps) {
       ))}
       <SkylineSilhouette />
       <LaunchRamp config={config} />
+      <ParkBench position={[22, config.getHeight(22, 48), 48]} yaw={0.3} />
+      <ParkBench position={[48, config.getHeight(48, 88), 88]} yaw={-0.5} />
+      <StreetLamp position={[18, config.getHeight(18, 40), 40]} />
+      <StreetLamp position={[40, config.getHeight(40, 62), 62]} />
+      <StreetLamp position={[72, config.getHeight(72, 95), 95]} />
+      <StreetLamp position={[105, config.getHeight(105, 120), 120]} />
+      <Billboard position={[35, config.getHeight(35, 75), 75]} />
+      <Billboard position={[125, config.getHeight(125, 140), 140]} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[30, -0.15, -40]}>
         <planeGeometry args={[480, 36, 1, 1]} />
         <meshStandardMaterial

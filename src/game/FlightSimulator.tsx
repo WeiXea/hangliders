@@ -28,8 +28,15 @@ export function FlightSimulator() {
     timeRef.current += dt
     setSimTime(timeRef.current)
 
-    const current = useGameStore.getState().flight
-    if (current.phase === 'landed' || current.phase === 'crashed') {
+    const { flight: current, parkedGliders } = useGameStore.getState()
+    if (current.phase === 'crashed') {
+      if (!finishedRef.current) {
+        finishedRef.current = true
+        finishFlight()
+      }
+      return
+    }
+    if (current.phase === 'landed') {
       if (!finishedRef.current) {
         finishedRef.current = true
         finishFlight()
@@ -37,8 +44,23 @@ export function FlightSimulator() {
       return
     }
 
-    const next = tickFlight(current, input, config, dt, timeRef.current)
-    updateFlight(next)
+    const { flight: next, parked } = tickFlight(
+      current,
+      input,
+      config,
+      dt,
+      timeRef.current,
+      parkedGliders,
+    )
+    updateFlight(next, parked)
+    // One-shot actions
+    if (input.jump || input.deployChute || input.interact) {
+      useGameStore.getState().setInput({
+        jump: false,
+        deployChute: false,
+        interact: false,
+      })
+    }
     checkRings()
   })
 

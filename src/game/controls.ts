@@ -38,8 +38,11 @@ const RELEASE_MAP: Record<string, Partial<InputState>> = {
   KeyA: { bankLeft: false },
   ArrowRight: { bankRight: false },
   KeyD: { bankRight: false },
-  Space: { takeOff: false },
+  Space: { takeOff: false, jump: false },
   KeyL: { land: false },
+  KeyF: { deployChute: false },
+  KeyE: { interact: false },
+  KeyJ: { jump: false },
 }
 
 function syncModifiers(e: KeyboardEvent, setInput: (p: Partial<InputState>) => void) {
@@ -61,6 +64,7 @@ export function useKeyboardControls() {
     if (screen !== 'flight' && screen !== 'result') return
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return
       if (e.code === 'KeyR') {
         e.preventDefault()
         startFlight()
@@ -84,7 +88,29 @@ export function useKeyboardControls() {
 
       if (e.code === 'Space') {
         e.preventDefault()
-        setInput({ takeOff: true })
+        const phase = useGameStore.getState().flight.phase
+        if (phase === 'walking' || phase === 'flying') {
+          setInput({ jump: true })
+        } else if (phase === 'freefall') {
+          setInput({ deployChute: true })
+        } else {
+          setInput({ takeOff: true })
+        }
+        return
+      }
+      if (e.code === 'KeyJ') {
+        e.preventDefault()
+        setInput({ jump: true })
+        return
+      }
+      if (e.code === 'KeyF') {
+        e.preventDefault()
+        setInput({ deployChute: true })
+        return
+      }
+      if (e.code === 'KeyE') {
+        e.preventDefault()
+        setInput({ interact: true })
         return
       }
       if (e.code === 'KeyL') {
@@ -93,8 +119,11 @@ export function useKeyboardControls() {
         return
       }
 
-      // When tilt owns steering, skip keyboard pitch/bank
-      if (tiltEnabled) return
+      // When tilt owns steering, skip keyboard pitch/bank (walk still uses WASD)
+      const phase = useGameStore.getState().flight.phase
+      if (tiltEnabled && phase !== 'walking' && phase !== 'freefall' && phase !== 'parachuting') {
+        return
+      }
 
       const action =
         PITCH_BANK_DOWN[e.code] ??
@@ -113,11 +142,21 @@ export function useKeyboardControls() {
       syncModifiers(e, setInput)
       if (tiltEnabled) {
         const release = RELEASE_MAP[e.code]
-        if (release && ('takeOff' in release || 'land' in release)) {
+        if (
+          release &&
+          ('takeOff' in release ||
+            'land' in release ||
+            'jump' in release ||
+            'deployChute' in release ||
+            'interact' in release)
+        ) {
           e.preventDefault()
           setInput(release)
         }
-        return
+        const phase = useGameStore.getState().flight.phase
+        if (phase !== 'walking' && phase !== 'freefall' && phase !== 'parachuting') {
+          return
+        }
       }
       const release = RELEASE_MAP[e.code]
       if (release) {

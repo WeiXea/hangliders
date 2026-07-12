@@ -1,7 +1,15 @@
 export type Biome = 'beach' | 'mountains' | 'city'
 export type GameMode = 'free' | 'challenge'
 export type Screen = 'home' | 'flight' | 'result'
-export type FlightPhase = 'grounded' | 'running' | 'flying' | 'landed' | 'crashed'
+export type FlightPhase =
+  | 'grounded'
+  | 'running'
+  | 'flying'
+  | 'freefall'
+  | 'parachuting'
+  | 'walking'
+  | 'landed'
+  | 'crashed'
 export type CameraMode = 'chase' | 'fpv' | 'side'
 export type TiltPermission = 'unknown' | 'granted' | 'denied'
 
@@ -14,6 +22,15 @@ export interface Vec3 {
   x: number
   y: number
   z: number
+}
+
+export interface ParkedGlider {
+  id: number
+  x: number
+  z: number
+  yaw: number
+  /** false once the player mounts this one (respawns on restart) */
+  available: boolean
 }
 
 export interface FlightState {
@@ -30,6 +47,9 @@ export interface FlightState {
   distance: number
   maxAltitude: number
   airtime: number
+  /** Which parked glider is currently mounted (-1 = launch ramp) */
+  mountedId: number
+  chuteDeployed: boolean
 }
 
 export interface InputState {
@@ -41,6 +61,9 @@ export interface InputState {
   speedDown: boolean
   takeOff: boolean
   land: boolean
+  jump: boolean
+  deployChute: boolean
+  interact: boolean
 }
 
 export interface ChallengeRing {
@@ -77,7 +100,12 @@ export interface BiomeConfig {
   getHeight: (x: number, z: number) => number
   challengeRings: Vec3[]
   landingZone: { center: Vec3; radius: number }
+  parkedGliders: { x: number; z: number; yaw: number }[]
 }
+
+export const JUMP_MIN_ALTITUDE = 35
+export const MOUNT_RANGE = 6
+export const WALK_EYE = 1.95
 
 export const INITIAL_FLIGHT: FlightState = {
   position: { x: 0, y: 0, z: 0 },
@@ -93,6 +121,8 @@ export const INITIAL_FLIGHT: FlightState = {
   distance: 0,
   maxAltitude: 0,
   airtime: 0,
+  mountedId: -1,
+  chuteDeployed: false,
 }
 
 export const INITIAL_INPUT: InputState = {
@@ -104,4 +134,7 @@ export const INITIAL_INPUT: InputState = {
   speedDown: false,
   takeOff: false,
   land: false,
+  jump: false,
+  deployChute: false,
+  interact: false,
 }

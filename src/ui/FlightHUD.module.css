@@ -327,6 +327,17 @@
   letter-spacing: 0.06em;
 }
 
+.padAction {
+  width: auto;
+  min-width: 64px;
+  padding: 0 14px;
+}
+
+.padAction .padLabel {
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+
 @keyframes pulse {
   from { opacity: 0.75; }
   to { opacity: 1; }

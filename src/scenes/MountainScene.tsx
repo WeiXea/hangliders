@@ -59,12 +59,40 @@ function RockPillar({
   )
 }
 
+function Cabin({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh castShadow position={[0, 1.2, 0]}>
+        <boxGeometry args={[4, 2.4, 3.2]} />
+        <meshStandardMaterial color="#8b5e3c" roughness={0.88} />
+      </mesh>
+      <mesh castShadow position={[0, 2.9, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[3.2, 1.8, 4]} />
+        <meshStandardMaterial color="#495057" roughness={0.85} />
+      </mesh>
+      <mesh position={[0, 1.1, 1.65]}>
+        <boxGeometry args={[0.7, 1.1, 0.08]} />
+        <meshStandardMaterial color="#343a40" />
+      </mesh>
+    </group>
+  )
+}
+
+function SnowPatch({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
+  return (
+    <mesh position={position} rotation={[-Math.PI / 2, 0, 0]} scale={scale}>
+      <circleGeometry args={[3.5, 10]} />
+      <meshStandardMaterial color="#f8f9fa" roughness={0.95} transparent opacity={0.85} />
+    </mesh>
+  )
+}
+
 export function MountainScene({ config }: MountainSceneProps) {
   const trees = useMemo(() => {
     const list: { pos: [number, number, number]; scale: number }[] = []
-    for (let i = 0; i < 90; i++) {
-      const x = (Math.sin(i * 73.1) * 0.5 + 0.5) * 320 - 80
-      const z = (Math.cos(i * 41.9) * 0.5 + 0.5) * 300 - 40
+    for (let i = 0; i < 120; i++) {
+      const x = (Math.sin(i * 73.1) * 0.5 + 0.5) * 380 - 100
+      const z = (Math.cos(i * 41.9) * 0.5 + 0.5) * 360 - 50
       const y = config.getHeight(x, z)
       const nearPillar = MOUNTAIN_SCENERY.some(
         (o) => Math.hypot(o.x - x, o.z - z) < o.radius + 8,
@@ -79,6 +107,17 @@ export function MountainScene({ config }: MountainSceneProps) {
     return list
   }, [config])
 
+  const snow = useMemo(
+    () =>
+      Array.from({ length: 25 }, (_, i) => {
+        const x = 40 + i * 12 + Math.sin(i) * 8
+        const z = 30 + (i % 7) * 18
+        const y = config.getHeight(x, z)
+        return { pos: [x, y + 0.12, z] as [number, number, number], scale: 0.6 + (i % 4) * 0.25 }
+      }).filter((s) => config.getHeight(s.pos[0], s.pos[2]) > 40),
+    [config],
+  )
+
   return (
     <>
       <SharedSky config={config} />
@@ -86,7 +125,7 @@ export function MountainScene({ config }: MountainSceneProps) {
       <DetailedTerrain config={config} biome="mountains" segments={200} />
       <HorizonRing color="#6b8e4e" y={2} />
       <LaunchRamp config={config} />
-      <ScatterRocks config={config} count={55} area={320} />
+      <ScatterRocks config={config} count={80} area={360} />
       {MOUNTAIN_SCENERY.map((o, i) => (
         <RockPillar
           key={i}
@@ -100,6 +139,11 @@ export function MountainScene({ config }: MountainSceneProps) {
       {trees.map((t, i) => (
         <PineTree key={i} position={t.pos} scale={t.scale} />
       ))}
+      {snow.map((s, i) => (
+        <SnowPatch key={i} position={s.pos} scale={s.scale} />
+      ))}
+      <Cabin position={[55, config.getHeight(55, 70), 70]} />
+      <Cabin position={[160, config.getHeight(160, 50), 50]} />
     </>
   )
 }

@@ -159,9 +159,90 @@ function createLeadingEdgeCurve(): THREE.CatmullRomCurve3 {
 
 interface GliderModelProps {
   barRef?: React.RefObject<THREE.Group | null>
+  /** Hide pilot when rendering as a parked prop (ParkedGliders adds its own) */
+  hidePilot?: boolean
 }
 
-export function GliderModel({ barRef: externalBarRef }: GliderModelProps) {
+export function PilotFigure({ standing = false }: { standing?: boolean }) {
+  const yOff = standing ? 0.35 : 0
+  return (
+    <group position={[0, yOff, 0]}>
+      <mesh position={[0, -0.7, -0.05]} castShadow>
+        <capsuleGeometry args={[0.22, 0.4, 6, 12]} />
+        <meshStandardMaterial color="#1b263b" roughness={0.85} />
+      </mesh>
+      <mesh position={[0, -0.28, 0]} castShadow>
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshStandardMaterial color="#e9c46a" roughness={0.72} />
+      </mesh>
+      <mesh position={[0, -0.36, 0.14]}>
+        <torusGeometry args={[0.16, 0.04, 8, 16]} />
+        <meshStandardMaterial color="#222" roughness={0.9} />
+      </mesh>
+      <mesh
+        position={[-0.12, standing ? -1.35 : -1.45, standing ? 0 : 0.08]}
+        rotation={[standing ? 0 : 0.15, 0, 0.05]}
+        castShadow
+      >
+        <capsuleGeometry args={[0.075, standing ? 0.65 : 0.55, 4, 8]} />
+        <meshStandardMaterial color="#2b2d42" roughness={0.8} />
+      </mesh>
+      <mesh
+        position={[0.12, standing ? -1.35 : -1.45, standing ? 0 : -0.05]}
+        rotation={[standing ? 0 : 0.1, 0, -0.05]}
+        castShadow
+      >
+        <capsuleGeometry args={[0.075, standing ? 0.65 : 0.55, 4, 8]} />
+        <meshStandardMaterial color="#2b2d42" roughness={0.8} />
+      </mesh>
+      <mesh position={[-0.12, standing ? -1.85 : -1.95, standing ? 0.05 : 0.12]} castShadow>
+        <boxGeometry args={[0.12, 0.08, 0.22]} />
+        <meshStandardMaterial color="#111" roughness={0.9} />
+      </mesh>
+      <mesh position={[0.12, standing ? -1.85 : -1.95, standing ? 0.05 : 0.05]} castShadow>
+        <boxGeometry args={[0.12, 0.08, 0.22]} />
+        <meshStandardMaterial color="#111" roughness={0.9} />
+      </mesh>
+    </group>
+  )
+}
+
+export function ParachuteCanopy() {
+  return (
+    <group position={[0, 3.2, 0]}>
+      <mesh castShadow>
+        <sphereGeometry args={[2.4, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
+        <meshStandardMaterial
+          color="#f4a261"
+          side={THREE.DoubleSide}
+          roughness={0.75}
+          metalness={0.05}
+        />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[2.35, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
+        <meshStandardMaterial
+          color="#e76f51"
+          side={THREE.BackSide}
+          roughness={0.8}
+        />
+      </mesh>
+      {[-1.2, -0.4, 0.4, 1.2].map((x, i) => (
+        <mesh key={i} position={[x * 0.35, -1.6, 0.1]} rotation={[0.15, 0, x * 0.08]}>
+          <cylinderGeometry args={[0.012, 0.012, 3.4, 4]} />
+          <meshStandardMaterial color="#ced4da" />
+        </mesh>
+      ))}
+      {/* Morocco accent stripe */}
+      <mesh position={[0, 0.6, 0]} rotation={[0.1, 0, 0]}>
+        <torusGeometry args={[1.9, 0.08, 6, 32, Math.PI]} />
+        <meshStandardMaterial color="#006233" roughness={0.7} />
+      </mesh>
+    </group>
+  )
+}
+
+export function GliderModel({ barRef: externalBarRef, hidePilot }: GliderModelProps) {
   const barRef = externalBarRef
   const wingGeo = useMemo(() => createDeltaWingGeometry(), [])
   const edgeCurve = useMemo(() => createLeadingEdgeCurve(), [])
@@ -262,35 +343,8 @@ export function GliderModel({ barRef: externalBarRef }: GliderModelProps) {
         ))}
       </group>
 
-      {/* Pilot — feet near y ≈ -2.0 so GROUND_CLEARANCE keeps them on terrain */}
-      <mesh position={[0, -0.7, -0.05]} castShadow>
-        <capsuleGeometry args={[0.22, 0.4, 6, 12]} />
-        <meshStandardMaterial color="#1b263b" roughness={0.85} />
-      </mesh>
-      <mesh position={[0, -0.28, 0]} castShadow>
-        <sphereGeometry args={[0.2, 16, 16]} />
-        <meshStandardMaterial color="#e9c46a" roughness={0.72} />
-      </mesh>
-      <mesh position={[0, -0.36, 0.14]}>
-        <torusGeometry args={[0.16, 0.04, 8, 16]} />
-        <meshStandardMaterial color="#222" roughness={0.9} />
-      </mesh>
-      <mesh position={[-0.12, -1.45, 0.08]} rotation={[0.15, 0, 0.05]} castShadow>
-        <capsuleGeometry args={[0.075, 0.55, 4, 8]} />
-        <meshStandardMaterial color="#2b2d42" roughness={0.8} />
-      </mesh>
-      <mesh position={[0.12, -1.45, -0.05]} rotation={[0.1, 0, -0.05]} castShadow>
-        <capsuleGeometry args={[0.075, 0.55, 4, 8]} />
-        <meshStandardMaterial color="#2b2d42" roughness={0.8} />
-      </mesh>
-      <mesh position={[-0.12, -1.95, 0.12]} castShadow>
-        <boxGeometry args={[0.12, 0.08, 0.22]} />
-        <meshStandardMaterial color="#111" roughness={0.9} />
-      </mesh>
-      <mesh position={[0.12, -1.95, 0.05]} castShadow>
-        <boxGeometry args={[0.12, 0.08, 0.22]} />
-        <meshStandardMaterial color="#111" roughness={0.9} />
-      </mesh>
+      {!hidePilot && <PilotFigure />}
     </group>
   )
 }
+

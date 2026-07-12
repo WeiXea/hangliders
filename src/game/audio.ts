@@ -26,7 +26,7 @@ function makeNoiseBuffer(ac: AudioContext, seconds = 2): AudioBuffer {
 }
 
 export function startWindAudio(airspeed: number, phase: string) {
-  if (phase !== 'flying' && phase !== 'running') {
+  if (phase !== 'flying' && phase !== 'running' && phase !== 'freefall' && phase !== 'parachuting') {
     stopWindAudio()
     lastPhase = phase
     return
@@ -40,6 +40,12 @@ export function startWindAudio(airspeed: number, phase: string) {
   }
   if (phase === 'flying' && lastPhase === 'running') {
     playWhoosh(0.14, 220, 0.45)
+  }
+  if (phase === 'freefall' && lastPhase === 'flying') {
+    playWhoosh(0.18, 160, 0.55)
+  }
+  if (phase === 'parachuting' && lastPhase === 'freefall') {
+    playWhoosh(0.12, 140, 0.4)
   }
   lastPhase = phase
 
@@ -70,9 +76,17 @@ export function startWindAudio(airspeed: number, phase: string) {
 
   if (windFilter && windGain) {
     const flying = phase === 'flying'
-    const base = flying ? 0.045 : 0.02
-    const level = Math.min(0.14, base + airspeed * 0.0035)
-    const freq = flying ? 220 + airspeed * 12 : 160 + airspeed * 6
+    const fall = phase === 'freefall'
+    const chute = phase === 'parachuting'
+    const base = fall ? 0.08 : chute ? 0.035 : flying ? 0.045 : 0.02
+    const level = Math.min(0.16, base + airspeed * 0.0035)
+    const freq = fall
+      ? 380 + airspeed * 8
+      : chute
+        ? 180 + airspeed * 5
+        : flying
+          ? 220 + airspeed * 12
+          : 160 + airspeed * 6
     windFilter.frequency.setTargetAtTime(freq, ac.currentTime, 0.12)
     windGain.gain.setTargetAtTime(level, ac.currentTime, 0.15)
   }
