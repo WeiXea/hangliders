@@ -7,6 +7,10 @@ import { tickNetSync } from './netSync'
 import { bearingTo, horizontalDist } from './multiplayerSocial'
 import { resolveTandem } from './tandem'
 import { applyPulses, clearPulses } from './actionPulses'
+import { tickVario } from './audio'
+
+const FIXED_DT = 1 / 60
+const MAX_STEPS = 5
 
 export function FlightSimulator() {
   const biome = useGameStore((s) => s.biome)
@@ -19,24 +23,25 @@ export function FlightSimulator() {
   const config = BIOME_CONFIGS[biome]
   const timeRef = useRef(0)
   const finishedRef = useRef(false)
+  const accRef = useRef(0)
 
   useEffect(() => {
     if (screen === 'flight') {
       finishedRef.current = false
       timeRef.current = 0
+      accRef.current = 0
     }
   }, [screen])
 
   useFrame((_, delta) => {
-    const dt = Math.min(delta, 0.05)
-    timeRef.current += dt
-    setSimTime(timeRef.current)
+    const frameDt = Math.min(delta, 0.05)
+    accRef.current += frameDt
 
     const store = useGameStore.getState()
-    const { flight: current, parkedGliders, remoteFlight, peerConnected } = store
+    const { flight: startFlight, parkedGliders, remoteFlight, peerConnected } = store
     const frameInput = applyPulses(input)
 
-    if (current.phase === 'crashed' || current.phase === 'landed') {
+    if (startFlight.phase === 'crashed' || startFlight.phase === 'landed') {
       if (!finishedRef.current) {
         finishedRef.current = true
         finishFlight()
@@ -45,82 +50,106 @@ export function FlightSimulator() {
       return
     }
 
-    let flight = current
+    let flight = startFlight
     let parkedOut = parkedGliders
+    let steps = 0
 
-    if (peerConnected && remoteFlight) {
+    while (accRef.current >= FIXED_DT && steps < MAX_STEPS) {
+      accRef.current -= FIXED_DT
+      steps += 1
+      timeRef.current += FIXED_DT
+      setSimTime(timeRef.current)
+
+      if (peerConnected && remoteFlight) {
+        const tandem = resolveTandem(
+          flight,
+          remoteFlight,
+          frameInput,
+          parkedOut,
+          config,
+          FIXED_DT,
+        )
+        flight = tandem.flight
+        parkedOut = tandem.parked
+
+        if (tandem.followPilot) {
+          tickNetSync(FIXED_DT)
+          continue
+        }
+      }
+
+      const physicsInput = {
+        ...frameInput,
+        tandem: false,
+        jump:
+          frameInput.jump &&
+          !(flight.tandemRole === 'passenger' && flight.phase === 'freefall'),
+      }
+
+      const { flight: next, parked } = tickFlight(
+        flight,
+        physicsInput,
+        config,
+        FIXED_DT,
+        timeRef.current,
+        parkedOut,
+      )
+      flight = next
+      parkedOut = parked
+
+      if (
+        peerConnected &&
+        remoteFlight &&
+        flight.phase === 'walking' &&
+        remoteFlight.phase === 'walking' &&
+        (flight.landAction === 'hug' || flight.landAction === 'highfive')
+      ) {
+        const d = horizontalDist(flight.position, remoteFlight.position)
+        if (d < 4) {
+          flight = {
+            ...flight,
+            yaw: bearingTo(flight.position, remoteFlight.position),
+          }
+        }
+      }
+
+      if (
+        peerConnected &&
+        remoteFlight &&
+        remoteFlight.tandemRole === 'passenger' &&
+        flight.tandemRole !== 'passenger' &&
+        (flight.phase === 'grounded' ||
+          flight.phase === 'running' ||
+          flight.phase === 'flying' ||
+          flight.phase === 'landed')
+      ) {
+        flight = { ...flight, tandemRole: 'pilot', tandemWant: false }
+      }
+
+      tickNetSync(FIXED_DT)
+    }
+
+    // Display-rate passenger follow when no fixed step ran this frame
+    if (
+      steps === 0 &&
+      peerConnected &&
+      remoteFlight &&
+      startFlight.tandemRole === 'passenger'
+    ) {
       const tandem = resolveTandem(
-        current,
+        startFlight,
         remoteFlight,
         frameInput,
-        parkedGliders,
+        parkedOut,
         config,
-        dt,
+        frameDt,
       )
       flight = tandem.flight
       parkedOut = tandem.parked
-
-      if (tandem.followPilot) {
-        updateFlight(flight, parkedOut)
-        tickNetSync(dt)
-        finishInput(frameInput)
-        checkRings()
-        return
-      }
-    }
-
-    // Pilot jump must reach physics even while marked tandem pilot
-    const physicsInput: typeof frameInput = {
-      ...frameInput,
-      tandem: false,
-      jump:
-        frameInput.jump &&
-        !(current.tandemRole === 'passenger' && flight.phase === 'freefall'),
-    }
-
-    const { flight: next, parked } = tickFlight(
-      flight,
-      physicsInput,
-      config,
-      dt,
-      timeRef.current,
-      parkedOut,
-    )
-    flight = next
-    parkedOut = parked
-
-    if (
-      peerConnected &&
-      remoteFlight &&
-      flight.phase === 'walking' &&
-      remoteFlight.phase === 'walking' &&
-      (flight.landAction === 'hug' || flight.landAction === 'highfive')
-    ) {
-      const d = horizontalDist(flight.position, remoteFlight.position)
-      if (d < 4) {
-        flight = {
-          ...flight,
-          yaw: bearingTo(flight.position, remoteFlight.position),
-        }
-      }
-    }
-
-    // Promote to pilot if friend boarded (no input)
-    if (
-      peerConnected &&
-      remoteFlight &&
-      remoteFlight.tandemRole === 'passenger' &&
-      flight.tandemRole !== 'passenger' &&
-      (flight.phase === 'grounded' ||
-        flight.phase === 'running' ||
-        flight.phase === 'flying' ||
-        flight.phase === 'landed')
-    ) {
-      flight = { ...flight, tandemRole: 'pilot', tandemWant: false }
     }
 
     updateFlight(flight, parkedOut)
-    tickNetSync(dt)
+    tickVario(flight.velocity.y, flight.phase)
     finishInput(frameInput)
     checkRings()
   })

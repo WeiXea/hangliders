@@ -108,7 +108,9 @@ export function HangGlider() {
     const camLerp =
       flight.tandemRole === 'passenger'
         ? 1 - Math.pow(0.0000001, delta)
-        : 1 - Math.pow(0.00005, delta)
+        : ph === 'flying' || ph === 'running'
+          ? 1 - Math.pow(0.00002, delta)
+          : 1 - Math.pow(0.00005, delta)
     camera.position.lerp(camPos, camLerp)
     camera.lookAt(lookTarget.current)
 

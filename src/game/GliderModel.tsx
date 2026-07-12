@@ -1,5 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { useGameStore } from './gameStore'
 import { PilotFigure } from './Pilot'
 
 function makeSailTexture(): THREE.CanvasTexture {
@@ -166,6 +168,7 @@ interface GliderModelProps {
 
 export function GliderModel({ barRef: externalBarRef, hidePilot }: GliderModelProps) {
   const barRef = externalBarRef
+  const wingRef = useRef<THREE.Mesh>(null)
   const wingGeo = useMemo(() => createDeltaWingGeometry(), [])
   const edgeCurve = useMemo(() => createLeadingEdgeCurve(), [])
   const sailMap = useMemo(() => makeSailTexture(), [])
@@ -181,13 +184,26 @@ export function GliderModel({ barRef: externalBarRef, hidePilot }: GliderModelPr
     [],
   )
 
+  // Soft sail billow from airspeed / pitch / roll (visual only)
+  useFrame(() => {
+    const mesh = wingRef.current
+    if (!mesh) return
+    const { flight } = useGameStore.getState()
+    const spd = Math.min(1, flight.airspeed / 22)
+    const billow = 1 + spd * 0.04 + Math.abs(flight.pitch) * 0.03
+    const twist = flight.roll * 0.04
+    mesh.scale.set(1 + Math.abs(twist) * 0.02, billow, 1)
+    mesh.rotation.z = twist * 0.15
+    mesh.rotation.x = -flight.pitch * 0.04 * spd
+  })
+
   return (
     <group>
-      <mesh geometry={wingGeo} castShadow receiveShadow>
+      <mesh ref={wingRef} geometry={wingGeo} castShadow receiveShadow>
         <meshStandardMaterial
           map={sailMap}
-          roughness={0.78}
-          metalness={0.02}
+          roughness={0.72}
+          metalness={0.04}
           side={THREE.FrontSide}
         />
       </mesh>

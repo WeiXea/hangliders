@@ -105,6 +105,7 @@ export function stopWindAudio() {
   windFilter = null
   windGain = null
   windStarted = false
+  stopVario()
 }
 
 function playWhoosh(gainPeak: number, freq: number, dur: number) {
@@ -198,3 +199,70 @@ export function playRingSound() {
   osc.start()
   osc.stop(ac.currentTime + 0.3)
 }
+
+/* --- Variometer --- */
+let varioOsc: OscillatorNode | null = null
+let varioGain: GainNode | null = null
+let varioTimer: number | null = null
+let lastVarioBeep = 0
+
+function ensureVario() {
+  const ac = getCtx()
+  if (varioOsc) return
+  varioOsc = ac.createOscillator()
+  varioOsc.type = 'sine'
+  varioOsc.frequency.value = 600
+  varioGain = ac.createGain()
+  varioGain.gain.value = 0
+  varioOsc.connect(varioGain)
+  varioGain.connect(ac.destination)
+  varioOsc.start()
+}
+
+/** Climb/sink audio: rising chirps when climbing, slow low tones when sinking hard. */
+export function tickVario(vs: number, phase: string) {
+  if (phase !== 'flying' && phase !== 'parachuting') {
+    stopVario()
+    return
+  }
+  const ac = getCtx()
+  if (ac.state === 'suspended') return
+  ensureVario()
+  if (!varioOsc || !varioGain) return
+
+  const now = performance.now()
+  if (vs > 0.4) {
+    // Climb — faster beeps, higher pitch
+    const interval = Math.max(90, 420 - vs * 70)
+    const freq = 520 + Math.min(500, vs * 90)
+    if (now - lastVarioBeep > interval) {
+      lastVarioBeep = now
+      varioOsc.frequency.setTargetAtTime(freq, ac.currentTime, 0.02)
+      varioGain.gain.cancelScheduledValues(ac.currentTime)
+      varioGain.gain.setValueAtTime(0.001, ac.currentTime)
+      varioGain.gain.exponentialRampToValueAtTime(0.045, ac.currentTime + 0.02)
+      varioGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08)
+    }
+  } else if (vs < -2.5) {
+    // Strong sink — soft continuous low tone
+    varioOsc.frequency.setTargetAtTime(180 + Math.max(0, 8 + vs) * 8, ac.currentTime, 0.08)
+    varioGain.gain.setTargetAtTime(0.018, ac.currentTime, 0.12)
+  } else {
+    varioGain.gain.setTargetAtTime(0.0001, ac.currentTime, 0.1)
+  }
+}
+
+export function stopVario() {
+  if (varioGain && ctx) {
+    try {
+      varioGain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.05)
+    } catch {
+      /* */
+    }
+  }
+  if (varioTimer != null) {
+    window.clearInterval(varioTimer)
+    varioTimer = null
+  }
+}
+

@@ -14,17 +14,16 @@ import {
   getObstacles,
   hitObstacle,
 } from './obstacles'
+import { computeAeroForces, groundEffectFactor } from './aero'
+import { sampleAtmosphere } from './atmosphere'
 
-const MIN_AIRSPEED = 7
-const MAX_AIRSPEED = 30
-const CRUISE = 15
-const LIFTOFF_SPEED = 13
-const STALL = 9
-const PITCH_RATE = 1.8
-const ROLL_RATE = 2.2
-const MAX_PITCH = 0.5
-const MAX_ROLL = 0.65
-const BASE_SINK = 2.2
+const MAX_AIRSPEED = 32
+const CRUISE = 12
+const LIFTOFF_SPEED = 11
+const PITCH_RATE = 1.55
+const ROLL_RATE = 1.9
+const MAX_PITCH = 0.48
+const MAX_ROLL = 0.7
 const WALK_SPEED = 7.5
 const WALK_SPRINT = 11
 const GRAVITY = 22
@@ -92,17 +91,6 @@ export function initParkedGliders(config: BiomeConfig): ParkedGlider[] {
     yaw: g.yaw,
     available: true,
   }))
-}
-
-function windBump(config: BiomeConfig, time: number, x: number) {
-  return {
-    x: Math.sin(time * 0.3) * config.windStrength,
-    y:
-      config.thermalStrength *
-      Math.max(0, Math.sin(time * 0.45 + x * 0.02) * 0.5 + 0.25) *
-      1.1,
-    z: Math.cos(time * 0.25) * config.windStrength * 0.55,
-  }
 }
 
 function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
@@ -383,7 +371,7 @@ export function tickFlight(
       next.yaw += steer * (0.55 + open * 0.7) * dt
     }
 
-    const wind = windBump(config, time, next.position.x)
+    const wind = sampleAtmosphere(config, time, next.position)
     const targetSwing = steer * 0.38 * open + Math.sin(time * 0.9) * 0.04 * open
     const swingAccel =
       (targetSwing - next.chuteSwing) * SWING_STIFFNESS - swingVel * SWING_DAMPING
@@ -516,34 +504,65 @@ export function tickFlight(
   if (input.bankLeft) next.roll = Math.min(MAX_ROLL, next.roll + ROLL_RATE * dt)
   if (input.bankRight) next.roll = Math.max(-MAX_ROLL, next.roll - ROLL_RATE * dt)
 
-  if (!input.bankLeft && !input.bankRight) next.roll *= 1 - Math.min(1, 2.8 * dt)
+  if (!input.bankLeft && !input.bankRight) next.roll *= 1 - Math.min(1, 2.4 * dt)
   if (!input.pitchUp && !input.pitchDown) {
-    next.pitch += (-0.05 - next.pitch) * Math.min(1, 1.1 * dt)
+    // Trim toward slight positive AoA / gentle glide
+    next.pitch += (0.06 - next.pitch) * Math.min(1, 0.9 * dt)
   }
 
-  if (input.speedUp) next.airspeed = Math.min(MAX_AIRSPEED, next.airspeed + 10 * dt)
-  else if (input.speedDown) next.airspeed = Math.max(MIN_AIRSPEED, next.airspeed - 10 * dt)
-  else {
-    const target = Math.min(MAX_AIRSPEED, Math.max(MIN_AIRSPEED, CRUISE - next.pitch * 10))
-    next.airspeed += (target - next.airspeed) * Math.min(1, 2.2 * dt)
+  // Speed bar: pull in (speedUp) → nose down a touch; push out → nose up
+  if (input.speedUp) next.pitch = Math.max(-MAX_PITCH, next.pitch - 0.55 * dt)
+  if (input.speedDown) next.pitch = Math.min(MAX_PITCH, next.pitch + 0.4 * dt)
+
+  const wind = sampleAtmosphere(config, time, next.position)
+  next.yaw += next.roll * 0.95 * dt
+
+  // Seed velocity from heading if nearly stopped (just lifted)
+  if (Math.hypot(next.velocity.x, next.velocity.y, next.velocity.z) < 3) {
+    const spd = Math.max(next.airspeed, CRUISE)
+    next.velocity.x = Math.sin(next.yaw) * Math.cos(next.pitch) * spd
+    next.velocity.y = Math.sin(next.pitch) * spd * 0.35
+    next.velocity.z = Math.cos(next.yaw) * Math.cos(next.pitch) * spd
   }
 
-  next.stallWarning = next.airspeed < STALL
-  const w = windBump(config, time, next.position.x)
-  next.yaw += next.roll * 1.05 * dt
+  // Aero in the airmass frame; thermals/ridge are wind.y (rising air)
+  const airState = {
+    ...next,
+    velocity: {
+      x: next.velocity.x - wind.x,
+      y: next.velocity.y - wind.y,
+      z: next.velocity.z - wind.z,
+    },
+  }
+  const aero = computeAeroForces(airState, input, { x: 0, y: 0, z: 0 })
+  const ge = groundEffectFactor(next.altitude)
 
-  const speed = next.airspeed
-  const fx = Math.sin(next.yaw) * Math.cos(next.pitch)
-  const fz = Math.cos(next.yaw) * Math.cos(next.pitch)
+  const vAirX = airState.velocity.x + aero.acceleration.x * dt
+  const vAirY = airState.velocity.y + aero.acceleration.y * dt * ge
+  const vAirZ = airState.velocity.z + aero.acceleration.z * dt
 
-  let vy = next.pitch * speed * 1.05 - BASE_SINK + w.y
-  if (input.pitchDown) vy -= 5 + Math.abs(next.pitch) * 8
-  if (input.pitchUp) vy += 3.2 + next.pitch * 4
-  if (next.stallWarning) vy -= 7
+  next.velocity.x = vAirX + wind.x
+  next.velocity.y = vAirY + wind.y
+  next.velocity.z = vAirZ + wind.z
 
-  next.velocity.x = fx * speed + w.x
-  next.velocity.y = vy
-  next.velocity.z = fz * speed + w.z
+  // Soft clamp extreme speeds for game feel
+  let spd = Math.hypot(next.velocity.x, next.velocity.y, next.velocity.z)
+  if (spd > MAX_AIRSPEED) {
+    const s = MAX_AIRSPEED / spd
+    next.velocity.x *= s
+    next.velocity.y *= s
+    next.velocity.z *= s
+    spd = MAX_AIRSPEED
+  }
+
+  next.airspeed = aero.airspeed
+  next.stallWarning = aero.stallWarning
+
+  // Progressive wing-drop when deep stall
+  if (aero.stallSeverity > 0.35) {
+    next.roll += (Math.sin(time * 3.1) > 0 ? 1 : -1) * aero.stallSeverity * 0.9 * dt
+    next.roll = Math.max(-MAX_ROLL, Math.min(MAX_ROLL, next.roll))
+  }
 
   next.position.x += next.velocity.x * dt
   next.position.y += next.velocity.y * dt
@@ -568,7 +587,7 @@ export function tickFlight(
     if ((slow && gentle && steadyDescent) || (input.land && slow && sink < 10)) {
       parked = parkMountedGlider(next, parked)
       next = beginWalking(next, config)
-    } else if (sink > 9 || next.airspeed > 20 || next.pitch < -0.4) {
+    } else if (sink > 9 || next.airspeed > 22 || next.pitch < -0.4) {
       next.phase = 'crashed'
       next.airspeed = 0
       next.velocity = { x: 0, y: 0, z: 0 }

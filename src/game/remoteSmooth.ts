@@ -1,40 +1,95 @@
 import type { FlightState } from '../types/game'
 
-let latest: FlightState | null = null
-let recvMs = 0
+type Sample = { flight: FlightState; at: number }
+
+let a: Sample | null = null
+let b: Sample | null = null
 
 export function noteRemoteFlight(flight: FlightState | null) {
-  latest = flight ? { ...flight, position: { ...flight.position }, velocity: { ...flight.velocity } } : null
-  recvMs = performance.now()
-}
-
-/** Extrapolate the last remote snapshot so passenger framing stays smooth between packets. */
-export function predictedRemote(now = performance.now()): FlightState | null {
-  if (!latest) return null
-  const age = Math.min(0.22, Math.max(0, (now - recvMs) / 1000))
-  const p = latest.position
-  const v = latest.velocity
-  return {
-    ...latest,
-    position: {
-      x: p.x + v.x * age,
-      y: p.y + v.y * age,
-      z: p.z + v.z * age,
-    },
-    // Keep attitude from last packet; slight yaw integrate from bank if flying
-    yaw: latest.yaw + (latest.phase === 'flying' ? -latest.roll * 0.35 * age : 0),
+  if (!flight) {
+    a = null
+    b = null
+    return
   }
+  const snap: Sample = {
+    flight: {
+      ...flight,
+      position: { ...flight.position },
+      velocity: { ...flight.velocity },
+    },
+    at: performance.now(),
+  }
+  a = b
+  b = snap
 }
 
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t
+function lerp(x: number, y: number, t: number) {
+  return x + (y - x) * t
 }
 
-function lerpAngle(a: number, b: number, t: number) {
-  let d = b - a
+function lerpAngle(x: number, y: number, t: number) {
+  let d = y - x
   while (d > Math.PI) d -= Math.PI * 2
   while (d < -Math.PI) d += Math.PI * 2
-  return a + d * t
+  return x + d * t
+}
+
+/** Interpolate between last two packets, then extrapolate slightly past the newest. */
+export function predictedRemote(now = performance.now()): FlightState | null {
+  if (!b) return null
+  if (!a || b.at === a.at) {
+    const age = Math.min(0.2, Math.max(0, (now - b.at) / 1000))
+    const f = b.flight
+    return {
+      ...f,
+      position: {
+        x: f.position.x + f.velocity.x * age,
+        y: f.position.y + f.velocity.y * age,
+        z: f.position.z + f.velocity.z * age,
+      },
+      yaw: f.yaw + (f.phase === 'flying' ? -f.roll * 0.3 * age : 0),
+    }
+  }
+
+  const span = Math.max(16, b.at - a.at)
+  // Render time slightly behind newest packet to allow interpolation
+  const renderAt = now - 40
+  let t = (renderAt - a.at) / span
+  if (t < 0) t = 0
+  if (t <= 1) {
+    const fa = a.flight
+    const fb = b.flight
+    return {
+      ...fb,
+      position: {
+        x: lerp(fa.position.x, fb.position.x, t),
+        y: lerp(fa.position.y, fb.position.y, t),
+        z: lerp(fa.position.z, fb.position.z, t),
+      },
+      velocity: {
+        x: lerp(fa.velocity.x, fb.velocity.x, t),
+        y: lerp(fa.velocity.y, fb.velocity.y, t),
+        z: lerp(fa.velocity.z, fb.velocity.z, t),
+      },
+      yaw: lerpAngle(fa.yaw, fb.yaw, t),
+      pitch: lerp(fa.pitch, fb.pitch, t),
+      roll: lerp(fa.roll, fb.roll, t),
+      airspeed: lerp(fa.airspeed, fb.airspeed, t),
+    }
+  }
+
+  // Past newest — extrapolate
+  const age = Math.min(0.18, (now - b.at) / 1000)
+  const f = b.flight
+  return {
+    ...f,
+    position: {
+      x: f.position.x + f.velocity.x * age,
+      y: f.position.y + f.velocity.y * age,
+      z: f.position.z + f.velocity.z * age,
+    },
+    yaw: f.yaw + (f.phase === 'flying' ? -f.roll * 0.3 * age : 0),
+  }
 }
 
 /** Smoothly chase a predicted pilot craft each display frame. */
@@ -44,8 +99,7 @@ export function smoothFollowPilot(
   dt: number,
 ): FlightState {
   const predicted = predictedRemote() ?? remote
-  // Higher = snappier. Keep high enough to track a banked turn without mush.
-  const k = 1 - Math.pow(0.00002, dt)
+  const k = 1 - Math.pow(0.000008, dt)
   return {
     ...predicted,
     tandemRole: 'passenger',

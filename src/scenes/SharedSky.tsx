@@ -1,4 +1,5 @@
 import { Cloud, Environment, Sky } from '@react-three/drei'
+import { EffectComposer, Bloom, Vignette, SMAA } from '@react-three/postprocessing'
 import type { BiomeConfig } from '../types/game'
 
 export function SharedSky({ config }: { config: BiomeConfig }) {
@@ -8,16 +9,17 @@ export function SharedSky({ config }: { config: BiomeConfig }) {
       <Sky
         distance={450000}
         sunPosition={[sx, sy, sz]}
-        inclination={0.47}
-        azimuth={0.18}
+        inclination={0.49}
+        azimuth={0.2}
         turbidity={config.skyTurbidity}
         rayleigh={config.skyRayleigh}
-        mieCoefficient={0.003}
-        mieDirectionalG={0.9}
+        mieCoefficient={0.004}
+        mieDirectionalG={0.92}
       />
-      <Environment preset="sunset" environmentIntensity={0.55} />
+      <Environment preset="sunset" environmentIntensity={0.62} />
       <CloudLayers config={config} />
-      <fog attach="fog" args={[config.fogColor, config.fogNear, config.fogFar]} />
+      {/* Soft height fog — slightly denser near horizon */}
+      <fog attach="fog" args={[config.fogColor, config.fogNear * 0.85, config.fogFar * 1.05]} />
     </>
   )
 }
@@ -46,8 +48,8 @@ function CloudLayers({ config }: { config: BiomeConfig }) {
       {clouds.map(([x, y, z, s], i) => (
         <Cloud
           key={i}
-          opacity={0.55}
-          speed={0.1}
+          opacity={0.5}
+          speed={0.08}
           bounds={[42 * s, 8, 26 * s]}
           segments={22}
           position={[x, y, z]}
@@ -61,10 +63,10 @@ function CloudLayers({ config }: { config: BiomeConfig }) {
 export function SharedLighting() {
   return (
     <>
-      <ambientLight intensity={0.45} color="#e8f1f8" />
+      <ambientLight intensity={0.4} color="#e8f1f8" />
       <directionalLight
         position={[140, 160, 90]}
-        intensity={2.55}
+        intensity={2.7}
         color="#fff4e0"
         castShadow
         shadow-mapSize={[2048, 2048]}
@@ -75,8 +77,24 @@ export function SharedLighting() {
         shadow-camera-bottom={-200}
         shadow-bias={-0.00025}
       />
-      <directionalLight position={[-70, 70, -40]} intensity={0.55} color="#8ecae6" />
-      <hemisphereLight args={['#9AD0EC', '#5c7a52', 0.7]} />
+      <directionalLight position={[-70, 70, -40]} intensity={0.5} color="#8ecae6" />
+      <hemisphereLight args={['#9AD0EC', '#5c7a52', 0.75]} />
     </>
+  )
+}
+
+/** Light post stack — bloom + AA. Keep cheap for mobile PWA. */
+export function FlightPostFX() {
+  return (
+    <EffectComposer multisampling={0}>
+      <SMAA />
+      <Bloom
+        luminanceThreshold={0.85}
+        luminanceSmoothing={0.3}
+        intensity={0.35}
+        mipmapBlur
+      />
+      <Vignette offset={0.25} darkness={0.45} />
+    </EffectComposer>
   )
 }

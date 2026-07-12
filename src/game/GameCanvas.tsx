@@ -11,6 +11,7 @@ import { BeachScene } from '../scenes/BeachScene'
 import { MountainScene } from '../scenes/MountainScene'
 import { CityScene } from '../scenes/CityScene'
 import { ChallengeRings, LandingZone } from '../scenes/ChallengeObjects'
+import { FlightPostFX } from '../scenes/SharedSky'
 
 function BiomeWorld() {
   const biome = useGameStore((s) => s.biome)
@@ -53,6 +54,7 @@ export function GameCanvas() {
         <ChallengeRings />
         <LandingZone />
         <FlightSimulator />
+        <FlightPostFX />
       </Suspense>
     </Canvas>
   )

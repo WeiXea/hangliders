@@ -71,9 +71,20 @@ export function FlightHUD() {
     return () => stopWindAudio()
   }, [flight.airspeed, flight.phase])
 
+  // Keep audio context warm on first gesture
+  useEffect(() => {
+    const warm = () => {
+      startWindAudio(0, 'grounded')
+      window.removeEventListener('pointerdown', warm)
+    }
+    window.addEventListener('pointerdown', warm, { once: true })
+    return () => window.removeEventListener('pointerdown', warm)
+  }, [])
+
   const passedRings = rings.filter((r) => r.passed).length
   const vs = flight.velocity.y
-  const vsLabel = vs > 0.35 ? `↑${Math.abs(vs).toFixed(0)}` : vs < -0.35 ? `↓${Math.abs(vs).toFixed(0)}` : '—'
+  const vsLabel =
+    Math.abs(vs) < 0.15 ? '0.0' : `${vs >= 0 ? '+' : ''}${vs.toFixed(1)}`
   const vsClass = vs > 0.35 ? styles.vsUp : vs < -0.35 ? styles.vsDown : ''
   const onGround = flight.phase === 'grounded' || flight.phase === 'running'
   const walking = flight.phase === 'walking'
@@ -83,7 +94,7 @@ export function FlightHUD() {
   const peerConnected = useGameStore((s) => s.peerConnected)
   const remoteName = useGameStore((s) => s.remoteName)
   const remoteFlight = useGameStore((s) => s.remoteFlight)
-  const canLift = onGround && flight.airspeed >= 13
+  const canLift = onGround && flight.airspeed >= 11
   const canJump = flying && flight.altitude >= JUMP_MIN_ALTITUDE
   const nearMount = nearestMountable(flight, parkedGliders)
   const nearFriend = canSocialEmote(flight, remoteFlight)
@@ -94,6 +105,8 @@ export function FlightHUD() {
     flight.altitude < 35 &&
     flight.airspeed <= 14 &&
     flight.velocity.y < 0.5
+  const inLift = flying && vs > 0.6
+  const heavySink = flying && vs < -2.2
 
   const onToggleTilt = async () => {
     setTiltBusy(true)
@@ -129,8 +142,9 @@ export function FlightHUD() {
           </div>
           <div className={styles.divider} />
           <div className={styles.instrument}>
-            <span className={styles.instrumentLabel}>V/S</span>
+            <span className={styles.instrumentLabel}>Vario</span>
             <span className={`${styles.instrumentValue} ${vsClass}`}>{vsLabel}</span>
+            <span className={styles.instrumentUnit}>m/s</span>
           </div>
           <div className={styles.divider} />
           <div className={styles.instrument}>
@@ -189,7 +203,15 @@ export function FlightHUD() {
       )}
 
       {flight.stallWarning && flying && (
-        <div className={styles.stallWarning}>Stall — speed up (Shift)</div>
+        <div className={styles.stallWarning}>Stall — ease the bar forward / build speed</div>
+      )}
+
+      {inLift && !flight.stallWarning && (
+        <div className={styles.nearGround}>Lift! Center the thermal — climb {vs.toFixed(1)} m/s</div>
+      )}
+
+      {heavySink && !flight.stallWarning && (
+        <div className={styles.coach}>Strong sink — turn toward lift or speed up</div>
       )}
 
       {onGround && (
