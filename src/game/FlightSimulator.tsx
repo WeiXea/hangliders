@@ -54,11 +54,14 @@ export function FlightSimulator() {
     )
     updateFlight(next, parked)
     // One-shot actions
-    if (input.jump || input.deployChute || input.interact) {
+    if (input.jump || input.deployChute || input.interact || input.emoteWave || input.emoteDance || input.emoteSit) {
       useGameStore.getState().setInput({
         jump: false,
         deployChute: false,
         interact: false,
+        emoteWave: false,
+        emoteDance: false,
+        emoteSit: false,
       })
     }
     checkRings()

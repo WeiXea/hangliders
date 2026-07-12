@@ -200,12 +200,26 @@ export function FlightHUD() {
       )}
 
       {parachuting && (
-        <div className={styles.nearGround}>Parachute open — steer left/right, land gently</div>
+        <div className={styles.nearGround}>
+          {flight.chuteInflation < 0.95
+            ? 'Canopy opening — hold steady…'
+            : flight.altitude < 14
+              ? 'Flare! Hold ↑ / Climb to soften the landing'
+              : 'Steer toggles · ↑ brake / flare · ↓ drive forward'}
+        </div>
       )}
 
-      {walking && !nearMount && (
+      {walking && !nearMount && flight.landAction === 'none' && (
         <div className={styles.coach}>
-          Explore — find gold-ringed hang gliders to mount (WASD · Space jump)
+          Explore — Wave · Dance · Sit (1 / 2 / 3) · find gold-ringed gliders
+        </div>
+      )}
+
+      {walking && flight.landAction !== 'none' && (
+        <div className={styles.nearGround}>
+          {flight.landAction === 'wave' && 'Waving — press 1 again to stop'}
+          {flight.landAction === 'dance' && 'Dancing — press 2 again to stop'}
+          {flight.landAction === 'sit' && 'Sitting — move or press 3 to stand'}
         </div>
       )}
 
@@ -269,6 +283,27 @@ export function FlightHUD() {
           {walking && (
             <>
               <ControlPad label="Jump" sub="Hop" action="jump" className={styles.padAction} active={input.jump} />
+              <ControlPad
+                label="Wave"
+                sub="1"
+                action="emoteWave"
+                className={flight.landAction === 'wave' ? styles.padLand : styles.padAction}
+                active={input.emoteWave || flight.landAction === 'wave'}
+              />
+              <ControlPad
+                label="Dance"
+                sub="2"
+                action="emoteDance"
+                className={flight.landAction === 'dance' ? styles.padLand : styles.padAction}
+                active={input.emoteDance || flight.landAction === 'dance'}
+              />
+              <ControlPad
+                label="Sit"
+                sub="3"
+                action="emoteSit"
+                className={flight.landAction === 'sit' ? styles.padLand : styles.padAction}
+                active={input.emoteSit || flight.landAction === 'sit'}
+              />
               <ControlPad
                 label="Mount"
                 sub={nearMount ? 'Ready' : 'Near'}

@@ -46,6 +46,12 @@ const RELEASE_MAP: Record<string, Partial<InputState>> = {
   KeyF: { deployChute: false },
   KeyE: { interact: false },
   KeyJ: { jump: false },
+  Digit1: { emoteWave: false },
+  Digit2: { emoteDance: false },
+  Digit3: { emoteSit: false },
+  KeyZ: { emoteWave: false },
+  KeyX: { emoteDance: false },
+  KeyV: { emoteSit: false },
 }
 
 function syncModifiers(e: KeyboardEvent, setInput: (p: Partial<InputState>) => void) {
@@ -116,6 +122,21 @@ export function useKeyboardControls() {
         setInput({ interact: true })
         return
       }
+      if (e.code === 'Digit1' || e.code === 'KeyZ') {
+        e.preventDefault()
+        setInput({ emoteWave: true })
+        return
+      }
+      if (e.code === 'Digit2' || e.code === 'KeyX') {
+        e.preventDefault()
+        setInput({ emoteDance: true })
+        return
+      }
+      if (e.code === 'Digit3' || e.code === 'KeyV') {
+        e.preventDefault()
+        setInput({ emoteSit: true })
+        return
+      }
       if (e.code === 'KeyL') {
         e.preventDefault()
         setInput({ land: true })
@@ -151,7 +172,10 @@ export function useKeyboardControls() {
             'land' in release ||
             'jump' in release ||
             'deployChute' in release ||
-            'interact' in release)
+            'interact' in release ||
+            'emoteWave' in release ||
+            'emoteDance' in release ||
+            'emoteSit' in release)
         ) {
           e.preventDefault()
           setInput(release)

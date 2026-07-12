@@ -28,8 +28,24 @@ const BASE_SINK = 2.2
 const WALK_SPEED = 7.5
 const WALK_SPRINT = 11
 const GRAVITY = 22
-const CHUTE_SINK = 4.2
+const CHUTE_SINK = 3.6
+const CHUTE_OPEN_SINK = 18
 const FREEFALL_DRAG = 0.35
+const CHUTE_INFLATE_TIME = 2.1
+const SWING_STIFFNESS = 5.5
+const SWING_DAMPING = 2.8
+const MAX_SWING = 0.55
+
+let swingVel = 0
+
+function smoothstep(t: number) {
+  const x = Math.min(1, Math.max(0, t))
+  return x * x * (3 - 2 * x)
+}
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t
+}
 
 export interface TickResult {
   flight: FlightState
@@ -58,6 +74,9 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     airtime: 0,
     mountedId: -1,
     chuteDeployed: false,
+    chuteInflation: 0,
+    chuteSwing: 0,
+    landAction: 'none',
   }
 }
 
@@ -137,6 +156,9 @@ function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
     altitude: 0,
     mountedId: -1,
     chuteDeployed: false,
+    chuteInflation: 0,
+    chuteSwing: 0,
+    landAction: 'none',
     stallWarning: false,
   }
 }
@@ -191,6 +213,14 @@ export function tickFlight(
 
   // --- Walking ---
   if (next.phase === 'walking') {
+    if (input.emoteWave) {
+      next.landAction = next.landAction === 'wave' ? 'none' : 'wave'
+    } else if (input.emoteDance) {
+      next.landAction = next.landAction === 'dance' ? 'none' : 'dance'
+    } else if (input.emoteSit) {
+      next.landAction = next.landAction === 'sit' ? 'none' : 'sit'
+    }
+
     if (input.bankLeft) next.yaw += 2.2 * dt
     if (input.bankRight) next.yaw -= 2.2 * dt
 
@@ -198,14 +228,21 @@ export function tickFlight(
     // W / ↑ = pitchDown in flight maps → walk forward
     if (input.pitchDown || input.speedUp) move += 1
     if (input.pitchUp) move -= 1
-    const speed = input.speedUp ? WALK_SPRINT : WALK_SPEED
+
+    // Moving cancels sit; dance/wave can continue while walking slowly
+    if (move !== 0 && next.landAction === 'sit') next.landAction = 'none'
+    if (next.landAction === 'sit') move = 0
+
+    const speedMul = next.landAction === 'dance' || next.landAction === 'wave' ? 0.55 : 1
+    const speed = (input.speedUp ? WALK_SPRINT : WALK_SPEED) * speedMul
     const onGround = next.position.y <= groundY + WALK_EYE + 0.05
 
     if (onGround) {
       next.velocity.y = 0
       next.position.y = groundY + WALK_EYE
-      if (input.jump) {
+      if (input.jump && next.landAction !== 'sit') {
         next.velocity.y = 8.5
+        if (next.landAction === 'wave' || next.landAction === 'dance') next.landAction = 'none'
       }
     } else {
       next.velocity.y -= GRAVITY * dt
@@ -247,6 +284,9 @@ export function tickFlight(
           altitude: 0,
           mountedId: target.id,
           chuteDeployed: false,
+          chuteInflation: 0,
+          chuteSwing: 0,
+          landAction: 'none',
         }
       }
     }
@@ -261,8 +301,9 @@ export function tickFlight(
     if (input.deployChute) {
       next.phase = 'parachuting'
       next.chuteDeployed = true
-      next.velocity.y = Math.max(next.velocity.y, -CHUTE_SINK)
-      next.airspeed = Math.min(next.airspeed, 12)
+      next.chuteInflation = 0.05
+      next.chuteSwing = next.roll * 0.4
+      swingVel = next.roll * 0.5
       return { flight: next, parked }
     }
 
@@ -307,22 +348,50 @@ export function tickFlight(
     next.airtime += dt
     next.chuteDeployed = true
 
-    if (input.bankLeft) {
-      next.yaw += 1.1 * dt
-      next.roll = Math.min(0.4, next.roll + 2 * dt)
-    } else if (input.bankRight) {
-      next.yaw -= 1.1 * dt
-      next.roll = Math.max(-0.4, next.roll - 2 * dt)
-    } else {
-      next.roll *= 1 - Math.min(1, 2.5 * dt)
+    // Gradual canopy inflation
+    next.chuteInflation = Math.min(1, next.chuteInflation + dt / CHUTE_INFLATE_TIME)
+    const open = smoothstep(next.chuteInflation)
+    const opening = open < 0.98
+
+    // Toggle steering + pendulum swing
+    let steer = 0
+    if (input.bankLeft) steer += 1
+    if (input.bankRight) steer -= 1
+    if (steer !== 0) {
+      next.yaw += steer * (0.55 + open * 0.7) * dt
     }
 
-    const drift = 5.5 + (input.pitchDown ? 3 : 0) - (input.pitchUp ? 2 : 0)
-    next.velocity.x = Math.sin(next.yaw) * drift
-    next.velocity.z = Math.cos(next.yaw) * drift
-    next.velocity.y = -CHUTE_SINK + (input.pitchUp ? 1.2 : 0) - (input.pitchDown ? 1.5 : 0)
+    const wind = windBump(config, time, next.position.x)
+    const targetSwing = steer * 0.38 * open + Math.sin(time * 0.9) * 0.04 * open
+    const swingAccel =
+      (targetSwing - next.chuteSwing) * SWING_STIFFNESS - swingVel * SWING_DAMPING
+    swingVel += swingAccel * dt
+    next.chuteSwing = Math.max(-MAX_SWING, Math.min(MAX_SWING, next.chuteSwing + swingVel * dt))
+    next.roll = next.chuteSwing * 0.85
+
+    // Forward drive from brakes / toggles
+    const forward =
+      (4.2 + (input.pitchDown ? 2.8 : 0) - (input.pitchUp ? 1.8 : 0)) * (0.35 + open * 0.65)
+    next.velocity.x = Math.sin(next.yaw) * forward + wind.x * 0.6 + Math.cos(next.yaw) * next.chuteSwing * 3.5
+    next.velocity.z = Math.cos(next.yaw) * forward + wind.z * 0.6 - Math.sin(next.yaw) * next.chuteSwing * 3.5
+
+    // Sink rate: high while opening, settles to gentle descent; flare near ground
+    const baseSink = lerp(CHUTE_OPEN_SINK, CHUTE_SINK, open * open)
+    let flare = 0
+    if (input.pitchUp && open > 0.55) flare = 1.8
+    if (next.altitude < 14 && open > 0.7 && input.pitchUp) flare = 2.6
+    const targetVy = -baseSink + flare + wind.y * 0.25
+    next.velocity.y += (targetVy - next.velocity.y) * Math.min(1, (1.2 + open * 2.5) * dt)
+
+    // Snatch when canopy bites
+    if (opening && open > 0.35 && open < 0.7) {
+      next.velocity.y *= 1 - 1.8 * dt
+      next.velocity.x *= 1 - 0.8 * dt
+      next.velocity.z *= 1 - 0.8 * dt
+    }
+
     next.airspeed = Math.hypot(next.velocity.x, next.velocity.z)
-    next.pitch = -0.08
+    next.pitch = -0.05 - (1 - open) * 0.25 + (flare > 0 ? 0.12 : 0)
 
     next.position.x += next.velocity.x * dt
     next.position.y += next.velocity.y * dt
@@ -333,7 +402,16 @@ export function tickFlight(
     next.distance += next.airspeed * dt
 
     if (next.position.y <= groundY + WALK_EYE) {
-      next = beginWalking(next, config)
+      const sink = Math.abs(Math.min(0, next.velocity.y))
+      const soft = open > 0.75 && (flare > 0 || sink < 5.5)
+      if (!soft && sink > 9) {
+        next.phase = 'crashed'
+        next.airspeed = 0
+        next.velocity = { x: 0, y: 0, z: 0 }
+        next.position.y = groundY + WALK_EYE
+      } else {
+        next = beginWalking(next, config)
+      }
     }
 
     return { flight: next, parked }
@@ -399,6 +477,9 @@ export function tickFlight(
     next.phase = 'freefall'
     next.mountedId = -1
     next.chuteDeployed = false
+    next.chuteInflation = 0
+    next.chuteSwing = 0
+    swingVel = 0
     next.airspeed = Math.max(8, next.airspeed * 0.55)
     next.velocity.y = Math.min(next.velocity.y, -2)
     next.pitch = 0.25

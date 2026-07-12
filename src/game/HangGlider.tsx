@@ -2,7 +2,8 @@ import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from './gameStore'
-import { GliderModel, PilotFigure, ParachuteCanopy } from './GliderModel'
+import { GliderModel } from './GliderModel'
+import { AnimatedPilot, ParachuteCanopy } from './Pilot'
 
 export function HangGlider() {
   const groupRef = useRef<THREE.Group>(null)
@@ -18,7 +19,7 @@ export function HangGlider() {
 
   useFrame((_, delta) => {
     if (!groupRef.current || !bodyRef.current) return
-    const { position, pitch, roll, yaw, phase } = flight
+    const { position, pitch, roll, yaw, phase, chuteSwing } = flight
 
     groupRef.current.position.set(position.x, position.y, position.z)
     groupRef.current.rotation.set(0, yaw, 0)
@@ -26,10 +27,11 @@ export function HangGlider() {
     const onGround =
       phase === 'grounded' || phase === 'running' || phase === 'landed' || phase === 'walking'
     const airbornePilot = phase === 'freefall' || phase === 'parachuting'
+    const swingRoll = phase === 'parachuting' ? -chuteSwing * 0.45 : 0
     bodyRef.current.rotation.set(
       onGround ? 0 : airbornePilot ? Math.min(0.45, pitch) : pitch,
       0,
-      onGround ? 0 : -roll,
+      onGround ? 0 : -roll + swingRoll,
     )
 
     if (barRef.current) {
@@ -42,7 +44,7 @@ export function HangGlider() {
     }
 
     worldQuat.current.setFromEuler(
-      new THREE.Euler(onGround ? 0 : pitch * 0.35, yaw, onGround ? 0 : -roll * 0.5, 'YXZ'),
+      new THREE.Euler(onGround ? 0 : pitch * 0.35, yaw, onGround ? 0 : -roll * 0.5 + swingRoll, 'YXZ'),
     )
 
     const origin = new THREE.Vector3(position.x, position.y, position.z)
@@ -51,13 +53,17 @@ export function HangGlider() {
     let targetFov = 60
 
     if (phase === 'walking') {
-      eye.set(0, 1.4, -6.5)
-      look.set(0, 0.2, 10)
+      eye.set(0, 1.5, -6.8)
+      look.set(0, 0.35, 10)
       targetFov = 58
-    } else if (phase === 'freefall' || phase === 'parachuting') {
-      eye.set(0, 2.2, -11)
-      look.set(0, -2, 16)
-      targetFov = 68
+    } else if (phase === 'freefall') {
+      eye.set(0, 1.6, -10)
+      look.set(0, -3, 14)
+      targetFov = 72
+    } else if (phase === 'parachuting') {
+      eye.set(0, 2.8, -12)
+      look.set(0, -1.5, 10)
+      targetFov = 64
     } else if (cameraMode === 'chase') {
       eye.set(0, 3.5, -16)
       look.set(0, -4, 28)
@@ -90,20 +96,21 @@ export function HangGlider() {
 
   const phase = flight.phase
   const showWing = phase === 'grounded' || phase === 'running' || phase === 'flying' || phase === 'landed'
-  const showPilot = true
-  const showChute = phase === 'parachuting'
-  const walking = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
+  const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
+  const showChute = phase === 'parachuting' || (phase === 'freefall' && flight.chuteDeployed)
 
   return (
     <group ref={groupRef}>
       <group ref={bodyRef}>
         {showWing && <GliderModel barRef={barRef} />}
-        {walking && showPilot && (
-          <group position={[0, walking && phase === 'walking' ? -0.35 : -0.2, 0]}>
-            <PilotFigure standing={phase === 'walking'} />
+        {offGlider && (
+          <group position={[0, phase === 'walking' ? -0.55 : -0.15, 0]}>
+            <AnimatedPilot />
           </group>
         )}
-        {showChute && <ParachuteCanopy />}
+        {showChute && (
+          <ParachuteCanopy inflation={flight.chuteInflation} swing={flight.chuteSwing} />
+        )}
       </group>
     </group>
   )

@@ -12,6 +12,7 @@ export type FlightPhase =
   | 'crashed'
 export type CameraMode = 'chase' | 'fpv' | 'side'
 export type TiltPermission = 'unknown' | 'granted' | 'denied'
+export type LandAction = 'none' | 'wave' | 'dance' | 'sit'
 
 export interface TiltCalibration {
   bank: number
@@ -50,6 +51,11 @@ export interface FlightState {
   /** Which parked glider is currently mounted (-1 = launch ramp) */
   mountedId: number
   chuteDeployed: boolean
+  /** 0 = packed, 1 = fully open */
+  chuteInflation: number
+  /** Pendulum lean while under canopy (radians) */
+  chuteSwing: number
+  landAction: LandAction
 }
 
 export interface InputState {
@@ -64,6 +70,9 @@ export interface InputState {
   jump: boolean
   deployChute: boolean
   interact: boolean
+  emoteWave: boolean
+  emoteDance: boolean
+  emoteSit: boolean
 }
 
 export interface ChallengeRing {
@@ -123,6 +132,9 @@ export const INITIAL_FLIGHT: FlightState = {
   airtime: 0,
   mountedId: -1,
   chuteDeployed: false,
+  chuteInflation: 0,
+  chuteSwing: 0,
+  landAction: 'none',
 }
 
 export const INITIAL_INPUT: InputState = {
@@ -137,4 +149,7 @@ export const INITIAL_INPUT: InputState = {
   jump: false,
   deployChute: false,
   interact: false,
+  emoteWave: false,
+  emoteDance: false,
+  emoteSit: false,
 }
