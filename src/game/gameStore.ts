@@ -78,6 +78,7 @@ interface GameStore {
     roomRole?: RoomRole
     roomStatus?: string
     peerConnected?: boolean
+    remoteName?: string
   }) => void
   setRemoteFlight: (flight: FlightState | null, name?: string) => void
   applyRemoteHello: (biome: Biome, mode: GameMode, name: string) => void

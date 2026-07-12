@@ -245,3 +245,56 @@
   color: rgba(255, 255, 255, 0.4);
   line-height: 1.35;
 }
+
+.lobby {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 14px;
+  background: rgba(8, 16, 28, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  margin-bottom: 8px;
+}
+
+.lobbyCode {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 56px;
+  letter-spacing: 0.22em;
+  color: #ffd166;
+  line-height: 1;
+}
+
+.lobbyStatus {
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  margin: 0;
+}
+
+.lobbyWait {
+  color: rgba(255, 255, 255, 0.7);
+  animation: pulseSoft 1.4s ease infinite alternate;
+}
+
+.lobbyReady {
+  color: #52b788;
+}
+
+.leaveLobby {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px;
+}
+
+@keyframes pulseSoft {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}

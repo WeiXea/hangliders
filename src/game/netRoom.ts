@@ -1,14 +1,11 @@
-import { joinRoom as trysteroJoin } from '@trystero-p2p/mqtt'
+import { joinRoom as trysteroJoin } from '@trystero-p2p/torrent'
 import type { Room } from '@trystero-p2p/core'
 import type { Biome, FlightState, GameMode } from '../types/game'
 
-const APP_ID = 'hangglider-pwa-v1'
+const APP_ID = 'hangglider-sky-duo-v2'
 
-/** Public STUN + Open Relay TURN so peers behind NATs can still connect */
 const TURN_CONFIG = [
-  {
-    urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'],
-  },
+  { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
   {
     urls: [
       'turn:openrelay.metered.ca:80',
@@ -23,7 +20,8 @@ const TURN_CONFIG = [
 export type NetMsg =
   | { t: 'hello'; biome: Biome; mode: GameMode; name: string }
   | { t: 'state'; flight: FlightState; name: string }
-  | { t: 'ping' }
+  | { t: 'ping'; name: string }
+  | { t: 'ready'; name: string }
 
 export function makeRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -49,14 +47,14 @@ type Handlers = {
 }
 
 /**
- * Host and guest both call enterRoom with the same code.
- * MQTT signaling + TURN — more reliable than PeerJS fixed IDs.
+ * Enter a shared room immediately. Does NOT wait for the other player —
+ * the UI stays in a lobby until onPeerJoined / first message fires.
  */
-export async function enterRoom(
+export function enterRoom(
   code: string,
   role: 'host' | 'guest',
   handlers: Handlers,
-): Promise<RoomSession> {
+): RoomSession {
   const roomId = code.trim().toUpperCase()
   if (roomId.length < 4) {
     throw new Error('Enter a 4-character room code')
@@ -67,14 +65,24 @@ export async function enterRoom(
       appId: APP_ID,
       turnConfig: TURN_CONFIG,
     },
-    `hg-${roomId}`,
+    `hangglider-${roomId}`,
   )
 
   const action = room.makeAction('hg')
+
+  const markJoined = () => {
+    if (session.connected) return
+    session.connected = true
+    session.peerCount = Math.max(1, session.peerCount)
+    handlers.onPeerJoined?.()
+  }
+
   action.onMessage = (data) => {
-    if (data && typeof data === 'object' && data !== null && 't' in data) {
-      handlers.onMessage(data as NetMsg)
-    }
+    if (!data || typeof data !== 'object' || !('t' in data)) return
+    const msg = data as NetMsg
+    // Any traffic means the peer link is alive (onPeerJoin can be flaky)
+    markJoined()
+    handlers.onMessage(msg)
   }
 
   const session: RoomSession = {
@@ -91,6 +99,7 @@ export async function enterRoom(
       }
     },
     destroy: () => {
+      window.clearInterval(heartbeat)
       try {
         room.leave()
       } catch {
@@ -99,29 +108,9 @@ export async function enterRoom(
     },
   }
 
-  let resolvePeer: (() => void) | null = null
-  const peerPromise =
-    role === 'guest'
-      ? new Promise<void>((resolve, reject) => {
-          resolvePeer = resolve
-          window.setTimeout(() => {
-            if (!session.connected) {
-              reject(
-                new Error(
-                  'Nobody in that room — friend must Create room and stay on the home screen, then you Join',
-                ),
-              )
-            }
-          }, 20000)
-        })
-      : Promise.resolve()
-
   room.onPeerJoin = () => {
     session.peerCount += 1
-    session.connected = true
-    handlers.onPeerJoined?.()
-    resolvePeer?.()
-    resolvePeer = null
+    markJoined()
   }
 
   room.onPeerLeave = () => {
@@ -132,17 +121,15 @@ export async function enterRoom(
     }
   }
 
-  if (role === 'guest') {
-    await peerPromise
-  }
+  // Keep announcing so late joiners still find us
+  const heartbeat = window.setInterval(() => {
+    try {
+      const name = (window as unknown as { __hgName?: string }).__hgName ?? 'Pilot'
+      action.send(JSON.parse(JSON.stringify({ t: 'ping', name })))
+    } catch {
+      /* ignore */
+    }
+  }, 2000)
 
   return session
-}
-
-export async function hostRoom(code: string, handlers: Handlers) {
-  return enterRoom(code, 'host', handlers)
-}
-
-export async function joinRoom(code: string, handlers: Handlers) {
-  return enterRoom(code, 'guest', handlers)
 }

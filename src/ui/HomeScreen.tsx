@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useGameStore } from '../game/gameStore'
 import { BIOME_CONFIGS } from '../game/biomeConfigs'
 import { readStoredTiltPreference } from '../game/tilt'
@@ -24,10 +24,22 @@ export function HomeScreen() {
   const roomRole = useGameStore((s) => s.roomRole)
   const roomStatus = useGameStore((s) => s.roomStatus)
   const peerConnected = useGameStore((s) => s.peerConnected)
+  const remoteName = useGameStore((s) => s.remoteName)
   const setRoomMeta = useGameStore((s) => s.setRoomMeta)
   const [tiltBusy, setTiltBusy] = useState(false)
   const [joinCode, setJoinCode] = useState('')
   const [netBusy, setNetBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const inLobby = roomRole === 'host' || roomRole === 'guest'
+
+  // Auto-join from ?room=CODE share link
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const fromUrl = params.get('room')?.trim().toUpperCase()
+    if (fromUrl && fromUrl.length >= 4 && roomRole === 'solo') {
+      setJoinCode(fromUrl)
+    }
+  }, [roomRole])
 
   const onToggleTilt = async () => {
     setTiltBusy(true)
@@ -47,39 +59,57 @@ export function HomeScreen() {
 
   const wireHandlers = (role: 'host' | 'guest') => ({
     onPeerJoined: () => {
+      const other = useGameStore.getState().remoteName || 'Friend'
       setRoomMeta({
         peerConnected: true,
         roomStatus:
           role === 'host'
-            ? 'Friend connected — press Fly'
-            : 'Connected — launching…',
+            ? `${other} joined — press Fly together`
+            : `Found host — press Fly together`,
       })
-      // Both sides introduce themselves when a peer shows up
-      window.setTimeout(() => sendHello(), 200)
+      window.setTimeout(() => sendHello(), 150)
     },
     onMessage: handleNetMessage,
     onDisconnected: () => {
-      setRoomMeta({ peerConnected: false, roomStatus: 'Friend left the room' })
+      setRoomMeta({
+        peerConnected: false,
+        roomStatus: 'Friend left — waiting again…',
+      })
       useGameStore.getState().setRemoteFlight(null)
-    },
-    onError: (err: Error) => {
-      setRoomMeta({ roomStatus: err.message || 'Room error' })
     },
   })
 
-  const onCreateRoom = async () => {
+  const leaveLobby = () => {
+    setRoomSession(null)
+    setRoomMeta({
+      roomCode: null,
+      roomRole: 'solo',
+      roomStatus: '',
+      peerConnected: false,
+    })
+    useGameStore.getState().setRemoteFlight(null)
+    // Clear ?room= from URL
+    const url = new URL(window.location.href)
+    url.searchParams.delete('room')
+    window.history.replaceState({}, '', url.pathname)
+  }
+
+  const onCreateRoom = () => {
     setNetBusy(true)
-    setRoomMeta({ roomStatus: 'Opening room…', peerConnected: false })
     try {
       setRoomSession(null)
       const code = makeRoomCode()
-      const session = await enterRoom(code, 'host', wireHandlers('host'))
+      const session = enterRoom(code, 'host', wireHandlers('host'))
       setRoomSession(session)
       setRoomMeta({
         roomCode: code,
         roomRole: 'host',
-        roomStatus: `Room ${code} — friend joins with this code, then you both Fly`,
+        peerConnected: false,
+        roomStatus: 'Waiting for your friend to join…',
       })
+      const url = new URL(window.location.href)
+      url.searchParams.set('room', code)
+      window.history.replaceState({}, '', url.toString())
     } catch (e) {
       setRoomMeta({
         roomStatus: e instanceof Error ? e.message : 'Could not create room',
@@ -92,26 +122,28 @@ export function HomeScreen() {
     }
   }
 
-  const onJoinRoom = async () => {
+  const onJoinRoom = () => {
     const code = joinCode.trim().toUpperCase()
     if (code.length < 4) {
-      setRoomMeta({ roomStatus: 'Enter the 4-character code from your friend' })
+      setRoomMeta({ roomStatus: 'Enter the 4-letter code from your friend' })
       return
     }
     setNetBusy(true)
-    setRoomMeta({ roomStatus: `Looking for room ${code}…` })
     try {
       setRoomSession(null)
-      const session = await enterRoom(code, 'guest', wireHandlers('guest'))
+      const session = enterRoom(code, 'guest', wireHandlers('guest'))
       setRoomSession(session)
       setRoomMeta({
         roomCode: code,
         roomRole: 'guest',
-        peerConnected: true,
-        roomStatus: `Joined ${code}`,
+        peerConnected: false,
+        roomStatus: 'In lobby — waiting to find your friend…',
       })
-      sendHello()
-      await prepareFlight()
+      const url = new URL(window.location.href)
+      url.searchParams.set('room', code)
+      window.history.replaceState({}, '', url.toString())
+      // Announce right away; host may already be listening
+      window.setTimeout(() => sendHello(), 400)
     } catch (e) {
       setRoomMeta({
         roomStatus: e instanceof Error ? e.message : 'Could not join room',
@@ -125,6 +157,29 @@ export function HomeScreen() {
     }
   }
 
+  const onCopy = async () => {
+    if (!roomCode) return
+    const share = `${window.location.origin}${window.location.pathname}?room=${roomCode}`
+    try {
+      await navigator.clipboard.writeText(share)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      try {
+        await navigator.clipboard.writeText(roomCode)
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 2000)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  const onFlyTogether = async () => {
+    sendHello()
+    await prepareFlight()
+  }
+
   return (
     <div className={styles.home}>
       <div className={styles.heroBg} aria-hidden />
@@ -132,114 +187,148 @@ export function HomeScreen() {
         <h1 className={styles.brand}>HangGlider</h1>
         <p className={styles.tagline}>Feel the lift</p>
 
-        <div className={styles.pickerSection}>
-          <span className={styles.sectionLabel}>Pilot name</span>
-          <input
-            className={styles.roomInput}
-            value={playerName}
-            maxLength={16}
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Pilot"
-          />
-        </div>
+        {!inLobby && (
+          <>
+            <div className={styles.pickerSection}>
+              <span className={styles.sectionLabel}>Pilot name</span>
+              <input
+                className={styles.roomInput}
+                value={playerName}
+                maxLength={16}
+                onChange={(e) => setPlayerName(e.target.value)}
+                placeholder="Pilot"
+              />
+            </div>
 
-        <div className={styles.pickerSection}>
-          <span className={styles.sectionLabel}>Scenery</span>
-          <div className={styles.biomePicker}>
-            {BIOMES.map((b) => {
-              const cfg = BIOME_CONFIGS[b]
-              return (
+            <div className={styles.pickerSection}>
+              <span className={styles.sectionLabel}>Scenery</span>
+              <div className={styles.biomePicker}>
+                {BIOMES.map((b) => {
+                  const cfg = BIOME_CONFIGS[b]
+                  return (
+                    <button
+                      key={b}
+                      type="button"
+                      className={`${styles.biomeBtn} ${biome === b ? styles.biomeActive : ''}`}
+                      onClick={() => setBiome(b)}
+                    >
+                      <span className={styles.biomeName}>{cfg.name}</span>
+                      <span className={styles.biomeTag}>{cfg.tagline}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className={styles.pickerSection}>
+              <span className={styles.sectionLabel}>Mode</span>
+              <div className={styles.modePicker}>
+                {(['free', 'challenge'] as GameMode[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`${styles.modeBtn} ${mode === m ? styles.modeActive : ''}`}
+                    onClick={() => setMode(m)}
+                  >
+                    {m === 'free' ? 'Free Flight' : 'Challenge'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {tiltSupported && (
+              <div className={styles.pickerSection}>
+                <span className={styles.sectionLabel}>Controls</span>
                 <button
-                  key={b}
                   type="button"
-                  className={`${styles.biomeBtn} ${biome === b ? styles.biomeActive : ''}`}
-                  onClick={() => setBiome(b)}
+                  className={`${styles.tiltToggle} ${tiltEnabled ? styles.modeActive : ''}`}
+                  onClick={onToggleTilt}
+                  disabled={tiltBusy}
                 >
-                  <span className={styles.biomeName}>{cfg.name}</span>
-                  <span className={styles.biomeTag}>{cfg.tagline}</span>
+                  {tiltEnabled ? 'Tilt steering · On' : 'Tilt steering · Off'}
                 </button>
-              )
-            })}
-          </div>
-        </div>
+              </div>
+            )}
 
-        <div className={styles.pickerSection}>
-          <span className={styles.sectionLabel}>Mode</span>
-          <div className={styles.modePicker}>
-            {(['free', 'challenge'] as GameMode[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                className={`${styles.modeBtn} ${mode === m ? styles.modeActive : ''}`}
-                onClick={() => setMode(m)}
-              >
-                {m === 'free' ? 'Free Flight' : 'Challenge'}
+            <div className={styles.pickerSection}>
+              <span className={styles.sectionLabel}>Fly with a friend</span>
+              <div className={styles.roomRow}>
+                <button
+                  type="button"
+                  className={styles.roomBtn}
+                  onClick={onCreateRoom}
+                  disabled={netBusy}
+                >
+                  Host room
+                </button>
+                <input
+                  className={styles.roomInput}
+                  value={joinCode}
+                  maxLength={4}
+                  placeholder="CODE"
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                />
+                <button
+                  type="button"
+                  className={styles.roomBtn}
+                  onClick={onJoinRoom}
+                  disabled={netBusy}
+                >
+                  Join
+                </button>
+              </div>
+              <p className={styles.roomHint}>
+                One person hosts and shares the code (or link). The other joins — then both press Fly together.
+              </p>
+            </div>
+
+            <button type="button" className={styles.flyBtn} onClick={prepareFlight} disabled={netBusy}>
+              Fly solo
+            </button>
+          </>
+        )}
+
+        {inLobby && (
+          <div className={styles.lobby}>
+            <span className={styles.sectionLabel}>
+              {roomRole === 'host' ? 'You are hosting' : 'You joined a room'}
+            </span>
+            <div className={styles.lobbyCode}>{roomCode}</div>
+            {roomRole === 'host' && (
+              <button type="button" className={styles.roomBtn} onClick={onCopy}>
+                {copied ? 'Copied link!' : 'Copy invite link'}
               </button>
-            ))}
-          </div>
-        </div>
-
-        {tiltSupported && (
-          <div className={styles.pickerSection}>
-            <span className={styles.sectionLabel}>Controls</span>
+            )}
+            <p className={`${styles.lobbyStatus} ${peerConnected ? styles.lobbyReady : styles.lobbyWait}`}>
+              {peerConnected
+                ? `Ready with ${remoteName || 'friend'}`
+                : roomStatus || 'Waiting…'}
+            </p>
+            {!peerConnected && (
+              <p className={styles.roomHint}>
+                {roomRole === 'host'
+                  ? 'Keep this page open. Friend taps Join with your code (or opens your invite link).'
+                  : 'Keep this page open. Host must stay on their lobby with the same code.'}
+              </p>
+            )}
             <button
               type="button"
-              className={`${styles.tiltToggle} ${tiltEnabled ? styles.modeActive : ''}`}
-              onClick={onToggleTilt}
-              disabled={tiltBusy}
+              className={styles.flyBtn}
+              onClick={onFlyTogether}
+              disabled={netBusy}
             >
-              {tiltEnabled ? 'Tilt steering · On' : 'Tilt steering · Off'}
+              {peerConnected ? 'Fly together' : 'Fly anyway'}
+            </button>
+            <button type="button" className={styles.leaveLobby} onClick={leaveLobby}>
+              Leave lobby
             </button>
           </div>
         )}
 
-        <div className={styles.pickerSection}>
-          <span className={styles.sectionLabel}>2-player room</span>
-          <div className={styles.roomRow}>
-            <button
-              type="button"
-              className={styles.roomBtn}
-              onClick={onCreateRoom}
-              disabled={netBusy}
-            >
-              Create room
-            </button>
-            <input
-              className={styles.roomInput}
-              value={joinCode}
-              maxLength={4}
-              placeholder="CODE"
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            />
-            <button
-              type="button"
-              className={styles.roomBtn}
-              onClick={onJoinRoom}
-              disabled={netBusy}
-            >
-              Join
-            </button>
-          </div>
-          {(roomStatus || roomCode) && (
-            <p className={styles.roomStatus}>
-              {roomCode && roomRole === 'host' && !peerConnected
-                ? `Code ${roomCode} — keep this screen open while they Join`
-                : roomStatus}
-              {peerConnected ? ' · Linked' : ''}
-            </p>
-          )}
-          <p className={styles.roomHint}>
-            Host creates first and stays on this page. Friend joins with the code (same Wi‑Fi helps).
-          </p>
-        </div>
-
-        <button type="button" className={styles.flyBtn} onClick={prepareFlight} disabled={netBusy}>
-          {roomRole === 'host' && !peerConnected ? 'Fly (solo or wait)' : 'Fly'}
-        </button>
         <p className={styles.controlsHint}>
           {tiltEnabled
-            ? 'Hold landscape like a wheel — turn to bank · pull/push to pitch · Level to recalibrate'
-            : 'Takeoff: Shift + ↓ climb · Jump at 25m · Create a room to fly with a friend'}
+            ? 'Hold landscape like a wheel — turn to bank · pull/push to pitch'
+            : 'Takeoff: Shift + ↓ climb · Jump at 25m altitude'}
         </p>
       </div>
     </div>
