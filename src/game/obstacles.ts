@@ -20,8 +20,11 @@ export interface BoxObstacle {
   height: number
 }
 
-/** Clearance from terrain to glider origin so pilot feet sit on the ground */
+/** Clearance from terrain to glider origin while flying (pilot hangs below). */
 export const GROUND_CLEARANCE = 2.15
+
+/** Origin height when glider rests on the ground (A-frame base tube ≈ local y −0.55). */
+export const GLIDER_REST_CLEARANCE = 0.58
 
 /** Rock pillars — now collidable */
 export const MOUNTAIN_SCENERY: Obstacle[] = [

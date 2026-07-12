@@ -188,6 +188,8 @@ export function HangGlider() {
     }
   })
 
+  const onFootGround =
+    phase === 'grounded' || phase === 'running'
   const showWing =
     phase === 'grounded' ||
     phase === 'running' ||
@@ -203,7 +205,17 @@ export function HangGlider() {
       <group ref={bodyRef}>
         {showWing && (
           <group>
-            <GliderModel barRef={barRef} hidePilot={tandemRole === 'passenger'} />
+            <GliderModel
+              barRef={barRef}
+              hidePilot={
+                onFootGround || tandemRole === 'passenger' || phase === 'landed'
+              }
+            />
+            {onFootGround && tandemRole !== 'passenger' && (
+              <group position={[0, -0.58, 0.35]}>
+                <AnimatedPilot mode="stand" />
+              </group>
+            )}
             {tandemRole === 'passenger' && (
               <>
                 <group position={[-0.35, -1.45, 0.1]}>

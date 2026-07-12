@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { useGameStore } from './gameStore'
 import { BIOME_CONFIGS } from './biomeConfigs'
 import { GliderModel } from './GliderModel'
-import { GROUND_CLEARANCE } from './obstacles'
+import { GLIDER_REST_CLEARANCE } from './obstacles'
 import { MOUNT_RANGE } from '../types/game'
 
 function ParkedMarker({
@@ -19,12 +19,12 @@ function ParkedMarker({
   highlight: boolean
   getHeight: (x: number, z: number) => number
 }) {
-  const y = getHeight(x, z) + GROUND_CLEARANCE
+  const y = getHeight(x, z) + GLIDER_REST_CLEARANCE
   return (
     <group position={[x, y, z]} rotation={[0, yaw, 0]}>
       <GliderModel hidePilot staticModel />
       {/* Soft beacon so walkers can spot mounts */}
-      <mesh position={[0, 0.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[3.2, 3.6, 32]} />
         <meshStandardMaterial
           color={highlight ? '#52b788' : '#e9c46a'}

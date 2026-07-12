@@ -11,6 +11,7 @@ import {
 } from '../types/game'
 import {
   GROUND_CLEARANCE,
+  GLIDER_REST_CLEARANCE,
   hitCityBuildings,
   hitWorldProps,
   resolvePropPush,
@@ -69,7 +70,7 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
   return {
     position: {
       x: config.launchPosition.x,
-      y: groundY + GROUND_CLEARANCE,
+      y: groundY + GLIDER_REST_CLEARANCE,
       z: config.launchPosition.z,
     },
     velocity: { x: 0, y: 0, z: 0 },
@@ -398,7 +399,7 @@ export function tickFlight(
         next = {
           ...next,
           phase: 'grounded',
-          position: { x: target.x, y: gy + GROUND_CLEARANCE, z: target.z },
+          position: { x: target.x, y: gy + GLIDER_REST_CLEARANCE, z: target.z },
           yaw: target.yaw,
           pitch: 0,
           roll: 0,
@@ -566,7 +567,7 @@ export function tickFlight(
     next.position.x += Math.sin(next.yaw) * spd * dt
     next.position.z += Math.cos(next.yaw) * spd * dt
     groundY = config.getHeight(next.position.x, next.position.z)
-    next.position.y = groundY + GROUND_CLEARANCE
+    next.position.y = groundY + GLIDER_REST_CLEARANCE
     next.altitude = 0
     next.roll = 0
     next.distance += spd * dt
@@ -735,6 +736,7 @@ export function tickFlight(
       next.velocity.y = 0
       next.velocity.x = Math.sin(next.yaw) * next.airspeed
       next.velocity.z = Math.cos(next.yaw) * next.airspeed
+      next.position.y = groundY + GLIDER_REST_CLEARANCE
       next.pitch = Math.min(next.pitch, 0.08)
       next.roll = 0
       next.altitude = 0

@@ -2,7 +2,7 @@ import type { BiomeConfig, FlightState, InputState, ParkedGlider } from '../type
 import { TANDEM_RANGE, WALK_FEET } from '../types/game'
 import { findNearestGlider } from './flightPhysics'
 import { horizontalDist, isOnGlider } from './multiplayerSocial'
-import { GROUND_CLEARANCE } from './obstacles'
+import { GLIDER_REST_CLEARANCE } from './obstacles'
 import { smoothFollowPilot } from './remoteSmooth'
 
 export type TandemResult = {
@@ -113,7 +113,7 @@ function becomePilot(
       flight: {
         ...flight,
         phase: 'grounded',
-        position: { x: target.x, y: gy + GROUND_CLEARANCE, z: target.z },
+        position: { x: target.x, y: gy + GLIDER_REST_CLEARANCE, z: target.z },
         yaw: target.yaw,
         pitch: 0,
         roll: 0,
@@ -134,7 +134,7 @@ function becomePilot(
     flight: {
       ...flight,
       phase: 'grounded',
-      position: { ...flight.position, y: gy + GROUND_CLEARANCE },
+      position: { ...flight.position, y: gy + GLIDER_REST_CLEARANCE },
       pitch: 0,
       roll: 0,
       airspeed: 0,
