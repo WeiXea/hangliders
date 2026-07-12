@@ -338,6 +338,21 @@
   letter-spacing: 0.04em;
 }
 
+.lookPads {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.lookPads .pad {
+  width: 48px;
+  height: 48px;
+}
+
+.lookPads .padLabel {
+  font-size: 16px;
+}
+
 .centerActions {
   position: absolute;
   left: 50%;

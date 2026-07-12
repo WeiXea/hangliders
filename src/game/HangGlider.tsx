@@ -12,10 +12,12 @@ export function HangGlider() {
   const flight = useGameStore((s) => s.flight)
   const input = useGameStore((s) => s.input)
   const cameraMode = useGameStore((s) => s.cameraMode)
+  const peerConnected = useGameStore((s) => s.peerConnected)
   const { camera } = useThree()
 
   const lookTarget = useRef(new THREE.Vector3())
   const worldQuat = useRef(new THREE.Quaternion())
+  const lookYaw = useRef(0)
 
   useFrame((_, delta) => {
     if (!groupRef.current || !bodyRef.current) return
@@ -43,9 +45,25 @@ export function HangGlider() {
       )
     }
 
+    // Look left / right / behind (local only — not networked)
+    const lookGoal = input.lookBack
+      ? Math.PI
+      : input.lookLeft
+        ? Math.PI * 0.55
+        : input.lookRight
+          ? -Math.PI * 0.55
+          : 0
+    lookYaw.current = THREE.MathUtils.lerp(lookYaw.current, lookGoal, 1 - Math.pow(0.0002, delta))
+
+    const lookQuat = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      lookYaw.current,
+    )
+
     worldQuat.current.setFromEuler(
       new THREE.Euler(onGround ? 0 : pitch * 0.35, yaw, onGround ? 0 : -roll * 0.5 + swingRoll, 'YXZ'),
     )
+    worldQuat.current.multiply(lookQuat)
 
     const origin = new THREE.Vector3(position.x, position.y, position.z)
     let eye = new THREE.Vector3()
@@ -53,7 +71,6 @@ export function HangGlider() {
     let targetFov = 60
 
     if (phase === 'walking') {
-      // Camera from eye height — position is feet on ground
       eye.set(0, PILOT_EYE + 0.15, -6.5)
       look.set(0, PILOT_EYE * 0.55, 10)
       targetFov = 58
@@ -96,19 +113,46 @@ export function HangGlider() {
   })
 
   const phase = flight.phase
-  const showWing = phase === 'grounded' || phase === 'running' || phase === 'flying' || phase === 'landed'
+  const showWing =
+    phase === 'grounded' ||
+    phase === 'running' ||
+    phase === 'flying' ||
+    phase === 'landed' ||
+    flight.tandemRole === 'passenger'
   const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
   const showChute = phase === 'parachuting' || (phase === 'freefall' && flight.chuteDeployed)
+  const showTandemPassenger =
+    peerConnected &&
+    flight.tandemRole === 'pilot' &&
+    showWing
 
   return (
     <group ref={groupRef}>
       <group ref={bodyRef}>
-        {showWing && <GliderModel barRef={barRef} />}
-        {offGlider && (
+        {showWing && (
+          <group>
+            <GliderModel barRef={barRef} hidePilot={flight.tandemRole === 'passenger'} />
+            {flight.tandemRole === 'passenger' && (
+              <>
+                <group position={[-0.35, -1.45, 0.1]}>
+                  <AnimatedPilot mode="prone" suitColor="#3d5a80" />
+                </group>
+                <group position={[0.35, -1.45, 0.15]}>
+                  <AnimatedPilot mode="prone" />
+                </group>
+              </>
+            )}
+            {showTandemPassenger && (
+              <group position={[0.45, -1.45, 0.15]}>
+                <AnimatedPilot mode="prone" suitColor="#3d5a80" />
+              </group>
+            )}
+          </group>
+        )}
+        {offGlider && flight.tandemRole !== 'passenger' && (
           <group
             position={[
               0,
-              // Walking: feet at physics Y. Airborne body modes: hips near physics Y.
               phase === 'walking' ? 0 : -PILOT_HIP * 0.15,
               0,
             ]}

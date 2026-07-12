@@ -7,9 +7,11 @@ import {
   useTouchControl,
 } from '../game/controls'
 import { nearestMountable } from '../game/flightPhysics'
+import { canOfferTandem, canSocialEmote } from '../game/multiplayerSocial'
 import { startWindAudio, stopWindAudio } from '../game/audio'
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
+import { FriendFinder } from './FriendFinder'
 import styles from './FlightHUD.module.css'
 
 const CAMERA_LABELS = { chase: 'Chase', fpv: 'Cockpit', side: 'Side' } as const
@@ -76,9 +78,13 @@ export function FlightHUD() {
   const flying = flight.phase === 'flying'
   const peerConnected = useGameStore((s) => s.peerConnected)
   const remoteName = useGameStore((s) => s.remoteName)
+  const remoteFlight = useGameStore((s) => s.remoteFlight)
   const canLift = onGround && flight.airspeed >= 13
   const canJump = flying && flight.altitude >= JUMP_MIN_ALTITUDE
   const nearMount = nearestMountable(flight, parkedGliders)
+  const nearFriend = canSocialEmote(flight, remoteFlight)
+  const tandemOk = peerConnected && canOfferTandem(flight, remoteFlight)
+  const inTandem = flight.tandemRole !== 'none'
   const approach =
     flying &&
     flight.altitude < 35 &&
@@ -101,6 +107,7 @@ export function FlightHUD() {
     <div className={styles.hud}>
       <GameCanvas />
       <div className={cameraMode === 'fpv' ? styles.fpvFrame : styles.viewFrame} aria-hidden />
+      {peerConnected && <FriendFinder />}
 
       <header className={styles.topBar}>
         <div className={styles.instruments}>
@@ -203,9 +210,23 @@ export function FlightHUD() {
         <div className={styles.nearGround}>Jump ready — tap JUMP in the center (or Space)</div>
       )}
 
-      {peerConnected && (
+      {peerConnected && !inTandem && (
         <div className={styles.coach}>
-          Multiplayer · {remoteName || 'Friend'} is in this sky with you
+          Multiplayer · {remoteName || 'Friend'} is in this sky — radar finds them
+        </div>
+      )}
+
+      {inTandem && (
+        <div className={styles.nearGround}>
+          {flight.tandemRole === 'pilot'
+            ? `Tandem pilot — ${remoteName || 'friend'} is riding with you (T to leave)`
+            : `Tandem passenger — hang on · Jump/T to hop off`}
+        </div>
+      )}
+
+      {flight.tandemWant && !inTandem && (
+        <div className={styles.coach}>
+          Waiting for {remoteName || 'friend'} to press Tandem too…
         </div>
       )}
 
@@ -234,6 +255,14 @@ export function FlightHUD() {
           {flight.landAction === 'wave' && 'Waving — press 1 again to stop'}
           {flight.landAction === 'dance' && 'Dancing — press 2 again to stop'}
           {flight.landAction === 'sit' && 'Sitting — move or press 3 to stand'}
+          {flight.landAction === 'hug' && 'Hugging — move to stop'}
+          {flight.landAction === 'highfive' && 'High five — move to stop'}
+        </div>
+      )}
+
+      {nearFriend && flight.landAction === 'none' && (
+        <div className={styles.nearGround}>
+          Next to {remoteName || 'friend'} — Hug (4) · High five (5)
         </div>
       )}
 
@@ -311,6 +340,11 @@ export function FlightHUD() {
           </div>
         )}
         <div className={styles.rightPads}>
+          <div className={styles.lookPads}>
+            <ControlPad label="◀" sub="Look" action="lookLeft" active={input.lookLeft} />
+            <ControlPad label="▼" sub="Rear" action="lookBack" active={input.lookBack} />
+            <ControlPad label="▶" sub="Look" action="lookRight" active={input.lookRight} />
+          </div>
           {freefall && (
             <ControlPad
               label="Chute"
@@ -344,6 +378,24 @@ export function FlightHUD() {
                 className={flight.landAction === 'sit' ? styles.padLand : styles.padAction}
                 active={input.emoteSit || flight.landAction === 'sit'}
               />
+              {nearFriend && (
+                <>
+                  <ControlPad
+                    label="Hug"
+                    sub="4"
+                    action="emoteHug"
+                    className={flight.landAction === 'hug' ? styles.padLand : styles.padAction}
+                    active={input.emoteHug || flight.landAction === 'hug'}
+                  />
+                  <ControlPad
+                    label="High five"
+                    sub="5"
+                    action="emoteHighFive"
+                    className={flight.landAction === 'highfive' ? styles.padLand : styles.padAction}
+                    active={input.emoteHighFive || flight.landAction === 'highfive'}
+                  />
+                </>
+              )}
               <ControlPad
                 label="Mount"
                 sub={nearMount ? 'Ready' : 'Near'}
@@ -352,6 +404,15 @@ export function FlightHUD() {
                 active={input.interact}
               />
             </>
+          )}
+          {tandemOk && (
+            <ControlPad
+              label={inTandem ? 'Leave' : flight.tandemWant ? 'Waiting…' : 'Tandem'}
+              sub="T"
+              action="tandem"
+              className={inTandem || flight.tandemWant ? styles.padLand : styles.padAction}
+              active={input.tandem || flight.tandemWant || inTandem}
+            />
           )}
           {!walking && !freefall && (
             <>

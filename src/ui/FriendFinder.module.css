@@ -1,0 +1,118 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 11;
+}
+
+.radar {
+  position: absolute;
+  left: 50%;
+  bottom: max(118px, calc(env(safe-area-inset-bottom) + 108px));
+  transform: translateX(-50%);
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(8, 16, 28, 0.55);
+  border: 1px solid rgba(255, 209, 102, 0.35);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.radarRing {
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+}
+
+.radarYou {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: #ffd166;
+  box-shadow: 0 0 8px rgba(255, 209, 102, 0.7);
+}
+
+.radarBlip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #52b788;
+  box-shadow: 0 0 10px rgba(82, 183, 136, 0.85);
+}
+
+.radarDist {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  text-align: center;
+  font-family: 'Outfit', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.04em;
+}
+
+.edgeArrow {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform-origin: center center;
+}
+
+.arrowGlyph {
+  font-size: 22px;
+  color: #ffd166;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+  line-height: 1;
+}
+
+.arrowLabel {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(8, 16, 28, 0.72);
+  border: 1px solid rgba(255, 209, 102, 0.4);
+  padding: 3px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+  /* Counter-rotate label so text stays readable */
+  transform: rotate(0deg);
+}
+
+.aheadHint {
+  position: absolute;
+  top: 108px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(8, 16, 28, 0.7);
+  border: 1px solid rgba(82, 183, 136, 0.45);
+  padding: 6px 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .radar {
+    width: 84px;
+    height: 84px;
+  }
+}

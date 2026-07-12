@@ -79,6 +79,8 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     chuteInflation: 0,
     chuteSwing: 0,
     landAction: 'none',
+    tandemRole: 'none',
+    tandemWant: false,
   }
 }
 
@@ -161,11 +163,13 @@ function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
     chuteInflation: 0,
     chuteSwing: 0,
     landAction: 'none',
+    tandemRole: 'none',
+    tandemWant: false,
     stallWarning: false,
   }
 }
 
-function findNearestGlider(
+export function findNearestGlider(
   x: number,
   z: number,
   parked: ParkedGlider[],
@@ -209,6 +213,11 @@ export function tickFlight(
   let groundY = config.getHeight(next.position.x, next.position.z)
   next.altitude = Math.max(0, next.position.y - groundY)
 
+  if (input.tandem) {
+    next.tandemWant = !next.tandemWant
+    if (!next.tandemWant) next.tandemRole = 'none'
+  }
+
   if (next.phase === 'landed' || next.phase === 'crashed') {
     return { flight: next, parked }
   }
@@ -221,6 +230,10 @@ export function tickFlight(
       next.landAction = next.landAction === 'dance' ? 'none' : 'dance'
     } else if (input.emoteSit) {
       next.landAction = next.landAction === 'sit' ? 'none' : 'sit'
+    } else if (input.emoteHug) {
+      next.landAction = next.landAction === 'hug' ? 'none' : 'hug'
+    } else if (input.emoteHighFive) {
+      next.landAction = next.landAction === 'highfive' ? 'none' : 'highfive'
     }
 
     if (input.bankLeft) next.yaw += 2.2 * dt
@@ -231,11 +244,16 @@ export function tickFlight(
     if (input.pitchDown || input.speedUp) move += 1
     if (input.pitchUp) move -= 1
 
-    // Moving cancels sit; dance/wave can continue while walking slowly
-    if (move !== 0 && next.landAction === 'sit') next.landAction = 'none'
-    if (next.landAction === 'sit') move = 0
+    // Moving cancels sit / social holds
+    if (move !== 0 && (next.landAction === 'sit' || next.landAction === 'hug' || next.landAction === 'highfive')) {
+      next.landAction = 'none'
+    }
+    if (next.landAction === 'sit' || next.landAction === 'hug' || next.landAction === 'highfive') {
+      move = 0
+    }
 
-    const speedMul = next.landAction === 'dance' || next.landAction === 'wave' ? 0.55 : 1
+    const speedMul =
+      next.landAction === 'dance' || next.landAction === 'wave' ? 0.55 : 1
     const speed = (input.speedUp ? WALK_SPRINT : WALK_SPEED) * speedMul
     const onGround = next.position.y <= groundY + WALK_FEET + 0.05
 
@@ -244,7 +262,14 @@ export function tickFlight(
       next.position.y = groundY + WALK_FEET
       if (input.jump && next.landAction !== 'sit') {
         next.velocity.y = 8.5
-        if (next.landAction === 'wave' || next.landAction === 'dance') next.landAction = 'none'
+        if (
+          next.landAction === 'wave' ||
+          next.landAction === 'dance' ||
+          next.landAction === 'hug' ||
+          next.landAction === 'highfive'
+        ) {
+          next.landAction = 'none'
+        }
       }
     } else {
       next.velocity.y -= GRAVITY * dt

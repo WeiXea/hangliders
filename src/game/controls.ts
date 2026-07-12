@@ -44,14 +44,24 @@ const RELEASE_MAP: Record<string, Partial<InputState>> = {
   Space: { takeOff: false, jump: false },
   KeyL: { land: false },
   KeyF: { deployChute: false },
-  KeyE: { interact: false },
+  KeyE: { interact: false, lookRight: false },
   KeyJ: { jump: false },
   Digit1: { emoteWave: false },
   Digit2: { emoteDance: false },
   Digit3: { emoteSit: false },
+  Digit4: { emoteHug: false },
+  Digit5: { emoteHighFive: false },
   KeyZ: { emoteWave: false },
   KeyX: { emoteDance: false },
   KeyV: { emoteSit: false },
+  KeyH: { emoteHug: false },
+  KeyY: { emoteHighFive: false },
+  KeyT: { tandem: false },
+  KeyQ: { lookLeft: false },
+  KeyB: { lookBack: false },
+  Comma: { lookLeft: false },
+  Period: { lookRight: false },
+  Slash: { lookBack: false },
 }
 
 function syncModifiers(e: KeyboardEvent, setInput: (p: Partial<InputState>) => void) {
@@ -119,7 +129,27 @@ export function useKeyboardControls() {
       }
       if (e.code === 'KeyE') {
         e.preventDefault()
-        setInput({ interact: true })
+        const phase = useGameStore.getState().flight.phase
+        if (phase === 'walking') {
+          setInput({ interact: true })
+        } else {
+          setInput({ lookRight: true })
+        }
+        return
+      }
+      if (e.code === 'KeyQ' || e.code === 'Comma') {
+        e.preventDefault()
+        setInput({ lookLeft: true })
+        return
+      }
+      if (e.code === 'Period') {
+        e.preventDefault()
+        setInput({ lookRight: true })
+        return
+      }
+      if (e.code === 'KeyB' || e.code === 'Slash') {
+        e.preventDefault()
+        setInput({ lookBack: true })
         return
       }
       if (e.code === 'Digit1' || e.code === 'KeyZ') {
@@ -135,6 +165,21 @@ export function useKeyboardControls() {
       if (e.code === 'Digit3' || e.code === 'KeyV') {
         e.preventDefault()
         setInput({ emoteSit: true })
+        return
+      }
+      if (e.code === 'Digit4' || e.code === 'KeyH') {
+        e.preventDefault()
+        setInput({ emoteHug: true })
+        return
+      }
+      if (e.code === 'Digit5' || e.code === 'KeyY') {
+        e.preventDefault()
+        setInput({ emoteHighFive: true })
+        return
+      }
+      if (e.code === 'KeyT') {
+        e.preventDefault()
+        setInput({ tandem: true })
         return
       }
       if (e.code === 'KeyL') {
@@ -175,7 +220,13 @@ export function useKeyboardControls() {
             'interact' in release ||
             'emoteWave' in release ||
             'emoteDance' in release ||
-            'emoteSit' in release)
+            'emoteSit' in release ||
+            'emoteHug' in release ||
+            'emoteHighFive' in release ||
+            'tandem' in release ||
+            'lookLeft' in release ||
+            'lookRight' in release ||
+            'lookBack' in release)
         ) {
           e.preventDefault()
           setInput(release)

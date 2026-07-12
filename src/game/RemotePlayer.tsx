@@ -5,12 +5,13 @@ import { useGameStore } from './gameStore'
 import { GliderModel } from './GliderModel'
 import { AnimatedPilot, ParachuteCanopy, PILOT_HIP } from './Pilot'
 
-/** Ghosted second player from the multiplayer room. */
+/** Ghosted second player from the multiplayer room. Hidden while riding tandem together. */
 export function RemotePlayer() {
   const group = useRef<THREE.Group>(null)
   const body = useRef<THREE.Group>(null)
   const remote = useGameStore((s) => s.remoteFlight)
   const connected = useGameStore((s) => s.peerConnected)
+  const localTandem = useGameStore((s) => s.flight.tandemRole)
 
   useFrame(() => {
     if (!group.current || !body.current || !remote) return
@@ -29,6 +30,8 @@ export function RemotePlayer() {
   })
 
   if (!connected || !remote) return null
+  // Shared craft is drawn on HangGlider
+  if (localTandem !== 'none' || remote.tandemRole !== 'none') return null
 
   const phase = remote.phase
   const showWing =

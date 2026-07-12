@@ -151,6 +151,50 @@ function sitPose(): FullPose {
   }
 }
 
+function hugPose(t: number): FullPose {
+  const squeeze = 0.04 + Math.sin(t * 3) * 0.02
+  return {
+    L: {
+      thigh: 0.08,
+      shin: 0.12,
+      upperArm: -1.15,
+      foreArm: 1.35,
+      shoulderZ: 0.55 + squeeze,
+    },
+    R: {
+      thigh: 0.08,
+      shin: 0.12,
+      upperArm: -1.15,
+      foreArm: 1.35,
+      shoulderZ: -0.55 - squeeze,
+    },
+    bob: 0.02,
+    sway: 0,
+    lean: 0.18,
+    rootX: 0.12,
+    rootZ: 0,
+  }
+}
+
+function highFivePose(t: number): FullPose {
+  const clap = Math.sin(t * 10) * 0.12
+  return {
+    L: { thigh: 0.05, shin: 0.1, upperArm: 0.25, foreArm: 0.5, shoulderZ: 0.15 },
+    R: {
+      thigh: 0.05,
+      shin: 0.1,
+      upperArm: -2.55 + clap,
+      foreArm: 0.15,
+      shoulderZ: -0.15,
+    },
+    bob: 0.04,
+    sway: 0,
+    lean: -0.05,
+    rootX: 0,
+    rootZ: 0.05,
+  }
+}
+
 function freefallPose(t: number): FullPose {
   const flutter = Math.sin(t * 7) * 0.07
   return {
@@ -244,6 +288,8 @@ function resolvePose(
   if (landAction === 'sit') return sitPose()
   if (landAction === 'wave') return wavePose(t)
   if (landAction === 'dance') return dancePose(t)
+  if (landAction === 'hug') return hugPose(t)
+  if (landAction === 'highfive') return highFivePose(t)
   if (airborne) return jumpPose()
   if (speed > 0.4) return gaitPose(gaitPhase, sprint || speed > 8)
   return idlePose(t)

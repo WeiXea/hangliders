@@ -12,7 +12,8 @@ export type FlightPhase =
   | 'crashed'
 export type CameraMode = 'chase' | 'fpv' | 'side'
 export type TiltPermission = 'unknown' | 'granted' | 'denied'
-export type LandAction = 'none' | 'wave' | 'dance' | 'sit'
+export type LandAction = 'none' | 'wave' | 'dance' | 'sit' | 'hug' | 'highfive'
+export type TandemRole = 'none' | 'pilot' | 'passenger'
 
 export interface TiltCalibration {
   bank: number
@@ -56,6 +57,10 @@ export interface FlightState {
   /** Pendulum lean while under canopy (radians) */
   chuteSwing: number
   landAction: LandAction
+  /** Multiplayer: riding the same glider */
+  tandemRole: TandemRole
+  /** Multiplayer: pressed Tandem — pairs when both want it nearby */
+  tandemWant: boolean
 }
 
 export interface InputState {
@@ -73,6 +78,12 @@ export interface InputState {
   emoteWave: boolean
   emoteDance: boolean
   emoteSit: boolean
+  emoteHug: boolean
+  emoteHighFive: boolean
+  tandem: boolean
+  lookLeft: boolean
+  lookRight: boolean
+  lookBack: boolean
 }
 
 export interface ChallengeRing {
@@ -114,6 +125,10 @@ export interface BiomeConfig {
 
 export const JUMP_MIN_ALTITUDE = 25
 export const MOUNT_RANGE = 6
+/** Standing pilots can hug / high-five within this range */
+export const SOCIAL_RANGE = 3.4
+/** Must be this close to form a tandem pair */
+export const TANDEM_RANGE = 6
 /** Standing pilot: physics Y is soles of the feet (+ tiny clearance) */
 export const WALK_FEET = 0.04
 
@@ -136,6 +151,8 @@ export const INITIAL_FLIGHT: FlightState = {
   chuteInflation: 0,
   chuteSwing: 0,
   landAction: 'none',
+  tandemRole: 'none',
+  tandemWant: false,
 }
 
 export const INITIAL_INPUT: InputState = {
@@ -153,4 +170,10 @@ export const INITIAL_INPUT: InputState = {
   emoteWave: false,
   emoteDance: false,
   emoteSit: false,
+  emoteHug: false,
+  emoteHighFive: false,
+  tandem: false,
+  lookLeft: false,
+  lookRight: false,
+  lookBack: false,
 }
