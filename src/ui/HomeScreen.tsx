@@ -58,18 +58,24 @@ export function HomeScreen() {
   }
 
   const wireHandlers = (role: 'host' | 'guest') => ({
-    onPeerJoined: () => {
-      const other = useGameStore.getState().remoteName || 'Friend'
+    onPeerJoined: (peerName?: string) => {
+      const other = peerName || useGameStore.getState().remoteName || 'Friend'
       setRoomMeta({
         peerConnected: true,
+        remoteName: other,
         roomStatus:
           role === 'host'
             ? `${other} joined — press Fly together`
-            : `Found host — press Fly together`,
+            : `Found ${other} — press Fly together`,
       })
       window.setTimeout(() => sendHello(), 150)
     },
     onMessage: handleNetMessage,
+    onStatus: (status: string) => {
+      if (!useGameStore.getState().peerConnected) {
+        setRoomMeta({ roomStatus: status })
+      }
+    },
     onDisconnected: () => {
       setRoomMeta({
         peerConnected: false,

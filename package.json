@@ -16,6 +16,7 @@
     "@trystero-p2p/nostr": "^0.25.2",
     "@trystero-p2p/torrent": "^0.25.2",
     "@types/three": "^0.185.1",
+    "mqtt": "^5.15.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "three": "^0.185.1",

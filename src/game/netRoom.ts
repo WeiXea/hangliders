@@ -1,20 +1,12 @@
-import { joinRoom as trysteroJoin } from '@trystero-p2p/torrent'
-import type { Room } from '@trystero-p2p/core'
+import mqtt, { type MqttClient } from 'mqtt'
 import type { Biome, FlightState, GameMode } from '../types/game'
 
-const APP_ID = 'hangglider-sky-duo-v2'
+/** Bump when changing room wire format so old clients don't clash. */
+const ROOM_NS = 'hangglider/v4'
 
-const TURN_CONFIG = [
-  { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
-  {
-    urls: [
-      'turn:openrelay.metered.ca:80',
-      'turn:openrelay.metered.ca:443',
-      'turns:openrelay.metered.ca:443',
-    ],
-    username: 'openrelayproject',
-    credential: 'openrelayproject',
-  },
+const BROKERS = [
+  'wss://broker.emqx.io:8084/mqtt',
+  'wss://broker.hivemq.com:8884/mqtt',
 ]
 
 export type NetMsg =
@@ -31,7 +23,6 @@ export function makeRoomCode(): string {
 }
 
 export interface RoomSession {
-  room: Room
   code: string
   role: 'host' | 'guest'
   connected: boolean
@@ -41,14 +32,28 @@ export interface RoomSession {
 }
 
 type Handlers = {
-  onPeerJoined?: () => void
+  onPeerJoined?: (peerName?: string) => void
   onMessage: (msg: NetMsg) => void
   onDisconnected?: () => void
+  onStatus?: (status: string) => void
+}
+
+function selfId(): string {
+  const key = 'hg-peer-id'
+  try {
+    const existing = localStorage.getItem(key)
+    if (existing) return existing
+    const id = Math.random().toString(36).slice(2, 10)
+    localStorage.setItem(key, id)
+    return id
+  } catch {
+    return Math.random().toString(36).slice(2, 10)
+  }
 }
 
 /**
- * Enter a shared room immediately. Does NOT wait for the other player —
- * the UI stays in a lobby until onPeerJoined / first message fires.
+ * Shared room over public MQTT (no WebRTC). Presence is retained per peer so
+ * whoever joins second immediately sees the first — works across Wi‑Fi/cellular.
  */
 export function enterRoom(
   code: string,
@@ -60,76 +65,169 @@ export function enterRoom(
     throw new Error('Enter a 4-character room code')
   }
 
-  const room = trysteroJoin(
-    {
-      appId: APP_ID,
-      turnConfig: TURN_CONFIG,
-    },
-    `hangglider-${roomId}`,
-  )
-
-  const action = room.makeAction('hg')
-
-  const markJoined = () => {
-    if (session.connected) return
-    session.connected = true
-    session.peerCount = Math.max(1, session.peerCount)
-    handlers.onPeerJoined?.()
-  }
-
-  action.onMessage = (data) => {
-    if (!data || typeof data !== 'object' || !('t' in data)) return
-    const msg = data as NetMsg
-    // Any traffic means the peer link is alive (onPeerJoin can be flaky)
-    markJoined()
-    handlers.onMessage(msg)
-  }
+  const myId = selfId()
+  const presenceMine = `${ROOM_NS}/${roomId}/presence/${myId}`
+  const presenceAll = `${ROOM_NS}/${roomId}/presence/#`
+  const msgTopic = `${ROOM_NS}/${roomId}/msg`
+  const seenPeers = new Set<string>()
+  let client: MqttClient | null = null
+  let destroyed = false
+  let brokerIndex = 0
+  let heartbeat: number | undefined
 
   const session: RoomSession = {
-    room,
     code: roomId,
     role,
     connected: false,
     peerCount: 0,
     send: (msg) => {
+      if (!client?.connected) return
       try {
-        action.send(JSON.parse(JSON.stringify(msg)))
+        client.publish(
+          msgTopic,
+          JSON.stringify({ from: myId, ...msg }),
+          { qos: 0, retain: false },
+        )
       } catch {
-        /* no peers yet */
+        /* ignore */
       }
     },
     destroy: () => {
+      destroyed = true
       window.clearInterval(heartbeat)
       try {
-        room.leave()
+        // Clear retained presence so we don't look "still here"
+        client?.publish(presenceMine, '', { qos: 0, retain: true })
+        client?.end(true)
       } catch {
         /* already left */
       }
+      client = null
     },
   }
 
-  room.onPeerJoin = () => {
-    session.peerCount += 1
-    markJoined()
+  const markJoined = (peerName?: string) => {
+    if (session.connected) return
+    session.connected = true
+    session.peerCount = Math.max(1, seenPeers.size)
+    handlers.onPeerJoined?.(peerName)
   }
 
-  room.onPeerLeave = () => {
-    session.peerCount = Math.max(0, session.peerCount - 1)
-    if (session.peerCount === 0) {
-      session.connected = false
-      handlers.onDisconnected?.()
-    }
+  const publishPresence = () => {
+    if (!client?.connected || destroyed) return
+    const name = (window as unknown as { __hgName?: string }).__hgName ?? 'Pilot'
+    client.publish(
+      presenceMine,
+      JSON.stringify({ id: myId, name, at: Date.now() }),
+      { qos: 0, retain: true },
+    )
   }
 
-  // Keep announcing so late joiners still find us
-  const heartbeat = window.setInterval(() => {
-    try {
-      const name = (window as unknown as { __hgName?: string }).__hgName ?? 'Pilot'
-      action.send(JSON.parse(JSON.stringify({ t: 'ping', name })))
-    } catch {
-      /* ignore */
-    }
-  }, 2000)
+  const connectBroker = (url: string) => {
+    handlers.onStatus?.('Connecting to lobby…')
+    const c = mqtt.connect(url, {
+      clientId: `hg-${myId}-${Math.random().toString(16).slice(2, 8)}`,
+      clean: true,
+      connectTimeout: 10_000,
+      reconnectPeriod: 3_000,
+      protocolVersion: 4,
+    })
+    client = c
+
+    c.on('connect', () => {
+      if (destroyed) {
+        c.end(true)
+        return
+      }
+      handlers.onStatus?.(
+        role === 'host'
+          ? 'In lobby — share your code and wait…'
+          : 'In lobby — looking for host…',
+      )
+      c.subscribe([presenceAll, msgTopic], { qos: 0 }, (err) => {
+        if (err) {
+          handlers.onStatus?.('Could not enter lobby — retrying…')
+          return
+        }
+        publishPresence()
+      })
+    })
+
+    c.on('message', (topic, payload) => {
+      if (destroyed) return
+
+      if (topic.startsWith(`${ROOM_NS}/${roomId}/presence/`)) {
+        const peerKey = topic.split('/').pop() ?? ''
+        if (!peerKey || peerKey === myId) return
+
+        // Empty retain clear = peer left
+        if (!payload.length) {
+          seenPeers.delete(peerKey)
+          session.peerCount = seenPeers.size
+          if (seenPeers.size === 0 && session.connected) {
+            session.connected = false
+            handlers.onDisconnected?.()
+          }
+          return
+        }
+
+        let data: { id?: string; name?: string }
+        try {
+          data = JSON.parse(payload.toString()) as { id?: string; name?: string }
+        } catch {
+          return
+        }
+        const wasNew = !seenPeers.has(peerKey)
+        seenPeers.add(peerKey)
+        session.peerCount = seenPeers.size
+        if (wasNew) {
+          markJoined(data.name || 'Friend')
+          publishPresence()
+          const n = (window as unknown as { __hgName?: string }).__hgName ?? 'Pilot'
+          session.send({ t: 'ping', name: n })
+        }
+        return
+      }
+
+      if (topic === msgTopic) {
+        let data: Record<string, unknown>
+        try {
+          data = JSON.parse(payload.toString()) as Record<string, unknown>
+        } catch {
+          return
+        }
+        const from = typeof data.from === 'string' ? data.from : ''
+        if (from === myId) return
+        if (from) {
+          seenPeers.add(from)
+          session.peerCount = seenPeers.size
+          markJoined(typeof data.name === 'string' ? data.name : undefined)
+        }
+        if (!data.t || typeof data.t !== 'string') return
+        const { from: _f, ...rest } = data
+        handlers.onMessage(rest as unknown as NetMsg)
+      }
+    })
+
+    c.on('close', () => {
+      if (destroyed) return
+      if (!session.connected && brokerIndex < BROKERS.length - 1) {
+        brokerIndex += 1
+        try {
+          c.end(true)
+        } catch {
+          /* */
+        }
+        connectBroker(BROKERS[brokerIndex]!)
+      }
+    })
+  }
+
+  connectBroker(BROKERS[0]!)
+
+  heartbeat = window.setInterval(() => {
+    publishPresence()
+  }, 2500)
 
   return session
 }
