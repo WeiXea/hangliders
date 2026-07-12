@@ -184,3 +184,56 @@
   color: rgba(255, 255, 255, 0.4);
   letter-spacing: 0.02em;
 }
+
+.roomRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.roomBtn {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.roomBtn:disabled {
+  opacity: 0.55;
+}
+
+.roomInput {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  outline: none;
+}
+
+.roomInput::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 0.08em;
+}
+
+.roomStatus {
+  margin: 8px 0 0;
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  color: #ffd166;
+  line-height: 1.35;
+}

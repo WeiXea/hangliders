@@ -26,8 +26,11 @@ import {
   requestTiltPermission,
   writeStoredTiltPreference,
 } from './tilt'
+import { setRoomSession } from './netSync'
 
 const CAMERA_CYCLE: CameraMode[] = ['chase', 'fpv', 'side']
+
+export type RoomRole = 'solo' | 'host' | 'guest'
 
 interface GameStore {
   screen: Screen
@@ -45,6 +48,14 @@ interface GameStore {
   tiltPermission: TiltPermission
   tiltCalibration: TiltCalibration | null
 
+  playerName: string
+  roomCode: string | null
+  roomRole: RoomRole
+  roomStatus: string
+  peerConnected: boolean
+  remoteFlight: FlightState | null
+  remoteName: string
+
   setScreen: (screen: Screen) => void
   setBiome: (biome: Biome) => void
   setMode: (mode: GameMode) => void
@@ -60,6 +71,16 @@ interface GameStore {
   checkRings: () => void
   finishFlight: () => void
   goHome: () => void
+
+  setPlayerName: (name: string) => void
+  setRoomMeta: (partial: {
+    roomCode?: string | null
+    roomRole?: RoomRole
+    roomStatus?: string
+    peerConnected?: boolean
+  }) => void
+  setRemoteFlight: (flight: FlightState | null, name?: string) => void
+  applyRemoteHello: (biome: Biome, mode: GameMode, name: string) => void
 }
 
 function initRings(biome: Biome): ChallengeRing[] {
@@ -107,6 +128,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   tiltEnabled: false,
   tiltPermission: isTiltSupported() ? 'unknown' : 'denied',
   tiltCalibration: null,
+
+  playerName: 'Pilot',
+  roomCode: null,
+  roomRole: 'solo',
+  roomStatus: '',
+  peerConnected: false,
+  remoteFlight: null,
+  remoteName: '',
 
   setScreen: (screen) => set({ screen }),
   setBiome: (biome) =>
@@ -254,13 +283,44 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ stats, screen: 'result' })
   },
 
-  goHome: () =>
+  goHome: () => {
+    setRoomSession(null)
     set({
       screen: 'home',
       flight: { ...INITIAL_FLIGHT },
       input: { ...INITIAL_INPUT },
       stats: null,
       simTime: 0,
+      roomCode: null,
+      roomRole: 'solo',
+      roomStatus: '',
+      peerConnected: false,
+      remoteFlight: null,
+      remoteName: '',
+    })
+  },
+
+  setPlayerName: (playerName) => set({ playerName: playerName.slice(0, 16) || 'Pilot' }),
+
+  setRoomMeta: (partial) => set(partial),
+
+  setRemoteFlight: (remoteFlight, name) =>
+    set({
+      remoteFlight,
+      ...(name != null ? { remoteName: name } : {}),
     }),
+
+  applyRemoteHello: (biome, mode, name) => {
+    const config = BIOME_CONFIGS[biome]
+    set({
+      biome,
+      mode,
+      remoteName: name,
+      peerConnected: true,
+      roomStatus: `${name} joined`,
+      rings: initRings(biome),
+      parkedGliders: initParkedGliders(config),
+    })
+  },
 }))
 

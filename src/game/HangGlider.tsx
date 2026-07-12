@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from './gameStore'
 import { GliderModel } from './GliderModel'
-import { AnimatedPilot, ParachuteCanopy } from './Pilot'
+import { AnimatedPilot, ParachuteCanopy, PILOT_EYE, PILOT_HIP } from './Pilot'
 
 export function HangGlider() {
   const groupRef = useRef<THREE.Group>(null)
@@ -53,8 +53,9 @@ export function HangGlider() {
     let targetFov = 60
 
     if (phase === 'walking') {
-      eye.set(0, 1.5, -6.8)
-      look.set(0, 0.35, 10)
+      // Camera from eye height — position is feet on ground
+      eye.set(0, PILOT_EYE + 0.15, -6.5)
+      look.set(0, PILOT_EYE * 0.55, 10)
       targetFov = 58
     } else if (phase === 'freefall') {
       eye.set(0, 1.6, -10)
@@ -104,7 +105,14 @@ export function HangGlider() {
       <group ref={bodyRef}>
         {showWing && <GliderModel barRef={barRef} />}
         {offGlider && (
-          <group position={[0, phase === 'walking' ? -0.55 : -0.15, 0]}>
+          <group
+            position={[
+              0,
+              // Walking: feet at physics Y. Airborne body modes: hips near physics Y.
+              phase === 'walking' ? 0 : -PILOT_HIP * 0.15,
+              0,
+            ]}
+          >
             <AnimatedPilot />
           </group>
         )}

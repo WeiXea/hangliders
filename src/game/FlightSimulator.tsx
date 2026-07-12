@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { useGameStore } from './gameStore'
 import { tickFlight } from './flightPhysics'
 import { BIOME_CONFIGS } from './biomeConfigs'
+import { tickNetSync } from './netSync'
 
 export function FlightSimulator() {
   const biome = useGameStore((s) => s.biome)
@@ -53,6 +54,7 @@ export function FlightSimulator() {
       parkedGliders,
     )
     updateFlight(next, parked)
+    tickNetSync(dt)
     // One-shot actions
     if (input.jump || input.deployChute || input.interact || input.emoteWave || input.emoteDance || input.emoteSit) {
       useGameStore.getState().setInput({

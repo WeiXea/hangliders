@@ -4,12 +4,21 @@ import * as THREE from 'three'
 import { useGameStore } from './gameStore'
 import type { FlightPhase, LandAction } from '../types/game'
 
-const SKIN = '#e8b896'
-const SUIT = '#1b263b'
-const SUIT_DK = '#121820'
-const BOOT = '#1a1a1a'
-const GLOVE = '#264653'
+/** Standing model: local Y=0 is soles of the feet. Hip height ≈ 0.98 */
+export const PILOT_HIP = 0.98
+export const PILOT_EYE = 1.62
+export const PILOT_HEIGHT = 1.78
+
+const SKIN = '#d4a574'
+const SKIN_SH = '#c49364'
+const SUIT = '#1e3a5f'
+const SUIT_LT = '#2a4a6f'
+const SUIT_DK = '#152538'
+const BOOT = '#1a1512'
+const GLOVE = '#3d5a6c'
 const HELMET = '#e9c46a'
+const HELMET_DK = '#c9a227'
+const HARNESS = '#c1272d'
 
 type PoseMode = 'prone' | 'stand' | 'freefall' | 'chute'
 
@@ -41,38 +50,38 @@ function smoothstep(t: number) {
 }
 
 function gaitPose(phase: number, sprint: boolean): FullPose {
-  const amp = sprint ? 0.95 : 0.72
-  const armAmp = sprint ? 0.85 : 0.55
+  const amp = sprint ? 0.9 : 0.68
+  const armAmp = sprint ? 0.8 : 0.5
   return {
     L: {
       thigh: Math.sin(phase) * amp,
-      shin: Math.max(0, -Math.sin(phase)) * (sprint ? 1.15 : 0.85) + 0.12,
+      shin: Math.max(0, -Math.sin(phase)) * (sprint ? 1.1 : 0.8) + 0.1,
       upperArm: -Math.sin(phase) * armAmp,
-      foreArm: 0.35 + Math.max(0, Math.sin(phase)) * 0.45,
-      shoulderZ: 0.1,
+      foreArm: 0.4 + Math.max(0, Math.sin(phase)) * 0.4,
+      shoulderZ: 0.12,
     },
     R: {
       thigh: Math.sin(phase + Math.PI) * amp,
-      shin: Math.max(0, -Math.sin(phase + Math.PI)) * (sprint ? 1.15 : 0.85) + 0.12,
+      shin: Math.max(0, -Math.sin(phase + Math.PI)) * (sprint ? 1.1 : 0.8) + 0.1,
       upperArm: -Math.sin(phase + Math.PI) * armAmp,
-      foreArm: 0.35 + Math.max(0, Math.sin(phase + Math.PI)) * 0.45,
-      shoulderZ: -0.1,
+      foreArm: 0.4 + Math.max(0, Math.sin(phase + Math.PI)) * 0.4,
+      shoulderZ: -0.12,
     },
-    bob: Math.abs(Math.sin(phase * 2)) * (sprint ? 0.07 : 0.045),
-    sway: Math.sin(phase) * (sprint ? 0.06 : 0.04),
-    lean: sprint ? 0.18 : 0.1,
+    bob: Math.abs(Math.sin(phase * 2)) * (sprint ? 0.05 : 0.03),
+    sway: Math.sin(phase) * (sprint ? 0.05 : 0.03),
+    lean: sprint ? 0.14 : 0.08,
     rootX: 0,
     rootZ: 0,
   }
 }
 
 function idlePose(t: number): FullPose {
-  const breathe = Math.sin(t * 1.6) * 0.02
+  const breathe = Math.sin(t * 1.5) * 0.015
   return {
-    L: { thigh: 0.04, shin: 0.08, upperArm: 0.12, foreArm: 0.25, shoulderZ: 0.08 },
-    R: { thigh: 0.04, shin: 0.08, upperArm: 0.1, foreArm: 0.25, shoulderZ: -0.08 },
+    L: { thigh: 0.03, shin: 0.06, upperArm: 0.15, foreArm: 0.3, shoulderZ: 0.1 },
+    R: { thigh: 0.03, shin: 0.06, upperArm: 0.12, foreArm: 0.3, shoulderZ: -0.1 },
     bob: breathe,
-    sway: Math.sin(t * 0.7) * 0.015,
+    sway: Math.sin(t * 0.6) * 0.012,
     lean: 0,
     rootX: 0,
     rootZ: 0,
@@ -81,11 +90,11 @@ function idlePose(t: number): FullPose {
 
 function jumpPose(): FullPose {
   return {
-    L: { thigh: -0.55, shin: 1.1, upperArm: -1.1, foreArm: 0.4, shoulderZ: 0.2 },
-    R: { thigh: -0.5, shin: 1.05, upperArm: -1.05, foreArm: 0.4, shoulderZ: -0.2 },
-    bob: 0.08,
+    L: { thigh: -0.5, shin: 1.05, upperArm: -1.0, foreArm: 0.45, shoulderZ: 0.25 },
+    R: { thigh: -0.45, shin: 1.0, upperArm: -0.95, foreArm: 0.45, shoulderZ: -0.25 },
+    bob: 0.06,
     sway: 0,
-    lean: -0.1,
+    lean: -0.08,
     rootX: 0,
     rootZ: 0,
   }
@@ -96,13 +105,12 @@ function wavePose(t: number): FullPose {
   return {
     ...base,
     R: {
-      thigh: 0.04,
-      shin: 0.08,
-      upperArm: -2.1,
-      foreArm: 0.35 + Math.sin(t * 10) * 0.55,
-      shoulderZ: -0.35,
+      thigh: 0.03,
+      shin: 0.06,
+      upperArm: -2.05,
+      foreArm: 0.3 + Math.sin(t * 9) * 0.5,
+      shoulderZ: -0.4,
     },
-    bob: base.bob + 0.01,
   }
 }
 
@@ -110,97 +118,110 @@ function dancePose(t: number): FullPose {
   const beat = t * 6.5
   return {
     L: {
-      thigh: Math.sin(beat) * 0.55,
-      shin: 0.3 + Math.max(0, -Math.sin(beat)) * 0.7,
-      upperArm: -0.8 + Math.sin(beat + 1) * 0.9,
-      foreArm: 0.5 + Math.sin(beat * 2) * 0.4,
-      shoulderZ: 0.25,
+      thigh: Math.sin(beat) * 0.5,
+      shin: 0.25 + Math.max(0, -Math.sin(beat)) * 0.65,
+      upperArm: -0.75 + Math.sin(beat + 1) * 0.85,
+      foreArm: 0.45 + Math.sin(beat * 2) * 0.35,
+      shoulderZ: 0.28,
     },
     R: {
-      thigh: Math.sin(beat + Math.PI) * 0.55,
-      shin: 0.3 + Math.max(0, -Math.sin(beat + Math.PI)) * 0.7,
-      upperArm: -0.8 + Math.sin(beat + 2) * 0.9,
-      foreArm: 0.5 + Math.sin(beat * 2 + 1) * 0.4,
-      shoulderZ: -0.25,
+      thigh: Math.sin(beat + Math.PI) * 0.5,
+      shin: 0.25 + Math.max(0, -Math.sin(beat + Math.PI)) * 0.65,
+      upperArm: -0.75 + Math.sin(beat + 2) * 0.85,
+      foreArm: 0.45 + Math.sin(beat * 2 + 1) * 0.35,
+      shoulderZ: -0.28,
     },
-    bob: 0.06 + Math.abs(Math.sin(beat * 2)) * 0.1,
-    sway: Math.sin(beat) * 0.12,
-    lean: 0.05,
+    bob: 0.05 + Math.abs(Math.sin(beat * 2)) * 0.08,
+    sway: Math.sin(beat) * 0.1,
+    lean: 0.04,
     rootX: 0,
-    rootZ: Math.sin(beat) * 0.12,
+    rootZ: Math.sin(beat) * 0.1,
   }
 }
 
 function sitPose(): FullPose {
   return {
-    L: { thigh: 1.35, shin: 1.45, upperArm: 0.35, foreArm: 0.9, shoulderZ: 0.1 },
-    R: { thigh: 1.35, shin: 1.45, upperArm: 0.35, foreArm: 0.9, shoulderZ: -0.1 },
-    bob: -0.42,
+    L: { thigh: 1.3, shin: 1.4, upperArm: 0.3, foreArm: 0.85, shoulderZ: 0.12 },
+    R: { thigh: 1.3, shin: 1.4, upperArm: 0.3, foreArm: 0.85, shoulderZ: -0.12 },
+    bob: -0.38,
     sway: 0,
-    lean: 0.15,
+    lean: 0.12,
     rootX: 0,
     rootZ: 0,
   }
 }
 
 function freefallPose(t: number): FullPose {
-  const flutter = Math.sin(t * 8) * 0.08
+  const flutter = Math.sin(t * 7) * 0.07
   return {
     L: {
-      thigh: -0.25 + flutter,
-      shin: 0.35,
-      upperArm: -1.6 + flutter,
-      foreArm: 0.2,
-      shoulderZ: 0.85,
+      thigh: -0.2 + flutter,
+      shin: 0.3,
+      upperArm: -1.55 + flutter,
+      foreArm: 0.25,
+      shoulderZ: 0.9,
     },
     R: {
-      thigh: -0.25 - flutter,
-      shin: 0.35,
-      upperArm: -1.6 - flutter,
-      foreArm: 0.2,
-      shoulderZ: -0.85,
+      thigh: -0.2 - flutter,
+      shin: 0.3,
+      upperArm: -1.55 - flutter,
+      foreArm: 0.25,
+      shoulderZ: -0.9,
     },
     bob: 0,
-    sway: Math.sin(t * 2.2) * 0.05,
+    sway: Math.sin(t * 2) * 0.04,
     lean: 0,
-    rootX: 0.35 + Math.sin(t * 2) * 0.05,
-    rootZ: Math.sin(t * 1.5) * 0.08,
+    rootX: 0.3 + Math.sin(t * 2) * 0.04,
+    rootZ: Math.sin(t * 1.4) * 0.07,
   }
 }
 
 function chutePose(t: number, swing: number, flare: boolean): FullPose {
-  const toggle = Math.sin(t * 3) * 0.06
+  const toggle = Math.sin(t * 2.8) * 0.05
   return {
     L: {
-      thigh: flare ? 0.55 : 0.35,
-      shin: flare ? 0.85 : 0.55,
-      upperArm: -2.35 + toggle,
+      thigh: flare ? 0.5 : 0.32,
+      shin: flare ? 0.8 : 0.5,
+      upperArm: -2.25 + toggle,
+      foreArm: 0.2,
+      shoulderZ: 0.22,
+    },
+    R: {
+      thigh: flare ? 0.48 : 0.3,
+      shin: flare ? 0.75 : 0.48,
+      upperArm: -2.2 - toggle,
+      foreArm: 0.2,
+      shoulderZ: -0.22,
+    },
+    bob: 0.02,
+    sway: swing * 0.3,
+    lean: flare ? 0.25 : 0.1,
+    rootX: 0,
+    rootZ: -swing * 0.55,
+  }
+}
+
+/** Arms reach up to the control bar; body hangs below the wing. */
+function pronePose(): FullPose {
+  return {
+    L: {
+      thigh: 0.2,
+      shin: 0.35,
+      upperArm: -2.55,
       foreArm: 0.15,
       shoulderZ: 0.2,
     },
     R: {
-      thigh: flare ? 0.5 : 0.32,
-      shin: flare ? 0.8 : 0.5,
-      upperArm: -2.3 - toggle,
+      thigh: 0.18,
+      shin: 0.32,
+      upperArm: -2.55,
       foreArm: 0.15,
       shoulderZ: -0.2,
     },
-    bob: 0.02,
-    sway: swing * 0.35,
-    lean: flare ? 0.28 : 0.12,
-    rootX: 0,
-    rootZ: -swing * 0.65,
-  }
-}
-
-function pronePose(): FullPose {
-  return {
-    L: { thigh: 0.15, shin: 0.25, upperArm: -1.55, foreArm: 0.55, shoulderZ: 0.15 },
-    R: { thigh: 0.12, shin: 0.22, upperArm: -1.55, foreArm: 0.55, shoulderZ: -0.15 },
     bob: 0,
     sway: 0,
-    lean: 0.05,
-    rootX: 0,
+    lean: 0.35,
+    rootX: 0.15,
     rootZ: 0,
   }
 }
@@ -236,7 +257,7 @@ function applyLimb(
   pose: LimbPose,
   side: 1 | -1,
 ) {
-  if (thigh) thigh.rotation.set(pose.thigh, 0, side * 0.04)
+  if (thigh) thigh.rotation.set(pose.thigh, 0, side * 0.03)
   if (shin) shin.rotation.set(pose.shin, 0, 0)
   if (upperArm) upperArm.rotation.set(pose.upperArm, 0, pose.shoulderZ)
   if (foreArm) foreArm.rotation.set(pose.foreArm, 0, 0)
@@ -325,9 +346,30 @@ export function ParachuteCanopy({
 interface AnimatedPilotProps {
   mode?: PoseMode
   hide?: boolean
+  /** Tint for remote player */
+  suitColor?: string
+  /** Override walk/run speed (for remote players) */
+  motionSpeed?: number
+  landAction?: LandAction
+  chuteSwing?: number
+  altitude?: number
+  airborneY?: number
 }
 
-export function AnimatedPilot({ mode, hide }: AnimatedPilotProps) {
+/**
+ * Human-proportioned pilot. Standing: local Y=0 is feet.
+ * Prone / freefall / chute: hips near local Y=0 (body-centered).
+ */
+export function AnimatedPilot({
+  mode,
+  hide,
+  suitColor,
+  motionSpeed,
+  landAction: landActionProp,
+  chuteSwing: chuteSwingProp,
+  altitude: altitudeProp,
+  airborneY,
+}: AnimatedPilotProps) {
   const root = useRef<THREE.Group>(null)
   const hips = useRef<THREE.Group>(null)
   const torso = useRef<THREE.Group>(null)
@@ -355,25 +397,31 @@ export function AnimatedPilot({ mode, hide }: AnimatedPilotProps) {
           ? 'stand'
           : 'prone')
 
+  const suit = suitColor ?? SUIT
+  const standing = poseMode === 'stand'
+
   useFrame((_, dt) => {
     if (hide || !root.current || !hips.current || !torso.current) return
 
-    const { phase, airspeed, velocity, landAction, chuteSwing, altitude } = flight
-    const speed = phase === 'walking' ? airspeed : 0
-    const airborne = phase === 'walking' && velocity.y > 0.4
-    const sprint = input.speedUp && speed > 0.5
-    const flare = phase === 'parachuting' && (input.pitchUp || altitude < 12)
+    const landAction = landActionProp ?? flight.landAction
+    const chuteSwing = chuteSwingProp ?? flight.chuteSwing
+    const altitude = altitudeProp ?? flight.altitude
+    const walkSpeed = motionSpeed ?? (poseMode === 'stand' ? flight.airspeed : 0)
+    const airborne =
+      poseMode === 'stand' && (airborneY != null ? airborneY > 0.4 : flight.velocity.y > 0.4)
+    const sprint = motionSpeed == null && input.speedUp && walkSpeed > 0.5
+    const flare = poseMode === 'chute' && (input.pitchUp || altitude < 12)
     const t = performance.now() / 1000
 
-    if (speed > 0.35 && landAction !== 'sit') {
+    if (walkSpeed > 0.35 && landAction !== 'sit') {
       const cadence = sprint ? 11 : 8.2
-      gait.current += dt * cadence * Math.min(1.35, speed / 6)
+      gait.current += dt * cadence * Math.min(1.35, walkSpeed / 6)
     }
 
     const target = resolvePose(
       poseMode,
-      phase,
-      speed,
+      flight.phase,
+      walkSpeed,
       airborne,
       landAction,
       sprint,
@@ -403,9 +451,10 @@ export function AnimatedPilot({ mode, hide }: AnimatedPilotProps) {
     applyLimb(thighL.current, shinL.current, armL.current, foreL.current, c.L, -1)
     applyLimb(thighR.current, shinR.current, armR.current, foreR.current, c.R, 1)
 
-    hips.current.position.y = c.bob
+    const hipBase = standing ? PILOT_HIP : 0
+    hips.current.position.y = hipBase + c.bob
     hips.current.rotation.z = c.sway
-    hips.current.rotation.y = c.sway * 0.35
+    hips.current.rotation.y = c.sway * 0.3
     torso.current.rotation.x = c.lean
     root.current.rotation.x = c.rootX
     root.current.rotation.z = c.rootZ
@@ -413,106 +462,146 @@ export function AnimatedPilot({ mode, hide }: AnimatedPilotProps) {
 
   if (hide) return null
 
+  const hipW = 0.2
+  const thighLen = 0.42
+  const shinLen = 0.4
+
   return (
-    <group ref={root} position={[0, poseMode === 'stand' ? 0 : 0.1, 0]}>
+    <group ref={root}>
       <group ref={hips}>
-        <group ref={torso} position={[0, 0.55, 0]}>
-          <mesh castShadow>
-            <capsuleGeometry args={[0.16, 0.38, 6, 12]} />
-            <meshStandardMaterial color={SUIT} roughness={0.82} />
+        {/* Pelvis */}
+        <mesh position={[0, -0.02, 0]} castShadow>
+          <sphereGeometry args={[0.14, 14, 12]} />
+          <meshStandardMaterial color={suit} roughness={0.78} />
+        </mesh>
+
+        <group ref={torso} position={[0, 0.28, 0]}>
+          {/* Chest / abdomen — thicker than stick figure */}
+          <mesh position={[0, 0.08, 0]} castShadow>
+            <capsuleGeometry args={[0.2, 0.36, 8, 14]} />
+            <meshStandardMaterial color={suit} roughness={0.78} />
           </mesh>
-          <mesh position={[0, 0.05, 0.12]} rotation={[0.1, 0, 0]}>
-            <torusGeometry args={[0.17, 0.025, 6, 16]} />
-            <meshStandardMaterial color="#c1272d" roughness={0.7} />
+          <mesh position={[0, 0.22, 0.04]} castShadow>
+            <sphereGeometry args={[0.22, 14, 12]} />
+            <meshStandardMaterial color={SUIT_LT} roughness={0.75} />
+          </mesh>
+          {/* Shoulders */}
+          <mesh position={[-0.22, 0.28, 0]} castShadow>
+            <sphereGeometry args={[0.09, 10, 10]} />
+            <meshStandardMaterial color={suit} roughness={0.78} />
+          </mesh>
+          <mesh position={[0.22, 0.28, 0]} castShadow>
+            <sphereGeometry args={[0.09, 10, 10]} />
+            <meshStandardMaterial color={suit} roughness={0.78} />
+          </mesh>
+          {/* Harness */}
+          <mesh position={[0, 0.05, 0.16]} rotation={[0.12, 0, 0]}>
+            <torusGeometry args={[0.2, 0.03, 6, 18]} />
+            <meshStandardMaterial color={HARNESS} roughness={0.65} />
+          </mesh>
+          <mesh position={[0, -0.05, 0.14]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.025, 0.025, 0.35, 8]} />
+            <meshStandardMaterial color={HARNESS} roughness={0.65} />
           </mesh>
 
-          <group position={[0, 0.42, 0.02]}>
+          {/* Head + helmet — kept compact so it fits under the wing when prone */}
+          <group position={[0, 0.48, 0.02]}>
             <mesh castShadow>
-              <sphereGeometry args={[0.135, 16, 16]} />
-              <meshStandardMaterial color={SKIN} roughness={0.72} />
+              <sphereGeometry args={[0.125, 16, 16]} />
+              <meshStandardMaterial color={SKIN} roughness={0.7} />
             </mesh>
-            <mesh position={[0, 0.04, 0]} castShadow>
-              <sphereGeometry args={[0.145, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
-              <meshStandardMaterial color={HELMET} roughness={0.55} metalness={0.15} />
+            <mesh position={[0, 0.02, 0.04]} castShadow>
+              <sphereGeometry args={[0.08, 10, 10]} />
+              <meshStandardMaterial color={SKIN_SH} roughness={0.72} />
             </mesh>
-            <mesh position={[0, -0.02, 0.12]}>
-              <torusGeometry args={[0.1, 0.025, 6, 14]} />
-              <meshStandardMaterial color="#222" roughness={0.9} />
+            <mesh position={[0, 0.035, 0]} castShadow>
+              <sphereGeometry args={[0.14, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.58]} />
+              <meshStandardMaterial color={HELMET} roughness={0.5} metalness={0.2} />
             </mesh>
-            <mesh position={[0, 0.02, 0.1]} rotation={[0.15, 0, 0]}>
-              <sphereGeometry args={[0.09, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.45]} />
+            <mesh position={[0, 0.02, 0.08]} rotation={[0.2, 0, 0]}>
+              <sphereGeometry args={[0.095, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.42]} />
               <meshStandardMaterial
                 color="#1d3557"
                 transparent
-                opacity={0.35}
-                roughness={0.2}
-                metalness={0.4}
+                opacity={0.4}
+                roughness={0.15}
+                metalness={0.45}
               />
             </mesh>
+            <mesh position={[0, -0.04, 0.11]}>
+              <torusGeometry args={[0.09, 0.022, 6, 14]} />
+              <meshStandardMaterial color={HELMET_DK} roughness={0.85} />
+            </mesh>
           </group>
 
-          <group ref={thighL} position={[-0.13, 0, 0]}>
-            <mesh position={[0, -0.22, 0]} castShadow>
-              <capsuleGeometry args={[0.07, 0.28, 4, 8]} />
-              <meshStandardMaterial color={SUIT} roughness={0.82} />
+          {/* Left leg */}
+          <group ref={thighL} position={[-hipW * 0.55, -0.28, 0]}>
+            <mesh position={[0, -thighLen * 0.5, 0]} castShadow>
+              <capsuleGeometry args={[0.085, thighLen * 0.55, 6, 10]} />
+              <meshStandardMaterial color={suit} roughness={0.8} />
             </mesh>
-            <group ref={shinL} position={[0, -0.42, 0]}>
-              <mesh position={[0, -0.2, 0]} castShadow>
-                <capsuleGeometry args={[0.055, 0.26, 4, 8]} />
-                <meshStandardMaterial color={SUIT_DK} roughness={0.85} />
+            <group ref={shinL} position={[0, -thighLen, 0]}>
+              <mesh position={[0, -shinLen * 0.45, 0]} castShadow>
+                <capsuleGeometry args={[0.07, shinLen * 0.5, 6, 10]} />
+                <meshStandardMaterial color={SUIT_DK} roughness={0.82} />
               </mesh>
-              <mesh position={[0, -0.4, 0.04]} castShadow>
-                <boxGeometry args={[0.11, 0.08, 0.24]} />
-                <meshStandardMaterial color={BOOT} roughness={0.92} />
-              </mesh>
-            </group>
-          </group>
-          <group ref={armL} position={[-0.22, 0.32, 0]}>
-            <mesh position={[0, -0.16, 0]} castShadow>
-              <capsuleGeometry args={[0.05, 0.2, 4, 8]} />
-              <meshStandardMaterial color={SUIT} roughness={0.8} />
-            </mesh>
-            <group ref={foreL} position={[0, -0.32, 0]}>
-              <mesh position={[0, -0.12, 0]} castShadow>
-                <capsuleGeometry args={[0.042, 0.16, 4, 8]} />
-                <meshStandardMaterial color={SUIT} roughness={0.8} />
-              </mesh>
-              <mesh position={[0, -0.26, 0]} castShadow>
-                <sphereGeometry args={[0.055, 10, 10]} />
-                <meshStandardMaterial color={GLOVE} roughness={0.75} />
+              <mesh position={[0, -shinLen * 0.95, 0.06]} castShadow>
+                <boxGeometry args={[0.13, 0.09, 0.28]} />
+                <meshStandardMaterial color={BOOT} roughness={0.9} />
               </mesh>
             </group>
           </group>
 
-          <group ref={thighR} position={[0.13, 0, 0]}>
-            <mesh position={[0, -0.22, 0]} castShadow>
-              <capsuleGeometry args={[0.07, 0.28, 4, 8]} />
-              <meshStandardMaterial color={SUIT} roughness={0.82} />
+          {/* Right leg */}
+          <group ref={thighR} position={[hipW * 0.55, -0.28, 0]}>
+            <mesh position={[0, -thighLen * 0.5, 0]} castShadow>
+              <capsuleGeometry args={[0.085, thighLen * 0.55, 6, 10]} />
+              <meshStandardMaterial color={suit} roughness={0.8} />
             </mesh>
-            <group ref={shinR} position={[0, -0.42, 0]}>
-              <mesh position={[0, -0.2, 0]} castShadow>
-                <capsuleGeometry args={[0.055, 0.26, 4, 8]} />
-                <meshStandardMaterial color={SUIT_DK} roughness={0.85} />
+            <group ref={shinR} position={[0, -thighLen, 0]}>
+              <mesh position={[0, -shinLen * 0.45, 0]} castShadow>
+                <capsuleGeometry args={[0.07, shinLen * 0.5, 6, 10]} />
+                <meshStandardMaterial color={SUIT_DK} roughness={0.82} />
               </mesh>
-              <mesh position={[0, -0.4, 0.04]} castShadow>
-                <boxGeometry args={[0.11, 0.08, 0.24]} />
-                <meshStandardMaterial color={BOOT} roughness={0.92} />
+              <mesh position={[0, -shinLen * 0.95, 0.06]} castShadow>
+                <boxGeometry args={[0.13, 0.09, 0.28]} />
+                <meshStandardMaterial color={BOOT} roughness={0.9} />
               </mesh>
             </group>
           </group>
-          <group ref={armR} position={[0.22, 0.32, 0]}>
-            <mesh position={[0, -0.16, 0]} castShadow>
-              <capsuleGeometry args={[0.05, 0.2, 4, 8]} />
-              <meshStandardMaterial color={SUIT} roughness={0.8} />
+
+          {/* Left arm */}
+          <group ref={armL} position={[-0.26, 0.26, 0]}>
+            <mesh position={[0, -0.18, 0]} castShadow>
+              <capsuleGeometry args={[0.065, 0.22, 6, 10]} />
+              <meshStandardMaterial color={suit} roughness={0.78} />
             </mesh>
-            <group ref={foreR} position={[0, -0.32, 0]}>
-              <mesh position={[0, -0.12, 0]} castShadow>
-                <capsuleGeometry args={[0.042, 0.16, 4, 8]} />
-                <meshStandardMaterial color={SUIT} roughness={0.8} />
+            <group ref={foreL} position={[0, -0.36, 0]}>
+              <mesh position={[0, -0.14, 0]} castShadow>
+                <capsuleGeometry args={[0.055, 0.18, 6, 10]} />
+                <meshStandardMaterial color={SUIT_LT} roughness={0.78} />
               </mesh>
-              <mesh position={[0, -0.26, 0]} castShadow>
-                <sphereGeometry args={[0.055, 10, 10]} />
-                <meshStandardMaterial color={GLOVE} roughness={0.75} />
+              <mesh position={[0, -0.3, 0]} castShadow>
+                <sphereGeometry args={[0.065, 10, 10]} />
+                <meshStandardMaterial color={GLOVE} roughness={0.72} />
+              </mesh>
+            </group>
+          </group>
+
+          {/* Right arm */}
+          <group ref={armR} position={[0.26, 0.26, 0]}>
+            <mesh position={[0, -0.18, 0]} castShadow>
+              <capsuleGeometry args={[0.065, 0.22, 6, 10]} />
+              <meshStandardMaterial color={suit} roughness={0.78} />
+            </mesh>
+            <group ref={foreR} position={[0, -0.36, 0]}>
+              <mesh position={[0, -0.14, 0]} castShadow>
+                <capsuleGeometry args={[0.055, 0.18, 6, 10]} />
+                <meshStandardMaterial color={SUIT_LT} roughness={0.78} />
+              </mesh>
+              <mesh position={[0, -0.3, 0]} castShadow>
+                <sphereGeometry args={[0.065, 10, 10]} />
+                <meshStandardMaterial color={GLOVE} roughness={0.72} />
               </mesh>
             </group>
           </group>
@@ -522,6 +611,12 @@ export function AnimatedPilot({ mode, hide }: AnimatedPilotProps) {
   )
 }
 
+/** Hang-glider prone pilot — shifted so the head stays under the sail. */
 export function PilotFigure({ standing = false }: { standing?: boolean }) {
-  return <AnimatedPilot mode={standing ? 'stand' : 'prone'} />
+  if (standing) return <AnimatedPilot mode="stand" />
+  return (
+    <group position={[0, -1.45, 0.1]}>
+      <AnimatedPilot mode="prone" />
+    </group>
+  )
 }

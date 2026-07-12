@@ -6,6 +6,7 @@ import { BIOME_CONFIGS } from './biomeConfigs'
 import { FlightSimulator } from './FlightSimulator'
 import { HangGlider } from './HangGlider'
 import { ParkedGliders } from './ParkedGliders'
+import { RemotePlayer } from './RemotePlayer'
 import { BeachScene } from '../scenes/BeachScene'
 import { MountainScene } from '../scenes/MountainScene'
 import { CityScene } from '../scenes/CityScene'
@@ -47,6 +48,7 @@ export function GameCanvas() {
       <Suspense fallback={null}>
         <BiomeWorld />
         <HangGlider />
+        <RemotePlayer />
         <ParkedGliders />
         <ChallengeRings />
         <LandingZone />

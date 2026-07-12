@@ -61,10 +61,10 @@ function CloudLayers({ config }: { config: BiomeConfig }) {
 export function SharedLighting() {
   return (
     <>
-      <ambientLight intensity={0.38} color="#e8f1f8" />
+      <ambientLight intensity={0.45} color="#e8f1f8" />
       <directionalLight
         position={[140, 160, 90]}
-        intensity={2.35}
+        intensity={2.55}
         color="#fff4e0"
         castShadow
         shadow-mapSize={[2048, 2048]}
@@ -75,8 +75,8 @@ export function SharedLighting() {
         shadow-camera-bottom={-200}
         shadow-bias={-0.00025}
       />
-      <directionalLight position={[-70, 70, -40]} intensity={0.45} color="#8ecae6" />
-      <hemisphereLight args={['#9AD0EC', '#5c7a52', 0.6]} />
+      <directionalLight position={[-70, 70, -40]} intensity={0.55} color="#8ecae6" />
+      <hemisphereLight args={['#9AD0EC', '#5c7a52', 0.7]} />
     </>
   )
 }

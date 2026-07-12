@@ -7,7 +7,7 @@ import type {
 import {
   JUMP_MIN_ALTITUDE,
   MOUNT_RANGE,
-  WALK_EYE,
+  WALK_FEET,
 } from '../types/game'
 import {
   GROUND_CLEARANCE,
@@ -35,6 +35,8 @@ const CHUTE_INFLATE_TIME = 2.1
 const SWING_STIFFNESS = 5.5
 const SWING_DAMPING = 2.8
 const MAX_SWING = 0.55
+/** Body-centered airborne modes land when hips are about this above ground */
+const BODY_LAND_CLEARANCE = 1.0
 
 let swingVel = 0
 
@@ -147,7 +149,7 @@ function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
     phase: 'walking',
     position: {
       ...next.position,
-      y: groundY + WALK_EYE,
+      y: groundY + WALK_FEET,
     },
     velocity: { x: 0, y: 0, z: 0 },
     airspeed: 0,
@@ -235,11 +237,11 @@ export function tickFlight(
 
     const speedMul = next.landAction === 'dance' || next.landAction === 'wave' ? 0.55 : 1
     const speed = (input.speedUp ? WALK_SPRINT : WALK_SPEED) * speedMul
-    const onGround = next.position.y <= groundY + WALK_EYE + 0.05
+    const onGround = next.position.y <= groundY + WALK_FEET + 0.05
 
     if (onGround) {
       next.velocity.y = 0
-      next.position.y = groundY + WALK_EYE
+      next.position.y = groundY + WALK_FEET
       if (input.jump && next.landAction !== 'sit') {
         next.velocity.y = 8.5
         if (next.landAction === 'wave' || next.landAction === 'dance') next.landAction = 'none'
@@ -257,8 +259,8 @@ export function tickFlight(
     next.position.y += next.velocity.y * dt
 
     groundY = config.getHeight(next.position.x, next.position.z)
-    if (next.position.y < groundY + WALK_EYE) {
-      next.position.y = groundY + WALK_EYE
+    if (next.position.y < groundY + WALK_FEET) {
+      next.position.y = groundY + WALK_FEET
       next.velocity.y = 0
     }
     next.altitude = 0
@@ -328,13 +330,13 @@ export function tickFlight(
     next.maxAltitude = Math.max(next.maxAltitude, next.altitude)
     next.distance += Math.hypot(next.velocity.x, next.velocity.z) * dt
 
-    if (next.position.y <= groundY + WALK_EYE) {
+    if (next.position.y <= groundY + BODY_LAND_CLEARANCE) {
       const sink = Math.abs(Math.min(0, next.velocity.y))
       if (sink > 12) {
         next.phase = 'crashed'
         next.airspeed = 0
         next.velocity = { x: 0, y: 0, z: 0 }
-        next.position.y = groundY + WALK_EYE
+        next.position.y = groundY + WALK_FEET
       } else {
         next = beginWalking(next, config)
       }
@@ -401,14 +403,14 @@ export function tickFlight(
     next.altitude = Math.max(0, next.position.y - groundY)
     next.distance += next.airspeed * dt
 
-    if (next.position.y <= groundY + WALK_EYE) {
+    if (next.position.y <= groundY + BODY_LAND_CLEARANCE) {
       const sink = Math.abs(Math.min(0, next.velocity.y))
       const soft = open > 0.75 && (flare > 0 || sink < 5.5)
       if (!soft && sink > 9) {
         next.phase = 'crashed'
         next.airspeed = 0
         next.velocity = { x: 0, y: 0, z: 0 }
-        next.position.y = groundY + WALK_EYE
+        next.position.y = groundY + WALK_FEET
       } else {
         next = beginWalking(next, config)
       }

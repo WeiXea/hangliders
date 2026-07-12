@@ -114,7 +114,8 @@ export interface BiomeConfig {
 
 export const JUMP_MIN_ALTITUDE = 25
 export const MOUNT_RANGE = 6
-export const WALK_EYE = 1.95
+/** Standing pilot: physics Y is soles of the feet (+ tiny clearance) */
+export const WALK_FEET = 0.04
 
 export const INITIAL_FLIGHT: FlightState = {
   position: { x: 0, y: 0, z: 0 },

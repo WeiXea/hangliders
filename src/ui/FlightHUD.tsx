@@ -74,6 +74,8 @@ export function FlightHUD() {
   const freefall = flight.phase === 'freefall'
   const parachuting = flight.phase === 'parachuting'
   const flying = flight.phase === 'flying'
+  const peerConnected = useGameStore((s) => s.peerConnected)
+  const remoteName = useGameStore((s) => s.remoteName)
   const canLift = onGround && flight.airspeed >= 13
   const canJump = flying && flight.altitude >= JUMP_MIN_ALTITUDE
   const nearMount = nearestMountable(flight, parkedGliders)
@@ -198,7 +200,13 @@ export function FlightHUD() {
       )}
 
       {canJump && (
-        <div className={styles.nearGround}>Jump ready — tap Jump (bottom right) or press Space</div>
+        <div className={styles.nearGround}>Jump ready — tap JUMP in the center (or Space)</div>
+      )}
+
+      {peerConnected && (
+        <div className={styles.coach}>
+          Multiplayer · {remoteName || 'Friend'} is in this sky with you
+        </div>
       )}
 
       {freefall && (
