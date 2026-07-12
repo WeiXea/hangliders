@@ -237,3 +237,11 @@
   color: #ffd166;
   line-height: 1.35;
 }
+
+.roomHint {
+  margin: 6px 0 0;
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.35;
+}

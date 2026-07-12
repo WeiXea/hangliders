@@ -1,7 +1,24 @@
-import Peer, { type DataConnection } from 'peerjs'
+import { joinRoom as trysteroJoin } from '@trystero-p2p/mqtt'
+import type { Room } from '@trystero-p2p/core'
 import type { Biome, FlightState, GameMode } from '../types/game'
 
-const PREFIX = 'hangglider-room-'
+const APP_ID = 'hangglider-pwa-v1'
+
+/** Public STUN + Open Relay TURN so peers behind NATs can still connect */
+const TURN_CONFIG = [
+  {
+    urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'],
+  },
+  {
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turns:openrelay.metered.ca:443',
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+]
 
 export type NetMsg =
   | { t: 'hello'; biome: Biome; mode: GameMode; name: string }
@@ -15,56 +32,12 @@ export function makeRoomCode(): string {
   return s
 }
 
-function peerIdForCode(code: string) {
-  return PREFIX + code.trim().toUpperCase()
-}
-
-function waitPeerOpen(peer: Peer): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (!peer.destroyed && peer.open) {
-      resolve()
-      return
-    }
-    const onOpen = () => {
-      cleanup()
-      resolve()
-    }
-    const onErr = (err: Error) => {
-      cleanup()
-      reject(err)
-    }
-    const cleanup = () => {
-      peer.off('open', onOpen)
-      peer.off('error', onErr)
-    }
-    peer.on('open', onOpen)
-    peer.on('error', onErr)
-  })
-}
-
-function waitConnOpen(conn: DataConnection): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (conn.open) {
-      resolve()
-      return
-    }
-    const t = window.setTimeout(() => reject(new Error('Connection timed out')), 12000)
-    conn.on('open', () => {
-      window.clearTimeout(t)
-      resolve()
-    })
-    conn.on('error', (err) => {
-      window.clearTimeout(t)
-      reject(err)
-    })
-  })
-}
-
 export interface RoomSession {
-  peer: Peer
-  conn: DataConnection | null
+  room: Room
   code: string
   role: 'host' | 'guest'
+  connected: boolean
+  peerCount: number
   send: (msg: NetMsg) => void
   destroy: () => void
 }
@@ -73,100 +46,103 @@ type Handlers = {
   onPeerJoined?: () => void
   onMessage: (msg: NetMsg) => void
   onDisconnected?: () => void
-  onError?: (err: Error) => void
 }
 
-export async function hostRoom(code: string, handlers: Handlers): Promise<RoomSession> {
-  const peer = new Peer(peerIdForCode(code), {
-    debug: 0,
-  })
-  try {
-    await waitPeerOpen(peer)
-  } catch (e) {
-    peer.destroy()
-    throw e
+/**
+ * Host and guest both call enterRoom with the same code.
+ * MQTT signaling + TURN — more reliable than PeerJS fixed IDs.
+ */
+export async function enterRoom(
+  code: string,
+  role: 'host' | 'guest',
+  handlers: Handlers,
+): Promise<RoomSession> {
+  const roomId = code.trim().toUpperCase()
+  if (roomId.length < 4) {
+    throw new Error('Enter a 4-character room code')
   }
 
-  let conn: DataConnection | null = null
+  const room = trysteroJoin(
+    {
+      appId: APP_ID,
+      turnConfig: TURN_CONFIG,
+    },
+    `hg-${roomId}`,
+  )
+
+  const action = room.makeAction('hg')
+  action.onMessage = (data) => {
+    if (data && typeof data === 'object' && data !== null && 't' in data) {
+      handlers.onMessage(data as NetMsg)
+    }
+  }
+
   const session: RoomSession = {
-    peer,
-    conn: null,
-    code: code.toUpperCase(),
-    role: 'host',
+    room,
+    code: roomId,
+    role,
+    connected: false,
+    peerCount: 0,
     send: (msg) => {
-      if (conn?.open) conn.send(msg)
+      try {
+        action.send(JSON.parse(JSON.stringify(msg)))
+      } catch {
+        /* no peers yet */
+      }
     },
     destroy: () => {
-      conn?.close()
-      peer.destroy()
+      try {
+        room.leave()
+      } catch {
+        /* already left */
+      }
     },
   }
 
-  peer.on('connection', (c) => {
-    if (conn && conn.open) {
-      c.close()
-      return
-    }
-    conn = c
-    session.conn = c
-    c.on('data', (raw) => {
-      handlers.onMessage(raw as NetMsg)
-    })
-    c.on('close', () => {
-      conn = null
-      session.conn = null
-      handlers.onDisconnected?.()
-    })
-    c.on('open', () => {
-      handlers.onPeerJoined?.()
-    })
-  })
+  let resolvePeer: (() => void) | null = null
+  const peerPromise =
+    role === 'guest'
+      ? new Promise<void>((resolve, reject) => {
+          resolvePeer = resolve
+          window.setTimeout(() => {
+            if (!session.connected) {
+              reject(
+                new Error(
+                  'Nobody in that room — friend must Create room and stay on the home screen, then you Join',
+                ),
+              )
+            }
+          }, 20000)
+        })
+      : Promise.resolve()
 
-  peer.on('error', (err) => {
-    handlers.onError?.(err instanceof Error ? err : new Error(String(err)))
-  })
+  room.onPeerJoin = () => {
+    session.peerCount += 1
+    session.connected = true
+    handlers.onPeerJoined?.()
+    resolvePeer?.()
+    resolvePeer = null
+  }
+
+  room.onPeerLeave = () => {
+    session.peerCount = Math.max(0, session.peerCount - 1)
+    if (session.peerCount === 0) {
+      session.connected = false
+      handlers.onDisconnected?.()
+    }
+  }
+
+  if (role === 'guest') {
+    await peerPromise
+  }
 
   return session
 }
 
-export async function joinRoom(code: string, handlers: Handlers): Promise<RoomSession> {
-  const peer = new Peer({ debug: 0 })
-  try {
-    await waitPeerOpen(peer)
-  } catch (e) {
-    peer.destroy()
-    throw e
-  }
+export async function hostRoom(code: string, handlers: Handlers) {
+  return enterRoom(code, 'host', handlers)
+}
 
-  const conn = peer.connect(peerIdForCode(code), { reliable: true })
-  try {
-    await waitConnOpen(conn)
-  } catch (e) {
-    peer.destroy()
-    throw e
-  }
-
-  conn.on('data', (raw) => {
-    handlers.onMessage(raw as NetMsg)
-  })
-  conn.on('close', () => {
-    handlers.onDisconnected?.()
-  })
-  peer.on('error', (err) => {
-    handlers.onError?.(err instanceof Error ? err : new Error(String(err)))
-  })
-
-  return {
-    peer,
-    conn,
-    code: code.toUpperCase(),
-    role: 'guest',
-    send: (msg) => {
-      if (conn.open) conn.send(msg)
-    },
-    destroy: () => {
-      conn.close()
-      peer.destroy()
-    },
-  }
+export async function joinRoom(code: string, handlers: Handlers) {
+  return enterRoom(code, 'guest', handlers)
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useGameStore } from '../game/gameStore'
 import { BIOME_CONFIGS } from '../game/biomeConfigs'
 import { readStoredTiltPreference } from '../game/tilt'
-import { hostRoom, joinRoom, makeRoomCode } from '../game/netRoom'
+import { enterRoom, makeRoomCode } from '../game/netRoom'
 import { handleNetMessage, sendHello, setRoomSession } from '../game/netSync'
 import type { Biome, GameMode } from '../types/game'
 import styles from './HomeScreen.module.css'
@@ -45,34 +45,40 @@ export function HomeScreen() {
     startFlight()
   }
 
-  const onFly = async () => {
-    await prepareFlight()
-  }
+  const wireHandlers = (role: 'host' | 'guest') => ({
+    onPeerJoined: () => {
+      setRoomMeta({
+        peerConnected: true,
+        roomStatus:
+          role === 'host'
+            ? 'Friend connected — press Fly'
+            : 'Connected — launching…',
+      })
+      // Both sides introduce themselves when a peer shows up
+      window.setTimeout(() => sendHello(), 200)
+    },
+    onMessage: handleNetMessage,
+    onDisconnected: () => {
+      setRoomMeta({ peerConnected: false, roomStatus: 'Friend left the room' })
+      useGameStore.getState().setRemoteFlight(null)
+    },
+    onError: (err: Error) => {
+      setRoomMeta({ roomStatus: err.message || 'Room error' })
+    },
+  })
 
   const onCreateRoom = async () => {
     setNetBusy(true)
-    setRoomMeta({ roomStatus: 'Creating room…', peerConnected: false })
+    setRoomMeta({ roomStatus: 'Opening room…', peerConnected: false })
     try {
+      setRoomSession(null)
       const code = makeRoomCode()
-      const session = await hostRoom(code, {
-        onPeerJoined: () => {
-          setRoomMeta({ peerConnected: true, roomStatus: 'Friend connected — ready to fly' })
-          sendHello()
-        },
-        onMessage: handleNetMessage,
-        onDisconnected: () => {
-          setRoomMeta({ peerConnected: false, roomStatus: 'Friend left' })
-          useGameStore.getState().setRemoteFlight(null)
-        },
-        onError: (err) => {
-          setRoomMeta({ roomStatus: err.message || 'Room error' })
-        },
-      })
+      const session = await enterRoom(code, 'host', wireHandlers('host'))
       setRoomSession(session)
       setRoomMeta({
         roomCode: code,
         roomRole: 'host',
-        roomStatus: `Room ${code} — share this code, then Fly`,
+        roomStatus: `Room ${code} — friend joins with this code, then you both Fly`,
       })
     } catch (e) {
       setRoomMeta({
@@ -89,28 +95,20 @@ export function HomeScreen() {
   const onJoinRoom = async () => {
     const code = joinCode.trim().toUpperCase()
     if (code.length < 4) {
-      setRoomMeta({ roomStatus: 'Enter a 4-character room code' })
+      setRoomMeta({ roomStatus: 'Enter the 4-character code from your friend' })
       return
     }
     setNetBusy(true)
-    setRoomMeta({ roomStatus: `Joining ${code}…` })
+    setRoomMeta({ roomStatus: `Looking for room ${code}…` })
     try {
-      const session = await joinRoom(code, {
-        onMessage: handleNetMessage,
-        onDisconnected: () => {
-          setRoomMeta({ peerConnected: false, roomStatus: 'Disconnected from host' })
-          useGameStore.getState().setRemoteFlight(null)
-        },
-        onError: (err) => {
-          setRoomMeta({ roomStatus: err.message || 'Join error' })
-        },
-      })
+      setRoomSession(null)
+      const session = await enterRoom(code, 'guest', wireHandlers('guest'))
       setRoomSession(session)
       setRoomMeta({
         roomCode: code,
         roomRole: 'guest',
         peerConnected: true,
-        roomStatus: `Joined ${code} — fly together`,
+        roomStatus: `Joined ${code}`,
       })
       sendHello()
       await prepareFlight()
@@ -225,15 +223,18 @@ export function HomeScreen() {
           {(roomStatus || roomCode) && (
             <p className={styles.roomStatus}>
               {roomCode && roomRole === 'host' && !peerConnected
-                ? `Code ${roomCode} — waiting for friend…`
+                ? `Code ${roomCode} — keep this screen open while they Join`
                 : roomStatus}
               {peerConnected ? ' · Linked' : ''}
             </p>
           )}
+          <p className={styles.roomHint}>
+            Host creates first and stays on this page. Friend joins with the code (same Wi‑Fi helps).
+          </p>
         </div>
 
-        <button type="button" className={styles.flyBtn} onClick={onFly} disabled={netBusy}>
-          {roomRole === 'host' && !peerConnected ? 'Fly solo / wait' : 'Fly'}
+        <button type="button" className={styles.flyBtn} onClick={prepareFlight} disabled={netBusy}>
+          {roomRole === 'host' && !peerConnected ? 'Fly (solo or wait)' : 'Fly'}
         </button>
         <p className={styles.controlsHint}>
           {tiltEnabled

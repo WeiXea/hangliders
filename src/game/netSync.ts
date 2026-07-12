@@ -23,11 +23,14 @@ export function handleNetMessage(msg: NetMsg) {
 }
 
 export function tickNetSync(dt: number) {
-  if (!session?.conn?.open) return
+  if (!session) return
+  const { flight, playerName, peerConnected, roomRole } = useGameStore.getState()
+  if (roomRole === 'solo') return
+  if (!peerConnected && !session.connected) return
+
   syncAcc += dt
   if (syncAcc < 0.12) return
   syncAcc = 0
-  const { flight, playerName } = useGameStore.getState()
   session.send({ t: 'state', flight, name: playerName })
 }
 
