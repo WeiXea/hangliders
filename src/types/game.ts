@@ -126,7 +126,7 @@ export interface BiomeConfig {
 export const JUMP_MIN_ALTITUDE = 15
 export const MOUNT_RANGE = 6
 /** Standing pilots can hug / high-five within this range */
-export const SOCIAL_RANGE = 3.4
+export const SOCIAL_RANGE = 5.5
 /** Must be this close to form a tandem pair */
 export const TANDEM_RANGE = 18
 /** Standing pilot: physics Y is soles of the feet (+ tiny clearance) */
