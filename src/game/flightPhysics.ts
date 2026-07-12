@@ -498,6 +498,8 @@ export function tickFlight(
     parked = parkMountedGlider(next, parked)
     next.phase = 'freefall'
     next.mountedId = -1
+    next.tandemRole = 'none'
+    next.tandemWant = false
     next.chuteDeployed = false
     next.chuteInflation = 0
     next.chuteSwing = 0
