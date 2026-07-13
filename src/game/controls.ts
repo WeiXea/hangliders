@@ -232,12 +232,13 @@ export function useKeyboardControls() {
         }
       }
 
-      // When tilt owns steering, skip keyboard pitch/bank (walk still uses WASD)
+      // When tilt owns steering, skip keyboard pitch/bank (ground / drive / heli use keys)
       const phase = useGameStore.getState().flight.phase
       if (
         tiltEnabled &&
         phase !== 'walking' &&
         phase !== 'driving' &&
+        phase !== 'helicopter' &&
         phase !== 'freefall' &&
         phase !== 'parachuting'
       ) {
@@ -280,7 +281,13 @@ export function useKeyboardControls() {
           }
         }
         const phase = useGameStore.getState().flight.phase
-        if (phase !== 'walking' && phase !== 'freefall' && phase !== 'parachuting') {
+        if (
+          phase !== 'walking' &&
+          phase !== 'driving' &&
+          phase !== 'helicopter' &&
+          phase !== 'freefall' &&
+          phase !== 'parachuting'
+        ) {
           return
         }
       }
@@ -366,6 +373,17 @@ export function useTiltControls() {
     const applySample = (raw: { bank: number; pitch: number }) => {
       setLatestTiltSample(raw)
       const store = useGameStore.getState()
+      const phase = store.flight.phase
+      // Keyboard / pads own these modes — don't clobber arrow keys
+      if (
+        phase === 'walking' ||
+        phase === 'driving' ||
+        phase === 'helicopter' ||
+        phase === 'freefall' ||
+        phase === 'parachuting'
+      ) {
+        return
+      }
       let offset = store.tiltCalibration
       if (!offset) {
         offset = { bank: raw.bank, pitch: raw.pitch }

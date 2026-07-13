@@ -598,14 +598,16 @@ export function tickFlight(
     const brake = vehicleBrake(kind)
     next.stallWarning = false
 
-    // Speed-sensitive steering — snappy at crawl, heavy at speed
-    const steerScale = 1.15 / (1 + Math.abs(next.airspeed) * 0.11)
+    // Speed-sensitive steering — snappy at crawl, heavier at speed
+    const steerScale = 1.35 / (1 + Math.abs(next.airspeed) * 0.09)
     const steerInput = (input.bankLeft ? 1 : 0) + (input.bankRight ? -1 : 0)
-    if (Math.abs(next.airspeed) > 0.4) {
-      next.yaw += steerInput * steerScale * Math.sign(next.airspeed || 1) * dt
-    } else if (steerInput !== 0 && Math.abs(next.airspeed) < 0.35) {
-      // Creep-turn while almost stopped
-      next.yaw += steerInput * 0.85 * dt
+    if (steerInput !== 0) {
+      if (Math.abs(next.airspeed) > 0.25) {
+        next.yaw += steerInput * steerScale * Math.sign(next.airspeed) * dt
+      } else {
+        // Creep-turn / pivot while nearly stopped
+        next.yaw += steerInput * 1.4 * dt
+      }
     }
 
     const gas = input.pitchDown || input.speedUp
