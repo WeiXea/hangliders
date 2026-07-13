@@ -27,7 +27,6 @@ import {
   pickCityLaunchPad,
   getBuildingById,
   buildingRoofY,
-  buildingDepth,
 } from './cityBuildings'
 import {
   isTiltSupported,
@@ -267,16 +266,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
         cityLaunchPadId = pad.id
         cityLaunchLabel = pad.label
         const roofY = buildingRoofY(building, config.getHeight)
-        // Start near the downwind edge so the run clears the facade
-        const edge = Math.min(building.width, buildingDepth(building)) * 0.32
+        // Center of the pad — ground-roll sticks to rooftop support
         flight = {
           ...flight,
           position: {
-            x: building.x + Math.sin(pad.yaw) * edge,
-            y: roofY + GLIDER_REST_CLEARANCE + 0.15,
-            z: building.z + Math.cos(pad.yaw) * edge,
+            x: building.x,
+            y: roofY + GLIDER_REST_CLEARANCE,
+            z: building.z,
           },
           yaw: pad.yaw,
+          altitude: 0,
         }
       }
     }

@@ -186,7 +186,7 @@ function parkMountedGlider(
 }
 
 function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
-  const groundY = config.getHeight(next.position.x, next.position.z)
+  const groundY = supportY(config, next.position.x, next.position.z).y
   return {
     ...next,
     phase: 'landed',
@@ -562,6 +562,7 @@ export function tickFlight(
   // --- Ground roll / takeoff ---
   if (next.phase === 'grounded' || next.phase === 'running') {
     next.phase = 'running'
+    const deckY = groundY
 
     if (input.speedUp || input.takeOff) {
       next.airspeed = Math.min(MAX_AIRSPEED, next.airspeed + 14 * dt)
@@ -581,7 +582,28 @@ export function tickFlight(
     const spd = next.airspeed
     next.position.x += Math.sin(next.yaw) * spd * dt
     next.position.z += Math.cos(next.yaw) * spd * dt
-    groundY = config.getHeight(next.position.x, next.position.z)
+    // Roofs count as ground in city — never snap to street through a building
+    support = supportY(config, next.position.x, next.position.z)
+    groundY = support.y
+
+    // Ran off a rooftop / ledge while still rolling
+    if (deckY - groundY > 2.5) {
+      next.phase = 'flying'
+      next.airspeed = Math.max(spd, CRUISE * 0.85)
+      next.pitch = -0.08
+      pitchVel = -0.1
+      rollVel = 0
+      next.position.y = deckY + GLIDER_REST_CLEARANCE
+      next.altitude = Math.max(0, next.position.y - groundY)
+      next.velocity = {
+        x: Math.sin(next.yaw) * next.airspeed,
+        y: -1.2,
+        z: Math.cos(next.yaw) * next.airspeed,
+      }
+      next.airtime = 0
+      return { flight: collideWorld(next, config), parked }
+    }
+
     next.position.y = groundY + GLIDER_REST_CLEARANCE
     next.altitude = 0
     next.roll = 0
