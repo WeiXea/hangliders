@@ -1,24 +1,44 @@
 import type { BiomeConfig } from '../types/game'
 
-/** Longer-wavelength terrain for a ~2× world with finer local detail */
+/** Coastal cliffs: land stays above sea inland; soft shelf only on the seaward side (high z). */
+const SEA_LEVEL = 0.15
+const SHORE_Z = 280
+
 function beachHeight(x: number, z: number): number {
   const cliff = Math.max(0, Math.sin((x + 90) * 0.018) * 32 + Math.cos(z * 0.01) * 12)
   const dunes = Math.sin(x * 0.055) * Math.cos(z * 0.042) * 7
   const duneRidges = Math.max(0, Math.sin(x * 0.09 + z * 0.05) - 0.35) * 4.5
   const ripples = Math.sin(x * 0.28) * Math.cos(z * 0.22) * 0.85
   const terrace = Math.floor(Math.max(0, cliff) / 6) * 0.85
-  // Soft shore shelf toward the sea (high z)
-  const shore = z > 60 ? Math.max(0, 1 - (z - 60) / 80) * 2.5 : 0
-  const beachFlat = z > 55 ? Math.sin(x * 0.08) * 0.4 - shore * 0.6 : 0
   const farDune = Math.sin(x * 0.018 + z * 0.014) * 5
   const rockOutcrop =
     Math.max(0, Math.sin(x * 0.085 + 2) * Math.cos(z * 0.075 - 1) - 0.65) * 8
   const wash =
     Math.max(0, Math.sin(x * 0.15) * Math.cos(z * 0.12) - 0.55) * 2.2
-  return Math.max(
-    0,
-    cliff * 0.85 + dunes + duneRidges + ripples + terrace + beachFlat + farDune + rockOutcrop + wash,
-  )
+
+  let h =
+    cliff * 0.85 + dunes + duneRidges + ripples + terrace + farDune + rockOutcrop + wash
+
+  // Inland floor — never let valleys dip under the ocean plane
+  if (z < SHORE_Z - 40) {
+    h = Math.max(h, 3.2 + Math.abs(Math.sin(x * 0.03)) * 1.5)
+  } else {
+    // Soft beach shelf into the sea (z → SHORE_Z+)
+    const t = Math.max(0, Math.min(1, (z - (SHORE_Z - 40)) / 90))
+    const beach = 1.4 * (1 - t) + SEA_LEVEL * t
+    h = Math.max(SEA_LEVEL, lerp(Math.max(h, 2.5), beach, t * t))
+    // Past the shore: underwater shelf for a real coastline
+    if (z > SHORE_Z + 30) {
+      const deep = Math.min(1, (z - SHORE_Z - 30) / 200)
+      h = SEA_LEVEL - deep * 8
+    }
+  }
+
+  return h
+}
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t
 }
 
 function mountainHeight(x: number, z: number): number {

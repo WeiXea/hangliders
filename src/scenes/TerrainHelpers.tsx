@@ -21,15 +21,15 @@ function sampleColor(biome: Biome, h: number, slope: number, x: number, z: numbe
 
   if (biome === 'beach') {
     // Shore → dunes → scrub → cliff rock — strong spatial breaks
-    if (h < 0.8 || (z > 70 && h < 2.2)) c.set('#f7e9c8')
-    else if (h < 3.5) c.set('#e8d4a0')
+    if (h < 0.5) c.set('#1d3557')
+    else if (h < 1.6 || z > 250) c.set('#f7e9c8')
+    else if (h < 4) c.set('#e8d4a0')
     else if (h < 7 + n * 2) c.set(n > 0.15 ? '#c4a35a' : '#d4b978')
     else if (h < 12 + n * 3) c.set(n > 0 ? '#6a994e' : '#8ab17d')
     else if (slope > 0.35) c.set('#7a6c5d')
     else c.set('#4a7c59')
     if (slope > 0.55) c.lerp(new THREE.Color('#5c5346'), 0.65)
-    if (z > 90 && h < 1.8) c.lerp(new THREE.Color('#7ec8e3'), 0.4)
-    // Patchy scrub / rock outcrops
+    if (z > 240 && h < 2.5) c.lerp(new THREE.Color('#7ec8e3'), 0.35)
     if (n > 0.55 && h > 8) c.lerp(new THREE.Color('#6b705c'), 0.45)
     if (n < -0.5 && h > 4 && h < 10) c.lerp(new THREE.Color('#a3b18a'), 0.35)
   } else if (biome === 'mountains') {
@@ -109,10 +109,9 @@ const oceanVert = /* glsl */ `
   void main() {
     vUv = uv;
     vec3 pos = position;
-    // Gentle waves — keep amplitude low to avoid terrain z-fighting
-    float wave = sin(pos.x * 0.045 + uTime * 0.55) * 0.12
-               + sin(pos.y * 0.035 + uTime * 0.4) * 0.08
-               + sin((pos.x + pos.y) * 0.02 + uTime * 0.3) * 0.06;
+    float wave = sin(pos.x * 0.028 + uTime * 0.45) * 0.18
+               + sin(pos.y * 0.022 + uTime * 0.32) * 0.12
+               + sin((pos.x + pos.y) * 0.015 + uTime * 0.25) * 0.08;
     pos.z += wave;
     vElevation = wave;
     vec4 wp = modelMatrix * vec4(pos, 1.0);
@@ -124,37 +123,44 @@ const oceanVert = /* glsl */ `
 const oceanFrag = /* glsl */ `
   varying float vElevation;
   varying vec3 vWorldPos;
+  varying vec2 vUv;
   uniform float uTime;
   uniform vec3 uDeep;
   uniform vec3 uShallow;
   uniform vec3 uSunDir;
   void main() {
     vec3 n = normalize(vec3(
-      -cos(vWorldPos.x * 0.05 + uTime * 0.15) * 0.25,
+      -cos(vWorldPos.x * 0.035 + uTime * 0.12) * 0.35,
       1.0,
-      -cos(vWorldPos.z * 0.04 + uTime * 0.12) * 0.25
+      -cos(vWorldPos.z * 0.03 + uTime * 0.1) * 0.35
     ));
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
-    float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 2.6);
-    float depth = smoothstep(-0.4, 0.5, vElevation);
-    vec3 col = mix(uDeep, uShallow, depth * 0.35 + fresnel * 0.35);
-    float spec = pow(max(dot(reflect(-viewDir, n), uSunDir), 0.0), 90.0);
-    col += vec3(1.0) * spec * 0.35;
-    col += vec3(0.7, 0.85, 1.0) * fresnel * 0.2;
-    float foam = smoothstep(0.25, 0.55, vElevation) * 0.25;
-    col = mix(col, vec3(0.9, 0.95, 1.0), foam);
-    gl_FragColor = vec4(col, 1.0);
+    float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 2.4);
+    float depthTint = smoothstep(0.0, 1.0, abs(vWorldPos.z) * 0.0015);
+    vec3 col = mix(uShallow, uDeep, 0.35 + depthTint * 0.45);
+    col = mix(col, uShallow, fresnel * 0.4);
+    float spec = pow(max(dot(reflect(-viewDir, n), uSunDir), 0.0), 64.0);
+    col += vec3(0.85, 0.92, 1.0) * spec * 0.45;
+    float foam = smoothstep(0.12, 0.28, vElevation) * 0.2;
+    col = mix(col, vec3(0.92, 0.96, 1.0), foam);
+    // Soft alpha so close shore reads as water, not a hard cyan slab
+    float alpha = 0.88 + fresnel * 0.1;
+    gl_FragColor = vec4(col, alpha);
   }
 `
 
+/**
+ * Coastal ocean — fixed seaward plane (does not cut through inland hills).
+ * followPlayer only tracks X so the horizon stays filled while flying along the coast.
+ */
 export function OceanSurface({
-  y = -0.55,
-  scale = [6000, 6000] as [number, number],
-  deep = '#012a4a',
-  shallow = '#48cae4',
-  position = [0, 0, 0] as [number, number, number],
-  /** When true, ocean XZ tracks the player so the sea never ends */
-  followPlayer = true,
+  y = -0.35,
+  scale = [5000, 2200] as [number, number],
+  deep = '#023e8a',
+  shallow = '#4cc9f0',
+  position = [0, 0, 1100] as [number, number, number],
+  followPlayer = false,
+  followAxis = 'x' as 'x' | 'xz' | 'none',
 }: {
   y?: number
   scale?: [number, number]
@@ -162,6 +168,7 @@ export function OceanSurface({
   shallow?: string
   position?: [number, number, number]
   followPlayer?: boolean
+  followAxis?: 'x' | 'xz' | 'none'
 }) {
   const meshRef = useRef<THREE.Mesh>(null)
   const matRef = useRef<THREE.ShaderMaterial>(null)
@@ -175,14 +182,21 @@ export function OceanSurface({
     [deep, shallow],
   )
 
+  const track = followPlayer ? 'xz' : followAxis
+
   useFrame(({ clock }) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = clock.getElapsedTime()
-    if (!followPlayer || !meshRef.current) return
-    // Snap to 40 m grid so waves don't crawl under the camera
+    if (track === 'none' || !meshRef.current) return
     const { flight } = useGameStore.getState()
-    const snap = 40
-    meshRef.current.position.x = Math.round(flight.position.x / snap) * snap + position[0]
-    meshRef.current.position.z = Math.round(flight.position.z / snap) * snap + position[2]
+    const snap = 50
+    if (track === 'x' || track === 'xz') {
+      meshRef.current.position.x = Math.round(flight.position.x / snap) * snap + position[0]
+    }
+    if (track === 'xz') {
+      meshRef.current.position.z = Math.round(flight.position.z / snap) * snap + position[2]
+    } else {
+      meshRef.current.position.z = position[2]
+    }
     meshRef.current.position.y = y
   })
 
@@ -192,18 +206,16 @@ export function OceanSurface({
       rotation={[-Math.PI / 2, 0, 0]}
       position={[position[0], y, position[2]]}
       receiveShadow
-      renderOrder={-2}
+      renderOrder={-1}
     >
-      <planeGeometry args={[scale[0], scale[1], 64, 48]} />
+      <planeGeometry args={[scale[0], scale[1], 96, 64]} />
       <shaderMaterial
         ref={matRef}
         uniforms={uniforms}
         vertexShader={oceanVert}
         fragmentShader={oceanFrag}
-        depthWrite
-        polygonOffset
-        polygonOffsetFactor={-2}
-        polygonOffsetUnits={-2}
+        transparent
+        depthWrite={false}
         side={THREE.FrontSide}
       />
     </mesh>

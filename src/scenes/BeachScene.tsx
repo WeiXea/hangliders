@@ -200,7 +200,24 @@ export function BeachScene({ config }: BeachSceneProps) {
       <SharedLighting config={config} />
       <DetailedTerrain config={config} biome="beach" size={2800} segments={220} />
       <HorizonRing color="#c9a227" y={-1} />
-      <OceanSurface y={-0.55} />
+      {/* Fixed seaward ocean — tracks X along the coast, never under inland hills */}
+      <OceanSurface
+        y={-0.2}
+        scale={[5600, 2400]}
+        position={[0, 0, 1200]}
+        followAxis="x"
+        deep="#012a4a"
+        shallow="#48cae4"
+      />
+      {/* Far horizon fill so the sea doesn't end at the fog line */}
+      <OceanSurface
+        y={-0.45}
+        scale={[8000, 3200]}
+        position={[0, 0, 2200]}
+        followAxis="x"
+        deep="#001d3d"
+        shallow="#0077b6"
+      />
       <LaunchRamp config={config} />
       {/* Cliff faces west of the launch plateau — match thin collision sheets */}
       <CliffFace position={[-78, 10, -10]} size={[8, 24, 55]} rotation={0.18} />
