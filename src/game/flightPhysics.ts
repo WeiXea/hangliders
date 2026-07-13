@@ -634,85 +634,85 @@ export function tickFlight(
   // Weight-shift lite: input applies torque; rates damp toward trim
   const pitchCmd = (input.pitchUp ? 1 : 0) - (input.pitchDown ? 1 : 0)
   const rollCmd = (input.bankLeft ? 1 : 0) - (input.bankRight ? 1 : 0)
-  // Slight nose-up trim so hands-off / gentle ↑ floats instead of diving
-  const trimPitch = input.pitchUp ? 0.12 : input.pitchDown ? -0.08 : 0.02
-  const pitchSpring = input.pitchUp ? 2.2 : 1.4
+
+  // High up: hands-off trims slightly nose-up so you float; low: normal cruise trim
+  const altFloat = smoothstep((next.altitude - 35) / 100) // 0 near ground → 1 above ~135 m
+  const handsOffTrim = lerp(0.04, 0.1, altFloat)
+  const trimPitch = input.pitchUp ? 0.14 : input.pitchDown ? -0.1 : handsOffTrim
+  // Soft return to trim when releasing — don't snap into a dive
+  const pitchSpring = input.pitchUp || input.pitchDown ? 2.0 : lerp(1.1, 0.55, altFloat)
   pitchVel +=
-    (pitchCmd * PITCH_TORQUE * 0.85 - (next.pitch - trimPitch) * pitchSpring - pitchVel * (PITCH_DAMP + 0.8)) *
+    (pitchCmd * PITCH_TORQUE * 0.8 - (next.pitch - trimPitch) * pitchSpring - pitchVel * (PITCH_DAMP + 1.0)) *
     dt
-  rollVel += (rollCmd * ROLL_TORQUE - next.roll * 1.35 - rollVel * (ROLL_DAMP + 0.4)) * dt
-  pitchVel = Math.max(-1.6, Math.min(1.6, pitchVel))
-  rollVel = Math.max(-2.2, Math.min(2.2, rollVel))
+  rollVel += (rollCmd * ROLL_TORQUE - next.roll * 1.35 - rollVel * (ROLL_DAMP + 0.5)) * dt
+  pitchVel = Math.max(-1.4, Math.min(1.4, pitchVel))
+  rollVel = Math.max(-2.0, Math.min(2.0, rollVel))
   next.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, next.pitch + pitchVel * dt))
   next.roll = Math.max(-MAX_ROLL, Math.min(MAX_ROLL, next.roll + rollVel * dt))
 
   // Speed bar: hold a floatable cruise band when not accelerating.
-  // Nose-up must NOT bleed into stall — that's what made climb without speed unstable.
   const FLOAT_SPEED = 10.5
   if (input.speedUp) {
     next.airspeed = Math.min(MAX_AIRSPEED, next.airspeed + 10 * dt)
   } else if (input.speedDown) {
     next.airspeed = Math.max(MIN_AIRSPEED, next.airspeed - 10 * dt)
   } else if (input.pitchUp) {
-    // Cruise / float: settle near best-glide, stay well above stall
     const target = Math.max(FLOAT_SPEED, CRUISE - 1.2)
     next.airspeed += (target - next.airspeed) * Math.min(1, 1.6 * dt)
   } else {
-    const pitchBleed = Math.max(-2.5, Math.min(2.5, next.pitch * 4))
-    const target = Math.min(
-      MAX_AIRSPEED,
-      Math.max(FLOAT_SPEED, CRUISE - pitchBleed),
-    )
-    next.airspeed += (target - next.airspeed) * Math.min(1, 1.5 * dt)
+    // Hands-off: settle on best-glide / cruise — stable float speed
+    const target = lerp(CRUISE, FLOAT_SPEED + 0.8, altFloat * 0.35)
+    next.airspeed += (target - next.airspeed) * Math.min(1, 1.2 * dt)
   }
 
   const wind = sampleAtmosphere(config, time, next.position)
-  next.yaw += next.roll * 0.85 * dt
+  next.yaw += next.roll * 0.75 * dt
 
-  // AoA ≈ pitch vs flight path — flavors sink / deep-stall only (speed stays arcade)
   const pathPitch = Math.asin(
     Math.max(-1, Math.min(1, next.velocity.y / Math.max(8, next.airspeed))),
   )
   const aoa = next.pitch - pathPitch + 0.08
   const { cl, stallSeverity } = liftCoeff(aoa)
   const speedStall = next.airspeed < STALL
-  const aoaStall = stallSeverity > 0.55 && !input.pitchUp
+  const handsOff = !input.pitchUp && !input.pitchDown
+  const aoaStall = stallSeverity > 0.55 && !input.pitchUp && !(handsOff && altFloat > 0.4)
   next.stallWarning = speedStall || aoaStall
 
   const speed = next.airspeed
   const fx = Math.sin(next.yaw) * Math.cos(next.pitch)
   const fz = Math.cos(next.yaw) * Math.cos(next.pitch)
 
-  // Smooth thermal / ridge lift so climb doesn't telegraph as shake
   const liftK = 1 - Math.exp(-3.2 * dt)
   smoothLift += (wind.y - smoothLift) * liftK
 
-  // Base sink ~1.35 m/s; better Cl → slightly less sink; thermals/ridge via smoothed lift
   const ldSink = BASE_SINK * (1.12 - Math.min(0.3, cl * 0.2))
   const ge = groundEffectFactor(next.altitude)
-  let vy = next.pitch * speed * 0.85 - ldSink * ge + smoothLift
+  let vy = next.pitch * speed * 0.75 - ldSink * ge + smoothLift
 
   if (input.pitchDown) {
     vy -= 4.5 + Math.abs(next.pitch) * 6
   } else if (input.pitchUp) {
-    // Gentle sustained climb / float — not a kick that overshoots then stalls
     const thermalHelp = Math.max(0, smoothLift) * 0.35
     vy += 1.4 + next.pitch * 1.8 + thermalHelp
-    // Cap climb so float feels stable instead of yo-yo
     vy = Math.min(vy, 4.5 + Math.max(0, smoothLift) * 0.6)
   } else {
-    // Hands-off cruise: near-level float with mild sink unless in lift
-    vy = lerp(vy, -0.55 + smoothLift * 0.9, 0.35)
+    // Hands-off float: slow natural sink high up; closer to normal sink near ground
+    // ~ -0.2 m/s at altitude, ~ -1.15 m/s low — plus any thermal lift
+    const floatSink = lerp(-1.15, -0.22, altFloat)
+    const targetVy = floatSink + smoothLift * 1.05 + next.pitch * speed * 0.25
+    // Ease in — releasing climb blends into float instead of dropping
+    const ease = 1 - Math.exp(-(0.9 + altFloat * 0.7) * dt)
+    vy = lerp(vy, targetVy, ease)
   }
 
-  if (speedStall && !input.pitchUp) vy -= 5
-  else if (aoaStall) vy -= 2 + stallSeverity * 2
+  // Don't punish a clean high-altitude glide with stall dumps
+  if (speedStall && !input.pitchUp && altFloat < 0.5) vy -= 4
+  else if (aoaStall) vy -= 1.5 + stallSeverity * 1.5
 
   next.velocity.x = fx * speed + wind.x * 0.55
   next.velocity.y = vy
   next.velocity.z = fz * speed + wind.z * 0.55
 
-  // Track climb / time in lift for results + challenge score
   if (next.velocity.y > next.maxClimbRate) {
     next.maxClimbRate = next.velocity.y
   }
@@ -721,9 +721,8 @@ export function tickFlight(
     next.timeInLift += dt
   }
 
-  // Wing-drop only in deep unintended stall — not while holding float/climb
-  if (aoaStall && stallSeverity > 0.75) {
-    next.roll += (Math.sin(time * 2.2) > 0 ? 1 : -1) * stallSeverity * 0.2 * dt
+  if (aoaStall && stallSeverity > 0.8 && altFloat < 0.35) {
+    next.roll += (Math.sin(time * 2.2) > 0 ? 1 : -1) * stallSeverity * 0.15 * dt
     next.roll = Math.max(-MAX_ROLL, Math.min(MAX_ROLL, next.roll))
   }
 
