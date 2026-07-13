@@ -28,6 +28,8 @@ import {
   vehicleAccel,
   vehicleBrake,
   resolveDriveCollisions,
+  leaveVehicleInWorld,
+  getTrafficSnapshots,
 } from './trafficRegistry'
 import { playCrashImpact, playWhoosh } from './audio'
 import { liftCoeff, groundEffectFactor } from './aero'
@@ -696,11 +698,18 @@ export function tickFlight(
       Math.abs(next.airspeed) < 1.6 &&
       (input.interact || input.land || input.jump)
     ) {
+      const leaveX = next.position.x
+      const leaveZ = next.position.z
+      const leaveYaw = next.yaw
+      const leaveId = next.vehicleId
+      const leaveKind = kind
+      const leaveColor = getTrafficSnapshots().find((v) => v.id === leaveId)?.color
+      leaveVehicleInWorld(leaveId, leaveKind, leaveX, leaveZ, leaveYaw, leaveColor)
       setTakenVehicleId(-1)
-      const exitYaw = next.yaw + Math.PI * 0.5
+      const exitYaw = leaveYaw + Math.PI * 0.5
       next = beginWalking(next, config)
-      next.position.x += Math.sin(exitYaw) * 2.4
-      next.position.z += Math.cos(exitYaw) * 2.4
+      next.position.x = leaveX + Math.sin(exitYaw) * 2.4
+      next.position.z = leaveZ + Math.cos(exitYaw) * 2.4
       next.position.y = supportY(config, next.position.x, next.position.z).y + WALK_FEET
       return { flight: next, parked }
     }

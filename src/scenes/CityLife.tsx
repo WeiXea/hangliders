@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from '../game/gameStore'
@@ -11,11 +11,12 @@ import {
 } from '../game/cityBuildings'
 import {
   setMovingTraffic,
-  PARKED_VEHICLES,
   setParkedTraffic,
   pedInVehiclePath,
   consumeNpcVehicleHit,
   vehicleRadius,
+  getLiveParkedVehicles,
+  isLaneClaimed,
 } from '../game/trafficRegistry'
 
 export type VehicleKind = 'car' | 'bus' | 'police' | 'fire' | 'taxi'
@@ -291,7 +292,7 @@ function TrafficLayer() {
     const pedZ = flight.position.z
 
     const targets = LANES.map((lane, i) => {
-      if (drivenId === i || remoteDriven === i) return 0
+      if (drivenId === i || remoteDriven === i || isLaneClaimed(i)) return 0
       const sim = sims.current[i]!
       if (sim.stun > 0) {
         sim.stun = Math.max(0, sim.stun - dt)
@@ -357,6 +358,12 @@ function TrafficLayer() {
       const lane = LANES[i]
       const sim = sims.current[i]
       if (!lane || !sim) return
+
+      if (isLaneClaimed(i)) {
+        // Owned by the parked / abandoned layer now
+        child.visible = false
+        return
+      }
 
       if (drivenId === i || remoteDriven === i) {
         child.visible = false
@@ -473,7 +480,7 @@ function TrafficLayer() {
     }
 
     // Parked cars are also solid to NPCs
-    for (const p of PARKED_VEHICLES) {
+    for (const p of getLiveParkedVehicles()) {
       if (drivenId === p.id || remoteDriven === p.id) continue
       const pr = vehicleRadius(p.kind)
       for (const pose of poses) {
@@ -525,15 +532,27 @@ function TrafficLayer() {
 function ParkedCarsLayer() {
   const group = useRef<THREE.Group>(null)
   const getHeight = BIOME_CONFIGS.city.getHeight
+  const [parkedList, setParkedList] = useState(() =>
+    getLiveParkedVehicles().map((p) => ({ ...p })),
+  )
 
   useFrame(() => {
     if (!group.current) return
+    const live = getLiveParkedVehicles()
+    if (
+      live.length !== parkedList.length ||
+      live.some((p, i) => p.id !== parkedList[i]?.id)
+    ) {
+      setParkedList(live.map((p) => ({ ...p })))
+      return
+    }
+
     const flight = useGameStore.getState().flight
     const remote = useGameStore.getState().remoteFlight
     const drivenId = flight.phase === 'driving' ? flight.vehicleId : -1
     const remoteDriven = remote?.phase === 'driving' ? remote.vehicleId : -1
 
-    const snaps = PARKED_VEHICLES.map((spot, i) => {
+    const snaps = live.map((spot, i) => {
       const child = group.current!.children[i]
       const isLocal = drivenId === spot.id
       const isRemote = remoteDriven === spot.id
@@ -578,7 +597,7 @@ function ParkedCarsLayer() {
 
   return (
     <group ref={group}>
-      {PARKED_VEHICLES.map((p) => (
+      {parkedList.map((p) => (
         <group key={p.id}>
           <VehicleMesh kind={p.kind} color={p.color} />
           <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>

@@ -7,7 +7,8 @@ import { tickNetSync } from './netSync'
 import { bearingTo, horizontalDist } from './multiplayerSocial'
 import { resolveTandem } from './tandem'
 import { applyPulses, clearPulses } from './actionPulses'
-import { tickVario, tickFootsteps, noteInteractPress } from './audio'
+import { tickVario, tickFootsteps, noteInteractPress, tickVehicleEngine } from './audio'
+import { vehicleMaxSpeed } from './trafficRegistry'
 import { thermalHint } from './atmosphere'
 import type { InputState } from '../types/game'
 
@@ -183,6 +184,12 @@ export function FlightSimulator() {
     const surface =
       store.biome === 'city' ? 'city' : store.biome === 'mountains' ? 'grass' : 'sand'
     tickFootsteps(flight.airspeed, flight.phase, sprint, surface)
+    tickVehicleEngine(
+      flight.phase,
+      flight.airspeed,
+      flight.phase === 'driving' ? flight.vehicleKind : null,
+      flight.vehicleKind ? vehicleMaxSpeed(flight.vehicleKind) : 15,
+    )
     noteInteractPress(frameInput.interact)
     // Hold one-shot pulses until a fixed step actually consumes them
     if (steps > 0) finishInput(frameInput)

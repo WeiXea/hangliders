@@ -335,6 +335,100 @@ export function noteInteractPress(pressed: boolean) {
   lastInteract = pressed
 }
 
+/* --- Vehicle engine loop --- */
+let engineOsc: OscillatorNode | null = null
+let engineGain: GainNode | null = null
+let engineFilter: BiquadFilterNode | null = null
+let engineNoise: AudioBufferSourceNode | null = null
+let engineNoiseGain: GainNode | null = null
+let engineStarted = false
+
+function ensureEngine() {
+  const ac = getCtx()
+  if (engineStarted && engineOsc && engineGain) return ac
+
+  engineOsc = ac.createOscillator()
+  engineOsc.type = 'sawtooth'
+  engineOsc.frequency.value = 80
+
+  engineFilter = ac.createBiquadFilter()
+  engineFilter.type = 'lowpass'
+  engineFilter.frequency.value = 420
+  engineFilter.Q.value = 0.8
+
+  engineGain = ac.createGain()
+  engineGain.gain.value = 0.0001
+
+  engineOsc.connect(engineFilter)
+  engineFilter.connect(engineGain)
+  engineGain.connect(ac.destination)
+  engineOsc.start()
+
+  // Soft grit / tire layer
+  const nb = ac.createBuffer(1, Math.floor(ac.sampleRate * 1.2), ac.sampleRate)
+  const data = nb.getChannelData(0)
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.35
+  engineNoise = ac.createBufferSource()
+  engineNoise.buffer = nb
+  engineNoise.loop = true
+  const nf = ac.createBiquadFilter()
+  nf.type = 'bandpass'
+  nf.frequency.value = 280
+  nf.Q.value = 0.6
+  engineNoiseGain = ac.createGain()
+  engineNoiseGain.gain.value = 0.0001
+  engineNoise.connect(nf)
+  nf.connect(engineNoiseGain)
+  engineNoiseGain.connect(ac.destination)
+  engineNoise.start()
+
+  engineStarted = true
+  return ac
+}
+
+import { vehicleEngineProfile } from './trafficRegistry'
+
+/** Idle–to–rev engine bed while driving. Pass null kind to stop. */
+export function tickVehicleEngine(
+  phase: string,
+  speed: number,
+  kind: string | null,
+  maxSpeed = 15,
+) {
+  if (phase !== 'driving' || !kind) {
+    stopVehicleEngine()
+    return
+  }
+  const ac = ensureEngine()
+  if (ac.state === 'suspended') void ac.resume()
+  if (!engineOsc || !engineGain || !engineFilter || !engineNoiseGain) return
+
+  const profile = vehicleEngineProfile(
+    kind as 'car' | 'bus' | 'police' | 'fire' | 'taxi',
+  )
+
+  const t = Math.min(1, Math.abs(speed) / Math.max(1, maxSpeed))
+  const hz = profile.idle + (profile.high - profile.idle) * (0.15 + t * 0.85)
+  const vol = profile.vol * (0.35 + t * 0.65)
+  const grit = profile.grit * profile.vol * (0.2 + t * 0.9)
+  const now = ac.currentTime
+  engineOsc.frequency.setTargetAtTime(hz, now, 0.08)
+  engineFilter.frequency.setTargetAtTime(320 + t * 480, now, 0.1)
+  engineGain.gain.setTargetAtTime(vol, now, 0.06)
+  engineNoiseGain.gain.setTargetAtTime(grit * 0.45, now, 0.08)
+}
+
+export function stopVehicleEngine() {
+  if (!ctx || !engineGain) return
+  const now = ctx.currentTime
+  try {
+    engineGain.gain.setTargetAtTime(0.0001, now, 0.05)
+    engineNoiseGain?.gain.setTargetAtTime(0.0001, now, 0.05)
+  } catch {
+    /* */
+  }
+}
+
 /* --- Variometer (muted — kept stubs so callers stay stable) --- */
 let varioGain: GainNode | null = null
 let varioTimer: number | null = null

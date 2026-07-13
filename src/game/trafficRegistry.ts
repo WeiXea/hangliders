@@ -40,6 +40,43 @@ export const PARKED_VEHICLES: ParkedVehicleDef[] = [
   { id: 109, kind: 'fire', x: 160, z: 115.5, yaw: Math.PI / 2 },
 ]
 
+/** Mutable world cars — updated when the player exits so they stay put. */
+const liveParked: ParkedVehicleDef[] = PARKED_VEHICLES.map((p) => ({ ...p }))
+/** Lane traffic ids that were driven then left in the world (no longer loop). */
+const claimedLanes = new Set<number>()
+
+export function getLiveParkedVehicles(): readonly ParkedVehicleDef[] {
+  return liveParked
+}
+
+export function isLaneClaimed(laneId: number) {
+  return claimedLanes.has(laneId)
+}
+
+/**
+ * Leave the current car in the world at (x,z) so it can be boarded again.
+ * Lane cars become parked; curb cars relocate to the exit pose.
+ */
+export function leaveVehicleInWorld(
+  id: number,
+  kind: TrafficKind,
+  x: number,
+  z: number,
+  yaw: number,
+  color?: string,
+) {
+  const existing = liveParked.find((p) => p.id === id)
+  if (existing) {
+    existing.x = x
+    existing.z = z
+    existing.yaw = yaw
+    if (color) existing.color = color
+    return
+  }
+  liveParked.push({ id, kind, x, z, yaw, color })
+  if (id >= 0 && id < 100) claimedLanes.add(id)
+}
+
 const moving: TrafficSnapshot[] = []
 const parked: TrafficSnapshot[] = []
 const vehicles: TrafficSnapshot[] = []
@@ -108,39 +145,66 @@ export function vehicleRestClearance(kind: TrafficKind): number {
 export function vehicleMaxSpeed(kind: TrafficKind): number {
   switch (kind) {
     case 'bus':
-      return 12
+      return 11
     case 'fire':
-      return 15
+      return 16
     case 'police':
-      return 18
+      return 22
     case 'taxi':
-      return 14
+      return 17
     default:
-      return 14
+      return 15
   }
 }
 
 export function vehicleAccel(kind: TrafficKind): number {
   switch (kind) {
     case 'bus':
-      return 4.5
+      return 3.8
     case 'fire':
-      return 7
-    case 'police':
-      return 9
-    default:
       return 7.5
+    case 'police':
+      return 11
+    case 'taxi':
+      return 8.5
+    default:
+      return 8
   }
 }
 
 export function vehicleBrake(kind: TrafficKind): number {
   switch (kind) {
     case 'bus':
-      return 11
+      return 10
     case 'fire':
       return 14
+    case 'police':
+      return 18
+    case 'taxi':
+      return 15
     default:
-      return 16
+      return 15
+  }
+}
+
+/** Engine note profile: idle Hz, high Hz, volume scale */
+export function vehicleEngineProfile(kind: TrafficKind): {
+  idle: number
+  high: number
+  vol: number
+  grit: number
+} {
+  switch (kind) {
+    case 'bus':
+      return { idle: 55, high: 140, vol: 0.07, grit: 0.55 }
+    case 'fire':
+      return { idle: 70, high: 200, vol: 0.085, grit: 0.7 }
+    case 'police':
+      return { idle: 85, high: 260, vol: 0.075, grit: 0.45 }
+    case 'taxi':
+      return { idle: 75, high: 220, vol: 0.065, grit: 0.4 }
+    default:
+      return { idle: 72, high: 210, vol: 0.07, grit: 0.42 }
   }
 }
 
