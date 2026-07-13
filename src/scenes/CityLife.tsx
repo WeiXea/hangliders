@@ -27,15 +27,37 @@ type Lane = {
 
 /** Lanes sit in the real 22m street grid (not through buildings). */
 const LANES: Lane[] = [
-  { axis: 'x', fixed: 0, min: -50, max: 230, dir: 1, speed: 13, kind: 'car', offset: 0, color: '#2a6f97' },
-  { axis: 'x', fixed: 44, min: -40, max: 220, dir: 1, speed: 9, kind: 'bus', offset: 80 },
-  { axis: 'x', fixed: 66, min: -50, max: 230, dir: -1, speed: 15, kind: 'police', offset: 20 },
-  { axis: 'x', fixed: 110, min: -50, max: 230, dir: -1, speed: 12, kind: 'taxi', offset: 60 },
-  { axis: 'z', fixed: 22, min: -10, max: 200, dir: -1, speed: 14, kind: 'car', offset: 90, color: '#bc4749' },
-  { axis: 'z', fixed: 66, min: -10, max: 200, dir: -1, speed: 13, kind: 'fire', offset: 70 },
-  { axis: 'z', fixed: 110, min: -10, max: 200, dir: 1, speed: 11, kind: 'taxi', offset: 110 },
-  { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 10, kind: 'bus', offset: 25 },
+  { axis: 'x', fixed: 0, min: -50, max: 230, dir: 1, speed: 11, kind: 'car', offset: 0, color: '#2a6f97' },
+  { axis: 'x', fixed: 44, min: -40, max: 220, dir: 1, speed: 8, kind: 'bus', offset: 80 },
+  { axis: 'x', fixed: 66, min: -50, max: 230, dir: -1, speed: 13, kind: 'police', offset: 20 },
+  { axis: 'x', fixed: 110, min: -50, max: 230, dir: -1, speed: 10, kind: 'taxi', offset: 60 },
+  { axis: 'z', fixed: 22, min: -10, max: 200, dir: -1, speed: 11, kind: 'car', offset: 90, color: '#bc4749' },
+  { axis: 'z', fixed: 66, min: -10, max: 200, dir: -1, speed: 10, kind: 'fire', offset: 70 },
+  { axis: 'z', fixed: 110, min: -10, max: 200, dir: 1, speed: 9, kind: 'taxi', offset: 110 },
+  { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 8, kind: 'bus', offset: 25 },
 ]
+
+const LANE_HALF_WIDTH = 2.8
+const STOP_LOOKAHEAD = 14
+const FOLLOW_GAP = 9
+
+type TrafficSim = { along: number; speed: number }
+
+function laneAlong(lane: Lane, x: number, z: number) {
+  return lane.axis === 'x' ? x : z
+}
+
+function aheadDistance(lane: Lane, fromAlong: number, toAlong: number) {
+  const span = lane.max - lane.min
+  let d = (toAlong - fromAlong) * lane.dir
+  if (d < 0) d += span
+  return d
+}
+
+function inLaneCorridor(lane: Lane, x: number, z: number) {
+  const lateral = lane.axis === 'x' ? Math.abs(z - lane.fixed) : Math.abs(x - lane.fixed)
+  return lateral < LANE_HALF_WIDTH
+}
 
 function Wheel({ x, z, scale = 1 }: { x: number; z: number; scale?: number }) {
   return (
@@ -226,25 +248,80 @@ export function VehicleMesh({ kind, color }: { kind: VehicleKind; color?: string
 function TrafficLayer() {
   const group = useRef<THREE.Group>(null)
   const getHeight = BIOME_CONFIGS.city.getHeight
+  const lastT = useRef(0)
+  const sims = useRef<TrafficSim[]>(
+    LANES.map((lane) => {
+      const span = lane.max - lane.min
+      const along = lane.min + ((((lane.offset % span) + span) % span))
+      return { along, speed: lane.speed }
+    }),
+  )
 
   useFrame((state) => {
     if (!group.current) return
     const flight = useGameStore.getState().flight
     const drivenId = flight.phase === 'driving' ? flight.vehicleId : -1
     const t = state.clock.elapsedTime
+    const dt = Math.min(0.05, lastT.current > 0 ? t - lastT.current : 1 / 60)
+    lastT.current = t
+
+    const walkerInRoad =
+      flight.phase === 'walking' ||
+      flight.phase === 'landed' ||
+      flight.phase === 'grounded' ||
+      flight.phase === 'running'
+    const pedX = flight.position.x
+    const pedZ = flight.position.z
+
+    // Desired cruise speed per lane (brake for pedestrians / lead cars)
+    const targets = LANES.map((lane, i) => {
+      if (drivenId === i) return 0
+      let want = lane.speed
+
+      if (walkerInRoad && inLaneCorridor(lane, pedX, pedZ)) {
+        const pedAlong = laneAlong(lane, pedX, pedZ)
+        const ahead = aheadDistance(lane, sims.current[i]!.along, pedAlong)
+        if (ahead > 0.4 && ahead < STOP_LOOKAHEAD) {
+          // Soft stop: closer → slower, fully stop within ~4m
+          const factor = Math.max(0, (ahead - 3.2) / (STOP_LOOKAHEAD - 3.2))
+          want = Math.min(want, lane.speed * factor * factor)
+          if (ahead < 4.5) want = 0
+        }
+      }
+
+      for (let j = 0; j < LANES.length; j++) {
+        if (j === i || drivenId === j) continue
+        const other = LANES[j]!
+        if (other.axis !== lane.axis || other.fixed !== lane.fixed || other.dir !== lane.dir) {
+          continue
+        }
+        const gap = aheadDistance(lane, sims.current[i]!.along, sims.current[j]!.along)
+        if (gap > 0.5 && gap < FOLLOW_GAP) {
+          const lead = sims.current[j]!.speed
+          const factor = Math.max(0, (gap - 3.5) / (FOLLOW_GAP - 3.5))
+          want = Math.min(want, lead * 0.85 + lead * 0.15 * factor)
+          if (gap < 4) want = Math.min(want, Math.max(0, lead - 1))
+        }
+      }
+
+      return want
+    })
+
     const snaps: {
       id: number
       kind: VehicleKind
       x: number
       z: number
       yaw: number
+      speed: number
       color?: string
       taken: boolean
     }[] = []
 
     group.current.children.forEach((child, i) => {
       const lane = LANES[i]
-      if (!lane) return
+      const sim = sims.current[i]
+      if (!lane || !sim) return
 
       if (drivenId === i) {
         child.visible = false
@@ -254,36 +331,51 @@ function TrafficLayer() {
           x: flight.position.x,
           z: flight.position.z,
           yaw: flight.yaw,
+          speed: Math.abs(flight.airspeed),
           color: lane.color,
           taken: true,
         })
         return
       }
 
-      child.visible = true
+      const want = targets[i] ?? lane.speed
+      const accel = want >= sim.speed ? 6.5 : 14
+      if (sim.speed < want) sim.speed = Math.min(want, sim.speed + accel * dt)
+      else sim.speed = Math.max(want, sim.speed - accel * dt)
+      if (sim.speed < 0.05) sim.speed = 0
+
       const span = lane.max - lane.min
-      const u = ((t * lane.speed * lane.dir + lane.offset) % span + span) % span
-      const along = lane.min + u
+      sim.along += sim.speed * lane.dir * dt
+      while (sim.along > lane.max) sim.along -= span
+      while (sim.along < lane.min) sim.along += span
+
       let x: number
       let z: number
       let yaw: number
       if (lane.axis === 'x') {
-        x = along
+        x = sim.along
         z = lane.fixed
         yaw = lane.dir > 0 ? Math.PI / 2 : -Math.PI / 2
       } else {
         x = lane.fixed
-        z = along
+        z = sim.along
         yaw = lane.dir > 0 ? 0 : Math.PI
       }
+
+      child.visible = true
       child.position.set(x, getHeight(x, z) + CITY_STREET_DECK, z)
       child.rotation.y = yaw
+      // Subtle brake squat when slowing
+      const squat = want < sim.speed - 0.5 ? 0.04 : 0
+      child.position.y -= squat
+
       snaps.push({
         id: i,
         kind: lane.kind,
         x,
         z,
         yaw,
+        speed: sim.speed,
         color: lane.color,
         taken: false,
       })

@@ -25,6 +25,8 @@ import {
   setTakenVehicleId,
   vehicleMaxSpeed,
   vehicleRestClearance,
+  vehicleAccel,
+  vehicleBrake,
 } from './trafficRegistry'
 import { liftCoeff, groundEffectFactor } from './aero'
 import { sampleAtmosphere } from './atmosphere'
@@ -588,18 +590,44 @@ export function tickFlight(
   if (next.phase === 'driving') {
     const kind = (next.vehicleKind ?? 'car') as VehicleKind
     const maxSpd = vehicleMaxSpeed(kind)
+    const accel = vehicleAccel(kind)
+    const brake = vehicleBrake(kind)
     next.stallWarning = false
 
-    if (input.bankLeft) next.yaw += 1.8 * dt
-    if (input.bankRight) next.yaw -= 1.8 * dt
+    // Speed-sensitive steering — snappy at crawl, heavy at speed
+    const steerScale = 1.15 / (1 + Math.abs(next.airspeed) * 0.11)
+    const steerInput = (input.bankLeft ? 1 : 0) + (input.bankRight ? -1 : 0)
+    if (Math.abs(next.airspeed) > 0.4) {
+      next.yaw += steerInput * steerScale * Math.sign(next.airspeed || 1) * dt
+    } else if (steerInput !== 0 && Math.abs(next.airspeed) < 0.35) {
+      // Creep-turn while almost stopped
+      next.yaw += steerInput * 0.85 * dt
+    }
 
-    if (input.pitchDown || input.speedUp) {
-      next.airspeed = Math.min(maxSpd, next.airspeed + 14 * dt)
-    } else if (input.pitchUp || input.speedDown) {
-      next.airspeed = Math.max(-maxSpd * 0.35, next.airspeed - 18 * dt)
+    const gas = input.pitchDown || input.speedUp
+    const braking = input.pitchUp || input.speedDown
+
+    if (gas && !braking) {
+      if (next.airspeed >= -0.8) {
+        // Stronger pull at low speed, tapers near top end
+        const pull = accel * (1.15 - 0.55 * Math.min(1, Math.max(0, next.airspeed) / maxSpd))
+        next.airspeed = Math.min(maxSpd, next.airspeed + pull * dt)
+      } else {
+        // Brake out of reverse first
+        next.airspeed = Math.min(0, next.airspeed + brake * 1.1 * dt)
+      }
+    } else if (braking) {
+      if (next.airspeed > 0.15) {
+        next.airspeed = Math.max(0, next.airspeed - brake * dt)
+      } else {
+        next.airspeed = Math.max(-maxSpd * 0.28, next.airspeed - accel * 0.55 * dt)
+      }
     } else {
-      next.airspeed *= 1 - Math.min(1, 2.2 * dt)
-      if (Math.abs(next.airspeed) < 0.35) next.airspeed = 0
+      // Rolling resistance + engine drag
+      const drag = 1.6 + Math.abs(next.airspeed) * 0.12
+      if (next.airspeed > 0) next.airspeed = Math.max(0, next.airspeed - drag * dt)
+      else if (next.airspeed < 0) next.airspeed = Math.min(0, next.airspeed + drag * 1.2 * dt)
+      if (Math.abs(next.airspeed) < 0.2) next.airspeed = 0
     }
 
     next.velocity.x = Math.sin(next.yaw) * next.airspeed
@@ -609,7 +637,7 @@ export function tickFlight(
     next.position.z += next.velocity.z * dt
 
     if (config.id === 'city') {
-      const pushed = resolveBuildingPush(next.position, config.getHeight, 1.1, -1)
+      const pushed = resolveBuildingPush(next.position, config.getHeight, 1.35, -1)
       next.position.x = pushed.x
       next.position.z = pushed.z
     }
@@ -618,15 +646,15 @@ export function tickFlight(
     next.position.y = groundY + vehicleRestClearance(kind)
     next.altitude = 0
     next.distance += Math.abs(next.airspeed) * dt
-    next.pitch = lerp(next.pitch, next.airspeed > 1 ? -0.04 : 0, Math.min(1, 4 * dt))
-    next.roll = lerp(
-      next.roll,
-      input.bankLeft ? 0.08 : input.bankRight ? -0.08 : 0,
-      Math.min(1, 5 * dt),
-    )
+
+    // Body: nose dive under brake, squat under throttle, roll into turns
+    const pitchTarget = braking && next.airspeed > 1 ? 0.07 : gas && next.airspeed > 1 ? -0.045 : 0
+    const rollTarget = steerInput * Math.min(0.16, Math.abs(next.airspeed) * 0.012)
+    next.pitch = lerp(next.pitch, pitchTarget, Math.min(1, 6 * dt))
+    next.roll = lerp(next.roll, rollTarget, Math.min(1, 7 * dt))
 
     if (
-      Math.abs(next.airspeed) < 2.2 &&
+      Math.abs(next.airspeed) < 1.6 &&
       (input.interact || input.land || input.jump)
     ) {
       setTakenVehicleId(-1)

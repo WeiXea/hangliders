@@ -8,6 +8,8 @@ export type TrafficSnapshot = {
   x: number
   z: number
   yaw: number
+  /** Current travel speed along the lane (m/s), always ≥ 0 */
+  speed: number
   color?: string
   /** Player currently driving this unit */
   taken: boolean
@@ -39,12 +41,15 @@ export function nearestTrafficVehicle(
   range = 5.5,
 ): TrafficSnapshot | null {
   let best: TrafficSnapshot | null = null
-  let bestD = range
+  let bestScore = Infinity
   for (const v of vehicles) {
     if (v.taken) continue
     const d = Math.hypot(v.x - x, v.z - z)
-    if (d < bestD) {
-      bestD = d
+    if (d > range) continue
+    // Prefer nearly stopped cars so boarding feels intentional
+    const score = d + v.speed * 0.35
+    if (score < bestScore) {
+      bestScore = score
       best = v
     }
   }
@@ -58,12 +63,38 @@ export function vehicleRestClearance(kind: TrafficKind): number {
 export function vehicleMaxSpeed(kind: TrafficKind): number {
   switch (kind) {
     case 'bus':
-      return 16
+      return 12
     case 'fire':
-      return 20
+      return 15
     case 'police':
-      return 24
+      return 18
+    case 'taxi':
+      return 14
     default:
-      return 22
+      return 14
+  }
+}
+
+export function vehicleAccel(kind: TrafficKind): number {
+  switch (kind) {
+    case 'bus':
+      return 4.5
+    case 'fire':
+      return 7
+    case 'police':
+      return 9
+    default:
+      return 7.5
+  }
+}
+
+export function vehicleBrake(kind: TrafficKind): number {
+  switch (kind) {
+    case 'bus':
+      return 11
+    case 'fire':
+      return 14
+    default:
+      return 16
   }
 }
