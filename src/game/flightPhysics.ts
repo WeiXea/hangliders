@@ -67,6 +67,8 @@ let rollVel = 0
 let smoothLift = 0
 /** Cooldown so car impacts don't spam crash audio */
 let lastCarCrashAt = 0
+/** Skip speed-killing collisions briefly after boarding */
+let driveCollideGraceUntil = 0
 
 function smoothstep(t: number) {
   const x = Math.min(1, Math.max(0, t))
@@ -561,6 +563,7 @@ export function tickFlight(
           setTakenVehicleId(veh.id)
           const kind = veh.kind as VehicleKind
           const gy = supportY(config, veh.x, veh.z).y
+          driveCollideGraceUntil = performance.now() + 900
           next = {
             ...next,
             phase: 'driving',
@@ -594,7 +597,7 @@ export function tickFlight(
   if (next.phase === 'driving') {
     const kind = (next.vehicleKind ?? 'car') as VehicleKind
     const maxSpd = vehicleMaxSpeed(kind)
-    const accel = vehicleAccel(kind)
+    const accel = vehicleAccel(kind) * 1.35
     const brake = vehicleBrake(kind)
     next.stallWarning = false
 
@@ -610,30 +613,28 @@ export function tickFlight(
       }
     }
 
+    // ↑/W/Sprint = gas, ↓/S/Ctrl = brake (same as flight pitch mapping)
     const gas = input.pitchDown || input.speedUp
     const braking = input.pitchUp || input.speedDown
 
     if (gas && !braking) {
-      if (next.airspeed >= -0.8) {
-        // Stronger pull at low speed, tapers near top end
-        const pull = accel * (1.15 - 0.55 * Math.min(1, Math.max(0, next.airspeed) / maxSpd))
+      if (next.airspeed >= -0.5) {
+        const pull = accel * (1.25 - 0.45 * Math.min(1, Math.max(0, next.airspeed) / maxSpd))
         next.airspeed = Math.min(maxSpd, next.airspeed + pull * dt)
       } else {
-        // Brake out of reverse first
-        next.airspeed = Math.min(0, next.airspeed + brake * 1.1 * dt)
+        next.airspeed = Math.min(0, next.airspeed + brake * 1.2 * dt)
       }
     } else if (braking) {
-      if (next.airspeed > 0.15) {
+      if (next.airspeed > 0.1) {
         next.airspeed = Math.max(0, next.airspeed - brake * dt)
       } else {
-        next.airspeed = Math.max(-maxSpd * 0.28, next.airspeed - accel * 0.55 * dt)
+        next.airspeed = Math.max(-maxSpd * 0.32, next.airspeed - accel * 0.65 * dt)
       }
     } else {
-      // Rolling resistance + engine drag
-      const drag = 1.6 + Math.abs(next.airspeed) * 0.12
+      const drag = 1.1 + Math.abs(next.airspeed) * 0.1
       if (next.airspeed > 0) next.airspeed = Math.max(0, next.airspeed - drag * dt)
-      else if (next.airspeed < 0) next.airspeed = Math.min(0, next.airspeed + drag * 1.2 * dt)
-      if (Math.abs(next.airspeed) < 0.2) next.airspeed = 0
+      else if (next.airspeed < 0) next.airspeed = Math.min(0, next.airspeed + drag * 1.15 * dt)
+      if (Math.abs(next.airspeed) < 0.15) next.airspeed = 0
     }
 
     next.velocity.x = Math.sin(next.yaw) * next.airspeed
@@ -643,33 +644,35 @@ export function tickFlight(
     next.position.z += next.velocity.z * dt
 
     if (config.id === 'city') {
-      const hit = resolveDriveCollisions(
-        next.vehicleId,
-        kind,
-        next.position.x,
-        next.position.z,
-        next.yaw,
-        next.airspeed,
-      )
-      next.position.x = hit.x
-      next.position.z = hit.z
-      next.yaw = hit.yaw
-      next.airspeed = hit.speed
-      next.velocity.x = Math.sin(next.yaw) * next.airspeed
-      next.velocity.z = Math.cos(next.yaw) * next.airspeed
+      const inGrace = performance.now() < driveCollideGraceUntil
+      if (!inGrace) {
+        const hit = resolveDriveCollisions(
+          next.vehicleId,
+          kind,
+          next.position.x,
+          next.position.z,
+          next.yaw,
+          next.airspeed,
+        )
+        next.position.x = hit.x
+        next.position.z = hit.z
+        next.yaw = hit.yaw
+        next.airspeed = hit.speed
+        next.velocity.x = Math.sin(next.yaw) * next.airspeed
+        next.velocity.z = Math.cos(next.yaw) * next.airspeed
 
-      if (hit.impact > 2.5) {
-        const now = performance.now()
-        if (now - lastCarCrashAt > 380) {
-          lastCarCrashAt = now
-          if (hit.impact > 7) playCrashImpact()
-          else playWhoosh(0.12, 90, Math.min(0.5, hit.impact * 0.05))
-        }
-        // Accident jolt
-        next.pitch += Math.min(0.22, hit.impact * 0.018)
-        next.roll += (Math.random() > 0.5 ? 1 : -1) * Math.min(0.28, hit.impact * 0.02)
-        if (hit.impact > 10) {
-          next.airspeed *= 0.15
+        if (hit.impact > 2.5) {
+          const now = performance.now()
+          if (now - lastCarCrashAt > 380) {
+            lastCarCrashAt = now
+            if (hit.impact > 7) playCrashImpact()
+            else playWhoosh(0.12, 90, Math.min(0.5, hit.impact * 0.05))
+          }
+          next.pitch += Math.min(0.22, hit.impact * 0.018)
+          next.roll += (Math.random() > 0.5 ? 1 : -1) * Math.min(0.28, hit.impact * 0.02)
+          if (hit.impact > 10) {
+            next.airspeed *= 0.15
+          }
         }
       }
 

@@ -147,14 +147,14 @@ export function vehicleBrake(kind: TrafficKind): number {
 export function vehicleRadius(kind: TrafficKind): number {
   switch (kind) {
     case 'bus':
-      return 4.1
+      return 3.4
     case 'fire':
-      return 3.7
+      return 3.0
     case 'police':
     case 'taxi':
     case 'car':
     default:
-      return 2.2
+      return 1.85
   }
 }
 
@@ -213,10 +213,14 @@ export function resolveDriveCollisions(
   let impact = 0
   const selfR = vehicleRadius(selfKind)
   const list = vehicles
+  const speedIn = speed
 
-  for (let pass = 0; pass < 3; pass++) {
+  for (let pass = 0; pass < 2; pass++) {
     for (const v of list) {
       if (v.id === selfId) continue
+      // Ignore other taken snaps that sit on a driver (remote uses RemotePlayer mesh)
+      // except we DO want to collide with remote-driven cars — those are taken at remote pos.
+      // Only skip exact self.
       const minDist = selfR + vehicleRadius(v.kind)
       let dx = x - v.x
       let dz = z - v.z
@@ -230,9 +234,9 @@ export function resolveDriveCollisions(
       const nx = dx / dist
       const nz = dz / dist
       const overlap = minDist - dist
-      // Push the player fully out (NPCs get a shove queued separately)
-      x += nx * overlap
-      z += nz * overlap
+      // Separate positions — always
+      x += nx * overlap * 1.02
+      z += nz * overlap * 1.02
 
       const pvx = Math.sin(yaw) * speed
       const pvz = Math.cos(yaw) * speed
@@ -240,20 +244,18 @@ export function resolveDriveCollisions(
       const ovz = Math.cos(v.yaw) * v.speed
       const relN = (pvx - ovx) * nx + (pvz - ovz) * nz
 
-      if (relN < 0) {
+      // Only smash speed on a real hit — soft overlaps just push apart
+      if (relN < -1.15) {
         const closing = -relN
         impact = Math.max(impact, closing)
-        // Cancel inward relative motion + slight bounce
-        const bounce = closing * (v.parked ? 0.85 : 0.65)
-        const npx = pvx + (bounce + closing * 0.15) * nx
-        const npz = pvz + (bounce + closing * 0.15) * nz
-        speed = npx * Math.sin(yaw) + npz * Math.cos(yaw)
-        // Glancing yaw kick
+        const keep = Math.max(0, 1 - closing * 0.08)
+        speed *= keep
+        if (closing > 6) speed *= 0.45
         const side = -Math.sin(yaw) * nz + Math.cos(yaw) * nx
-        yaw += Math.max(-0.4, Math.min(0.4, side * closing * 0.04))
+        yaw += Math.max(-0.35, Math.min(0.35, side * closing * 0.03))
 
         if (!v.taken) {
-          const shove = closing * 0.35 + overlap * 0.5
+          const shove = closing * 0.3 + overlap * 0.4
           queueNpcVehicleHit(v.id, {
             dx: -nx * shove,
             dz: -nz * shove,
@@ -261,19 +263,15 @@ export function resolveDriveCollisions(
             stun: Math.min(2.2, 0.35 + closing * 0.12),
           })
         }
-      } else {
-        // Resting contact — don't sink into the other car
-        const away = pvx * nx + pvz * nz
-        if (away < 0) {
-          const npx = pvx - away * nx
-          const npz = pvz - away * nz
-          speed = npx * Math.sin(yaw) + npz * Math.cos(yaw)
-        }
       }
     }
   }
 
-  if (Math.abs(speed) < 0.15) speed = 0
+  // Never let soft contact fully cancel throttle the player just applied
+  if (Math.abs(speedIn) > 0.4 && Math.abs(speed) < Math.abs(speedIn) * 0.15 && impact < 1.15) {
+    speed = speedIn * 0.85
+  }
+  if (Math.abs(speed) < 0.12) speed = 0
   return { x, z, yaw, speed, impact }
 }
 

@@ -34,7 +34,6 @@ function stripOneShots(input: InputState): InputState {
 
 export function FlightSimulator() {
   const biome = useGameStore((s) => s.biome)
-  const input = useGameStore((s) => s.input)
   const screen = useGameStore((s) => s.screen)
   const updateFlight = useGameStore((s) => s.updateFlight)
   const checkRings = useGameStore((s) => s.checkRings)
@@ -60,7 +59,8 @@ export function FlightSimulator() {
 
     const store = useGameStore.getState()
     const { flight: startFlight, parkedGliders, remoteFlight, peerConnected } = store
-    const frameInput = applyPulses(input)
+    // Always read live input — React closure can lag one frame behind keydown
+    const frameInput = applyPulses(store.input)
 
     if (startFlight.phase === 'crashed' || startFlight.phase === 'landed') {
       if (!finishedRef.current) {
