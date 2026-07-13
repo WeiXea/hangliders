@@ -273,7 +273,9 @@ function TrafficLayer() {
   useFrame((state) => {
     if (!group.current) return
     const flight = useGameStore.getState().flight
+    const remote = useGameStore.getState().remoteFlight
     const drivenId = flight.phase === 'driving' ? flight.vehicleId : -1
+    const remoteDriven = remote?.phase === 'driving' ? remote.vehicleId : -1
     const t = state.clock.elapsedTime
     const dt = Math.min(0.05, lastT.current > 0 ? t - lastT.current : 1 / 60)
     lastT.current = t
@@ -287,7 +289,7 @@ function TrafficLayer() {
     const pedZ = flight.position.z
 
     const targets = LANES.map((lane, i) => {
-      if (drivenId === i) return 0
+      if (drivenId === i || remoteDriven === i) return 0
       let want = lane.speed
       const sim = sims.current[i]!
       const world = laneWorld(lane, sim.along)
@@ -313,7 +315,7 @@ function TrafficLayer() {
       }
 
       for (let j = 0; j < LANES.length; j++) {
-        if (j === i || drivenId === j) continue
+        if (j === i || drivenId === j || remoteDriven === j) continue
         const other = LANES[j]!
         if (other.axis !== lane.axis || other.fixed !== lane.fixed || other.dir !== lane.dir) {
           continue
@@ -347,15 +349,16 @@ function TrafficLayer() {
       const sim = sims.current[i]
       if (!lane || !sim) return
 
-      if (drivenId === i) {
+      if (drivenId === i || remoteDriven === i) {
         child.visible = false
+        const src = drivenId === i ? flight : remote!
         snaps.push({
           id: i,
           kind: lane.kind,
-          x: flight.position.x,
-          z: flight.position.z,
-          yaw: flight.yaw,
-          speed: Math.abs(flight.airspeed),
+          x: src.position.x,
+          z: src.position.z,
+          yaw: src.yaw,
+          speed: Math.abs(src.airspeed),
           color: lane.color,
           taken: true,
         })
@@ -413,21 +416,25 @@ function ParkedCarsLayer() {
   useFrame(() => {
     if (!group.current) return
     const flight = useGameStore.getState().flight
+    const remote = useGameStore.getState().remoteFlight
     const drivenId = flight.phase === 'driving' ? flight.vehicleId : -1
+    const remoteDriven = remote?.phase === 'driving' ? remote.vehicleId : -1
 
     const snaps = PARKED_VEHICLES.map((spot, i) => {
       const child = group.current!.children[i]
-      const isDriven = drivenId === spot.id
+      const isLocal = drivenId === spot.id
+      const isRemote = remoteDriven === spot.id
 
-      if (isDriven) {
+      if (isLocal || isRemote) {
         if (child) child.visible = false
+        const src = isLocal ? flight : remote!
         return {
           id: spot.id,
           kind: spot.kind,
-          x: flight.position.x,
-          z: flight.position.z,
-          yaw: flight.yaw,
-          speed: Math.abs(flight.airspeed),
+          x: src.position.x,
+          z: src.position.z,
+          yaw: src.yaw,
+          speed: Math.abs(src.airspeed),
           color: spot.color,
           taken: true,
           parked: true as const,

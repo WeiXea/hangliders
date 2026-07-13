@@ -3,8 +3,11 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from './gameStore'
 import { GliderModel } from './GliderModel'
+import { HelicopterModel } from './HelicopterModel'
 import { AnimatedPilot, ParachuteCanopy, PILOT_HIP } from './Pilot'
+import { VehicleMesh } from '../scenes/CityLife'
 import { predictedRemote } from './remoteSmooth'
+import { getTrafficSnapshots } from './trafficRegistry'
 
 /** Ghosted second player. Hidden while riding tandem together. */
 export function RemotePlayer() {
@@ -28,6 +31,8 @@ export function RemotePlayer() {
   const remoteSpeed = useGameStore((s) => s.remoteFlight?.airspeed ?? 0)
   const remoteAlt = useGameStore((s) => s.remoteFlight?.altitude ?? 0)
   const remoteVy = useGameStore((s) => s.remoteFlight?.velocity.y ?? 0)
+  const remoteVehicleKind = useGameStore((s) => s.remoteFlight?.vehicleKind ?? null)
+  const remoteVehicleId = useGameStore((s) => s.remoteFlight?.vehicleId ?? -1)
 
   useFrame((_, dt) => {
     if (!group.current || !body.current) return
@@ -48,15 +53,15 @@ export function RemotePlayer() {
 
     group.current.position.set(d.x, d.y, d.z)
     group.current.rotation.y = d.yaw
-    const onGround =
+    const onFoot =
       remote.phase === 'grounded' ||
       remote.phase === 'running' ||
       remote.phase === 'landed' ||
       remote.phase === 'walking'
     body.current.rotation.set(
-      onGround ? 0 : -d.pitch * 0.8,
+      onFoot ? 0 : -d.pitch * 0.8,
       0,
-      onGround ? 0 : -d.roll,
+      onFoot ? 0 : -d.roll,
     )
   })
 
@@ -66,6 +71,8 @@ export function RemotePlayer() {
   const phase = remotePhase
   const showWing =
     phase === 'grounded' || phase === 'running' || phase === 'flying' || phase === 'landed'
+  const showHeli = phase === 'helicopter'
+  const showDrive = phase === 'driving'
   const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
   const showChute = phase === 'parachuting'
   const remoteMode =
@@ -77,9 +84,28 @@ export function RemotePlayer() {
           ? 'chute'
           : 'prone'
 
+  const driveKind = remoteVehicleKind ?? 'car'
+  const driveColor =
+    remoteVehicleId >= 0
+      ? getTrafficSnapshots().find((v) => v.id === remoteVehicleId)?.color
+      : undefined
+
   return (
     <group ref={group}>
       <group ref={body}>
+        {showDrive && (
+          <group>
+            <VehicleMesh kind={driveKind} color={driveColor} />
+          </group>
+        )}
+        {showHeli && (
+          <group>
+            <HelicopterModel rpm={1.1} />
+            <group position={[0, 0.15, 0.2]}>
+              <AnimatedPilot mode="stand" suitColor="#3d5a80" />
+            </group>
+          </group>
+        )}
         {showWing && (
           <group>
             <GliderModel hidePilot staticModel />
