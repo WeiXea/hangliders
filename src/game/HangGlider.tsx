@@ -7,6 +7,8 @@ import { HelicopterModel } from './HelicopterModel'
 import { AnimatedPilot, ParachuteCanopy, PILOT_EYE, PILOT_HIP } from './Pilot'
 import { getLookOffsets, setKeyLookTarget, tickLook } from './lookCamera'
 import { GliderContactShadow } from '../scenes/SharedSky'
+import { VehicleMesh } from '../scenes/CityLife'
+import { getTrafficSnapshots } from './trafficRegistry'
 
 export function HangGlider() {
   const groupRef = useRef<THREE.Group>(null)
@@ -72,12 +74,13 @@ export function HangGlider() {
     const crashed = ph === 'crashed'
     const airbornePilot = ph === 'freefall' || ph === 'parachuting'
     const heli = ph === 'helicopter'
+    const driving = ph === 'driving'
     const swingRoll = ph === 'parachuting' ? -swing * 0.35 : 0
     const visualPitch = -sp
     bodyRef.current.rotation.set(
       crashed
         ? visualPitch - 0.35
-        : heli
+        : heli || driving
           ? visualPitch
           : onGround
             ? 0
@@ -85,7 +88,7 @@ export function HangGlider() {
               ? Math.max(-0.4, visualPitch)
               : visualPitch,
       crashed ? 0.25 : 0,
-      crashed ? -sr : heli ? -sr : onGround ? 0 : -sr + swingRoll,
+      crashed ? -sr : heli || driving ? -sr : onGround ? 0 : -sr + swingRoll,
     )
 
     if (barRef.current) {
@@ -111,9 +114,9 @@ export function HangGlider() {
 
     worldQuat.current.setFromEuler(
       new THREE.Euler(
-        onGround && !heli ? 0 : visualPitch * 0.28,
+        onGround && !heli && !driving ? 0 : visualPitch * 0.28,
         sy,
-        onGround && !heli ? 0 : -sr * 0.35 + swingRoll,
+        onGround && !heli && !driving ? 0 : -sr * 0.35 + swingRoll,
         'YXZ',
       ),
     )
@@ -156,6 +159,20 @@ export function HangGlider() {
         lookAt.set(0, -1, 12)
         targetFov = 60
       }
+    } else if (ph === 'driving') {
+      if (cameraMode === 'fpv') {
+        eye.set(0, 1.2, 0.6)
+        lookAt.set(0, 0.4, 16)
+        targetFov = 68
+      } else if (cameraMode === 'side') {
+        eye.set(12, 3, -2)
+        lookAt.set(0, 0.5, 8)
+        targetFov = 58
+      } else {
+        eye.set(0, 4.5, -12)
+        lookAt.set(0, 0.2, 14)
+        targetFov = 58
+      }
     } else if (cameraMode === 'chase') {
       if (ph === 'flying' && flight.altitude < 22) {
         eye.set(0, 5.2, -14)
@@ -185,7 +202,7 @@ export function HangGlider() {
     const camLerp =
       flight.tandemRole === 'passenger'
         ? 1 - Math.exp(-2.2 * delta)
-        : ph === 'flying' || ph === 'running' || ph === 'helicopter'
+        : ph === 'flying' || ph === 'running' || ph === 'helicopter' || ph === 'driving'
           ? 1 - Math.exp(-4.2 * delta)
           : 1 - Math.exp(-8 * delta)
 
@@ -216,13 +233,25 @@ export function HangGlider() {
     phase === 'landed' ||
     tandemRole === 'passenger'
   const showHeli = phase === 'helicopter'
+  const showDrive = phase === 'driving'
   const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
   const showChute = phase === 'parachuting' || (phase === 'freefall' && chuteDeployed)
   const showTandemPassenger = peerConnected && tandemRole === 'pilot' && showWing
+  const vehicleKind = useGameStore((s) => s.flight.vehicleKind)
+  const vehicleId = useGameStore((s) => s.flight.vehicleId)
+  const driveColor =
+    vehicleId >= 0
+      ? getTrafficSnapshots().find((v) => v.id === vehicleId)?.color
+      : undefined
 
   return (
     <group ref={groupRef}>
       <group ref={bodyRef}>
+        {showDrive && vehicleKind && (
+          <group>
+            <VehicleMesh kind={vehicleKind} color={driveColor} />
+          </group>
+        )}
         {showHeli && (
           <group>
             <HelicopterModel rpm={1.15} />

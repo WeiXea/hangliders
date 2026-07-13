@@ -110,7 +110,12 @@ export function useKeyboardControls() {
       if (e.code === 'Space') {
         e.preventDefault()
         const phase = useGameStore.getState().flight.phase
-        if (phase === 'walking' || phase === 'flying' || phase === 'helicopter') {
+        if (
+          phase === 'walking' ||
+          phase === 'flying' ||
+          phase === 'helicopter' ||
+          phase === 'driving'
+        ) {
           pulseAction('jump')
           setInput({ jump: true })
         } else if (phase === 'freefall') {
@@ -137,7 +142,12 @@ export function useKeyboardControls() {
       if (e.code === 'KeyE') {
         e.preventDefault()
         const phase = useGameStore.getState().flight.phase
-        if (phase === 'walking') {
+        if (
+          phase === 'walking' ||
+          phase === 'driving' ||
+          phase === 'grounded' ||
+          phase === 'running'
+        ) {
           pulseAction('interact')
           setInput({ interact: true })
         } else {
@@ -224,7 +234,13 @@ export function useKeyboardControls() {
 
       // When tilt owns steering, skip keyboard pitch/bank (walk still uses WASD)
       const phase = useGameStore.getState().flight.phase
-      if (tiltEnabled && phase !== 'walking' && phase !== 'freefall' && phase !== 'parachuting') {
+      if (
+        tiltEnabled &&
+        phase !== 'walking' &&
+        phase !== 'driving' &&
+        phase !== 'freefall' &&
+        phase !== 'parachuting'
+      ) {
         return
       }
 

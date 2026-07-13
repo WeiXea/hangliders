@@ -2,12 +2,14 @@ export type Biome = 'beach' | 'mountains' | 'city'
 export type GameMode = 'free' | 'challenge' | 'xc'
 export type Screen = 'home' | 'flight' | 'result'
 export type CraftType = 'glider' | 'helicopter'
+export type VehicleKind = 'car' | 'bus' | 'police' | 'fire' | 'taxi'
 
 export type FlightPhase =
   | 'grounded'
   | 'running'
   | 'flying'
   | 'helicopter'
+  | 'driving'
   | 'freefall'
   | 'parachuting'
   | 'walking'
@@ -75,6 +77,9 @@ export interface FlightState {
   interiorId: number
   /** Active craft while mounted (glider default) */
   craftType: CraftType
+  /** City traffic vehicle currently driven (-1 = none) */
+  vehicleId: number
+  vehicleKind: VehicleKind | null
 }
 
 export interface InputState {
@@ -144,6 +149,8 @@ export interface BiomeConfig {
 
 export const JUMP_MIN_ALTITUDE = 15
 export const MOUNT_RANGE = 6
+/** Walk up to a city car / bus to board */
+export const VEHICLE_BOARD_RANGE = 5.5
 /** Standing pilots can hug / high-five within this range */
 export const SOCIAL_RANGE = 5.5
 /** Must be this close to form a tandem pair */
@@ -176,6 +183,8 @@ export const INITIAL_FLIGHT: FlightState = {
   tandemWant: false,
   interiorId: -1,
   craftType: 'glider',
+  vehicleId: -1,
+  vehicleKind: null,
 }
 
 export const INITIAL_INPUT: InputState = {

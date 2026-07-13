@@ -8,6 +8,8 @@ import {
   useTouchControl,
 } from '../game/controls'
 import { nearestMountable } from '../game/flightPhysics'
+import { nearestTrafficVehicle } from '../game/trafficRegistry'
+import { VEHICLE_BOARD_RANGE } from '../types/game'
 import { canSocialEmote } from '../game/multiplayerSocial'
 import { canOfferTandem, tandemButtonLabel } from '../game/tandem'
 import { pulseAction } from '../game/actionPulses'
@@ -136,6 +138,8 @@ export function FlightHUD() {
   const parachuting = flight.phase === 'parachuting'
   const flying = flight.phase === 'flying'
   const heli = flight.phase === 'helicopter'
+  const driving = flight.phase === 'driving'
+  const canUnmount = onGround && flight.airspeed < 3.2
   const peerConnected = useGameStore((s) => s.peerConnected)
   const remoteName = useGameStore((s) => s.remoteName)
   const remoteFlight = useGameStore((s) => s.remoteFlight)
@@ -197,11 +201,16 @@ export function FlightHUD() {
         .map((g) => g.buildingId!),
     ),
   ]
+  const nearVehicle =
+    walking &&
+    biome === 'city' &&
+    nearestTrafficVehicle(flight.position.x, flight.position.z, VEHICLE_BOARD_RANGE)
   const nearElev =
     walking &&
     biome === 'city' &&
     flight.interiorId < 0 &&
     !nearMount &&
+    !nearVehicle &&
     nearestElevatorBuilding(
       flight.position.x,
       flight.position.z,
@@ -247,7 +256,7 @@ export function FlightHUD() {
   }
 
   const showSteerPads =
-    !tiltEnabled || walking || freefall || parachuting || heli
+    !tiltEnabled || walking || driving || freefall || parachuting || heli
 
   return (
     <div className={styles.hud}>
@@ -428,15 +437,23 @@ export function FlightHUD() {
 
       {onGround && !tut && (
         <div className={styles.coach}>
-          {biome === 'city' && cityLaunchLabel && flight.phase === 'grounded'
-            ? `${cityLaunchLabel} — build speed, then dive off the roof`
-            : tiltEnabled
-              ? canLift
-                ? 'Speed ready — pull the iPad back to climb and lift off'
-                : 'Hold + to build speed, then pull back to take off'
-              : canLift
-                ? 'Speed ready — hold ↓ Climb to lift off'
-                : 'Hold + / Shift to build speed, then ↓ Climb to take off'}
+          {canUnmount
+            ? 'Parked — press E / Unmount to hop off and walk'
+            : biome === 'city' && cityLaunchLabel && flight.phase === 'grounded'
+              ? `${cityLaunchLabel} — build speed, then dive off the roof`
+              : tiltEnabled
+                ? canLift
+                  ? 'Speed ready — pull the iPad back to climb and lift off'
+                  : 'Hold + to build speed, then pull back to take off'
+                : canLift
+                  ? 'Speed ready — hold ↓ Climb to lift off'
+                  : 'Hold + / Shift to build speed, then ↓ Climb to take off'}
+        </div>
+      )}
+
+      {driving && (
+        <div className={styles.coach}>
+          Drive · ↑ gas · ↓ brake · A/D steer · E exit when slow
         </div>
       )}
 
@@ -484,9 +501,16 @@ export function FlightHUD() {
         </div>
       )}
 
-      {walking && !nearMount && !nearDoor && !nearElev && !inside && !onRoof && flight.landAction === 'none' && (
+      {walking &&
+        !nearMount &&
+        !nearVehicle &&
+        !nearDoor &&
+        !nearElev &&
+        !inside &&
+        !onRoof &&
+        flight.landAction === 'none' && (
         <div className={styles.coach}>
-          Explore — look for green elevators (roof gliders) or gold rings on the street
+          Walk · hold Shift / Sprint to run · cars & buses — press E to drive
         </div>
       )}
 
@@ -511,6 +535,14 @@ export function FlightHUD() {
           {(nearMount.craftType ?? 'glider') === 'helicopter'
             ? 'Chopper ready — press E to board'
             : 'Hang glider nearby — press E / Mount to fly again'}
+        </div>
+      )}
+
+      {walking && nearVehicle && !nearMount && (
+        <div className={styles.nearGround}>
+          {nearVehicle.kind === 'bus'
+            ? 'Bus nearby — press E to drive'
+            : 'Vehicle nearby — press E to hop in and drive'}
         </div>
       )}
 
@@ -540,7 +572,7 @@ export function FlightHUD() {
         </div>
       )}
 
-      {nearDoor && !nearMount && !nearElev && (
+      {nearDoor && !nearMount && !nearVehicle && !nearElev && (
         <div className={styles.nearGround}>Green door mat — press E / Mount to enter</div>
       )}
 
@@ -592,7 +624,7 @@ export function FlightHUD() {
             <ControlPad
               label="↑"
               sub={
-                walking
+                walking || driving
                   ? 'Fwd'
                   : freefall || parachuting
                     ? 'Brake'
@@ -611,11 +643,13 @@ export function FlightHUD() {
                 sub={
                   walking
                     ? 'Back'
-                    : freefall || parachuting
-                      ? 'Sink'
-                      : heli
-                        ? 'Climb'
-                        : 'Climb'
+                    : driving
+                      ? 'Brake'
+                      : freefall || parachuting
+                        ? 'Sink'
+                        : heli
+                          ? 'Climb'
+                          : 'Climb'
                 }
                 action="pitchUp"
                 active={input.pitchUp}
@@ -683,10 +717,10 @@ export function FlightHUD() {
                 </>
               )}
               <ControlPad
-                label="Mount"
-                sub={nearMount ? 'Ready' : 'Near'}
+                label={nearVehicle && !nearMount ? 'Drive' : 'Mount'}
+                sub={nearMount || nearVehicle ? 'Ready' : 'Near'}
                 action="interact"
-                className={nearMount ? styles.padLand : styles.padAction}
+                className={nearMount || nearVehicle ? styles.padLand : styles.padAction}
                 active={input.interact}
               />
               {flight.airtime >= 2.5 && (
@@ -712,12 +746,33 @@ export function FlightHUD() {
           )}
           {!walking && !freefall && (
             <>
-              <ControlPad label="+" sub="Speed" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
-              <ControlPad label="−" sub="Slow" action="speedDown" className={styles.padSpeed} active={input.speedDown} />
+              <ControlPad
+                label="+"
+                sub={driving ? 'Gas' : 'Speed'}
+                action="speedUp"
+                className={styles.padSpeed}
+                active={input.speedUp}
+              />
+              <ControlPad
+                label="−"
+                sub={driving ? 'Brake' : 'Slow'}
+                action="speedDown"
+                className={styles.padSpeed}
+                active={input.speedDown}
+              />
             </>
           )}
           {walking && (
             <ControlPad label="Sprint" sub="Shift" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
+          )}
+          {(driving || canUnmount) && (
+            <ControlPad
+              label={driving ? 'Exit' : 'Unmount'}
+              sub="E"
+              action="interact"
+              className={styles.padLand}
+              active={input.interact}
+            />
           )}
         </div>
       </div>

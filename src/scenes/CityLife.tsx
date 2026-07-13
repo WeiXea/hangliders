@@ -9,8 +9,9 @@ import {
   buildingRoofY,
   getBuildingById,
 } from '../game/cityBuildings'
+import { setTrafficSnapshots } from '../game/trafficRegistry'
 
-type VehicleKind = 'car' | 'bus' | 'police' | 'fire' | 'taxi'
+export type VehicleKind = 'car' | 'bus' | 'police' | 'fire' | 'taxi'
 
 type Lane = {
   axis: 'x' | 'z'
@@ -97,7 +98,7 @@ function SedanBody({ color, accent }: { color: string; accent?: string }) {
   )
 }
 
-function VehicleMesh({ kind, color }: { kind: VehicleKind; color?: string }) {
+export function VehicleMesh({ kind, color }: { kind: VehicleKind; color?: string }) {
   const blink = useRef<THREE.MeshStandardMaterial>(null)
   useFrame((state) => {
     if (!blink.current) return
@@ -228,21 +229,67 @@ function TrafficLayer() {
 
   useFrame((state) => {
     if (!group.current) return
+    const flight = useGameStore.getState().flight
+    const drivenId = flight.phase === 'driving' ? flight.vehicleId : -1
     const t = state.clock.elapsedTime
+    const snaps: {
+      id: number
+      kind: VehicleKind
+      x: number
+      z: number
+      yaw: number
+      color?: string
+      taken: boolean
+    }[] = []
+
     group.current.children.forEach((child, i) => {
       const lane = LANES[i]
       if (!lane) return
+
+      if (drivenId === i) {
+        child.visible = false
+        snaps.push({
+          id: i,
+          kind: lane.kind,
+          x: flight.position.x,
+          z: flight.position.z,
+          yaw: flight.yaw,
+          color: lane.color,
+          taken: true,
+        })
+        return
+      }
+
+      child.visible = true
       const span = lane.max - lane.min
       const u = ((t * lane.speed * lane.dir + lane.offset) % span + span) % span
       const along = lane.min + u
+      let x: number
+      let z: number
+      let yaw: number
       if (lane.axis === 'x') {
-        child.position.set(along, getHeight(along, lane.fixed) + CITY_STREET_DECK, lane.fixed)
-        child.rotation.y = lane.dir > 0 ? Math.PI / 2 : -Math.PI / 2
+        x = along
+        z = lane.fixed
+        yaw = lane.dir > 0 ? Math.PI / 2 : -Math.PI / 2
       } else {
-        child.position.set(lane.fixed, getHeight(lane.fixed, along) + CITY_STREET_DECK, along)
-        child.rotation.y = lane.dir > 0 ? 0 : Math.PI
+        x = lane.fixed
+        z = along
+        yaw = lane.dir > 0 ? 0 : Math.PI
       }
+      child.position.set(x, getHeight(x, z) + CITY_STREET_DECK, z)
+      child.rotation.y = yaw
+      snaps.push({
+        id: i,
+        kind: lane.kind,
+        x,
+        z,
+        yaw,
+        color: lane.color,
+        taken: false,
+      })
     })
+
+    setTrafficSnapshots(snaps)
   })
 
   return (

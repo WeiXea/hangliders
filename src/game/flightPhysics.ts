@@ -7,8 +7,10 @@ import type {
 import {
   JUMP_MIN_ALTITUDE,
   MOUNT_RANGE,
+  VEHICLE_BOARD_RANGE,
   WALK_FEET,
 } from '../types/game'
+import type { VehicleKind } from '../types/game'
 import {
   GROUND_CLEARANCE,
   GLIDER_REST_CLEARANCE,
@@ -18,6 +20,12 @@ import {
   resolvePropPush,
 } from './obstacles'
 import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos, nearestElevatorBuilding, elevatorStreetPos, elevatorRoofPos } from './cityBuildings'
+import {
+  nearestTrafficVehicle,
+  setTakenVehicleId,
+  vehicleMaxSpeed,
+  vehicleRestClearance,
+} from './trafficRegistry'
 import { liftCoeff, groundEffectFactor } from './aero'
 import { sampleAtmosphere } from './atmosphere'
 
@@ -34,8 +42,8 @@ const PITCH_DAMP = 2.6
 const ROLL_DAMP = 3.1
 const MAX_PITCH = 0.48
 const MAX_ROLL = 0.7
-const WALK_SPEED = 2.2
-const WALK_SPRINT = 4.8
+const WALK_SPEED = 4.2
+const WALK_SPRINT = 8.8
 const GRAVITY = 22
 const CHUTE_SINK = 3.6
 const CHUTE_OPEN_SINK = 18
@@ -99,6 +107,8 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     tandemWant: false,
     interiorId: -1,
     craftType: 'glider',
+    vehicleId: -1,
+    vehicleKind: null,
   }
 }
 
@@ -121,7 +131,8 @@ function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
     next.phase === 'landed' ||
     next.phase === 'crashed' ||
     next.phase === 'grounded' ||
-    next.phase === 'running'
+    next.phase === 'running' ||
+    next.phase === 'driving'
   ) {
     return next
   }
@@ -220,10 +231,13 @@ function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
     stallWarning: false,
     interiorId: -1,
     craftType: 'glider',
+    vehicleId: -1,
+    vehicleKind: null,
   }
 }
 
 function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
+  setTakenVehicleId(-1)
   const support = supportY(config, next.position.x, next.position.z)
   return {
     ...next,
@@ -247,6 +261,8 @@ function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
     stallWarning: false,
     interiorId: -1,
     craftType: 'glider',
+    vehicleId: -1,
+    vehicleKind: null,
   }
 }
 
@@ -377,7 +393,7 @@ export function tickFlight(
     next.position.z += next.velocity.z * dt
     next.position.y += next.velocity.y * dt
 
-    // Enter / leave buildings, ride elevators to rooftop gliders
+    // Enter / leave buildings, ride elevators, board traffic
     if (input.interact && config.id === 'city') {
       const roofBuildingIds = [
         ...new Set(
@@ -400,8 +416,13 @@ export function tickFlight(
         next.position.y,
         (gx, gz) => supportY(config, gx, gz).y,
       )
+      const nearVeh = nearestTrafficVehicle(
+        next.position.x,
+        next.position.z,
+        VEHICLE_BOARD_RANGE,
+      )
 
-      if (elev && !nearGlider) {
+      if (elev && !nearGlider && !nearVeh) {
         if (elev.toRoof) {
           const roof = elevatorRoofPos(elev.building, config.getHeight)
           next.position.x = roof.x
@@ -428,7 +449,7 @@ export function tickFlight(
         }
       } else {
         const doorB = nearestEnterableDoor(next.position.x, next.position.z, config.getHeight)
-        if (doorB && !nearGlider && !elev) {
+        if (doorB && !nearGlider && !elev && !nearVeh) {
           next.interiorId = doorB.id
           next.position.x = doorB.x
           next.position.z = doorB.z
@@ -524,7 +545,97 @@ export function tickFlight(
             interiorId: -1,
           }
         }
+      } else if (config.id === 'city') {
+        const veh = nearestTrafficVehicle(
+          next.position.x,
+          next.position.z,
+          VEHICLE_BOARD_RANGE,
+        )
+        if (veh) {
+          setTakenVehicleId(veh.id)
+          const kind = veh.kind as VehicleKind
+          const gy = supportY(config, veh.x, veh.z).y
+          next = {
+            ...next,
+            phase: 'driving',
+            vehicleId: veh.id,
+            vehicleKind: kind,
+            position: {
+              x: veh.x,
+              y: gy + vehicleRestClearance(kind),
+              z: veh.z,
+            },
+            yaw: veh.yaw,
+            pitch: 0,
+            roll: 0,
+            airspeed: 0,
+            velocity: { x: 0, y: 0, z: 0 },
+            altitude: 0,
+            mountedId: -1,
+            landAction: 'none',
+            interiorId: -1,
+            stallWarning: false,
+            craftType: 'glider',
+          }
+        }
       }
+    }
+
+    return { flight: next, parked }
+  }
+
+  // --- Driving city traffic ---
+  if (next.phase === 'driving') {
+    const kind = (next.vehicleKind ?? 'car') as VehicleKind
+    const maxSpd = vehicleMaxSpeed(kind)
+    next.stallWarning = false
+
+    if (input.bankLeft) next.yaw += 1.8 * dt
+    if (input.bankRight) next.yaw -= 1.8 * dt
+
+    if (input.pitchDown || input.speedUp) {
+      next.airspeed = Math.min(maxSpd, next.airspeed + 14 * dt)
+    } else if (input.pitchUp || input.speedDown) {
+      next.airspeed = Math.max(-maxSpd * 0.35, next.airspeed - 18 * dt)
+    } else {
+      next.airspeed *= 1 - Math.min(1, 2.2 * dt)
+      if (Math.abs(next.airspeed) < 0.35) next.airspeed = 0
+    }
+
+    next.velocity.x = Math.sin(next.yaw) * next.airspeed
+    next.velocity.z = Math.cos(next.yaw) * next.airspeed
+    next.velocity.y = 0
+    next.position.x += next.velocity.x * dt
+    next.position.z += next.velocity.z * dt
+
+    if (config.id === 'city') {
+      const pushed = resolveBuildingPush(next.position, config.getHeight, 1.1, -1)
+      next.position.x = pushed.x
+      next.position.z = pushed.z
+    }
+    support = supportY(config, next.position.x, next.position.z)
+    groundY = support.y
+    next.position.y = groundY + vehicleRestClearance(kind)
+    next.altitude = 0
+    next.distance += Math.abs(next.airspeed) * dt
+    next.pitch = lerp(next.pitch, next.airspeed > 1 ? -0.04 : 0, Math.min(1, 4 * dt))
+    next.roll = lerp(
+      next.roll,
+      input.bankLeft ? 0.08 : input.bankRight ? -0.08 : 0,
+      Math.min(1, 5 * dt),
+    )
+
+    if (
+      Math.abs(next.airspeed) < 2.2 &&
+      (input.interact || input.land || input.jump)
+    ) {
+      setTakenVehicleId(-1)
+      const exitYaw = next.yaw + Math.PI * 0.5
+      next = beginWalking(next, config)
+      next.position.x += Math.sin(exitYaw) * 2.4
+      next.position.z += Math.cos(exitYaw) * 2.4
+      next.position.y = supportY(config, next.position.x, next.position.z).y + WALK_FEET
+      return { flight: next, parked }
     }
 
     return { flight: next, parked }
@@ -720,6 +831,22 @@ export function tickFlight(
   if (next.phase === 'grounded' || next.phase === 'running') {
     next.phase = 'running'
     const deckY = groundY
+
+    // Hop off while nearly stopped — park the wing and walk
+    if (
+      next.airspeed < 3.2 &&
+      (input.interact || input.land || (input.jump && !input.takeOff && !input.speedUp))
+    ) {
+      parked = parkMountedGlider(next, parked, config)
+      const back = next.yaw + Math.PI
+      const px = next.position.x + Math.sin(back) * 2.2
+      const pz = next.position.z + Math.cos(back) * 2.2
+      next = beginWalking(next, config)
+      next.position.x = px
+      next.position.z = pz
+      next.position.y = supportY(config, px, pz).y + WALK_FEET
+      return { flight: next, parked }
+    }
 
     if (input.speedUp || input.takeOff) {
       next.airspeed = Math.min(MAX_AIRSPEED, next.airspeed + 14 * dt)
