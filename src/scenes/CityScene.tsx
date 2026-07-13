@@ -252,16 +252,16 @@ function BuildingInterior({ config }: { config: BiomeConfig }) {
 function StreetGrid() {
   const lines = useMemo(() => {
     const result: ReactElement[] = []
-    for (let i = -120; i <= 220; i += 22) {
+    for (let i = -240; i <= 420; i += 22) {
       result.push(
-        <mesh key={`h${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[50, 0.08, i]}>
-          <planeGeometry args={[420, 2.2]} />
+        <mesh key={`h${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[80, 0.08, i]}>
+          <planeGeometry args={[840, 2.2]} />
           <meshStandardMaterial color="#343a40" roughness={0.88} />
         </mesh>,
       )
       result.push(
-        <mesh key={`v${i}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[i, 0.08, 60]}>
-          <planeGeometry args={[420, 2.2]} />
+        <mesh key={`v${i}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[i, 0.08, 100]}>
+          <planeGeometry args={[840, 2.2]} />
           <meshStandardMaterial color="#343a40" roughness={0.88} />
         </mesh>,
       )
@@ -273,10 +273,10 @@ function StreetGrid() {
 
 function SkylineSilhouette() {
   return (
-    <group position={[220, 0, 200]}>
-      {Array.from({ length: 18 }, (_, i) => (
-        <mesh key={i} position={[i * 9, 10 + (i % 5) * 7, (i % 3) * 8]} castShadow>
-          <boxGeometry args={[7, 18 + (i % 6) * 9, 7]} />
+    <group position={[400, 0, 360]}>
+      {Array.from({ length: 24 }, (_, i) => (
+        <mesh key={i} position={[i * 11, 12 + (i % 5) * 8, (i % 3) * 10]} castShadow>
+          <boxGeometry args={[8, 20 + (i % 6) * 10, 8]} />
           <meshStandardMaterial color="#495057" roughness={0.8} />
         </mesh>
       ))}
@@ -354,7 +354,7 @@ export function CityScene({ config }: CitySceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="city" size={640} segments={120} />
+      <DetailedTerrain config={config} biome="city" size={1280} segments={200} />
       <HorizonRing color="#6c757d" y={0} />
       <StreetGrid />
       {CITY_BUILDINGS.map((b) => (
@@ -371,18 +371,23 @@ export function CityScene({ config }: CitySceneProps) {
       <LaunchRamp config={config} />
       <ParkBench position={[22, config.getHeight(22, 48), 48]} yaw={0.3} />
       <ParkBench position={[48, config.getHeight(48, 88), 88]} yaw={-0.5} />
+      <ParkBench position={[90, config.getHeight(90, 130), 130]} yaw={0.8} />
+      <ParkBench position={[140, config.getHeight(140, 70), 70]} yaw={-0.2} />
       <StreetLamp position={[18, config.getHeight(18, 40), 40]} />
       <StreetLamp position={[40, config.getHeight(40, 62), 62]} />
       <StreetLamp position={[72, config.getHeight(72, 95), 95]} />
       <StreetLamp position={[105, config.getHeight(105, 120), 120]} />
+      <StreetLamp position={[160, config.getHeight(160, 150), 150]} />
+      <StreetLamp position={[200, config.getHeight(200, 90), 90]} />
       <Billboard position={[35, config.getHeight(35, 75), 75]} />
       <Billboard position={[125, config.getHeight(125, 140), 140]} />
+      <Billboard position={[180, config.getHeight(180, 110), 110]} />
       <OceanSurface
         y={-0.55}
-        scale={[520, 90]}
+        scale={[980, 160]}
         deep="#023e8a"
         shallow="#48cae4"
-        position={[30, 0, -40]}
+        position={[40, 0, -60]}
       />
     </>
   )

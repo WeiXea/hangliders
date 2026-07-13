@@ -14,6 +14,7 @@ export function FlightParticles() {
   return (
     <group>
       <DustBurst />
+      <WalkDust />
       <TipVortices />
       <ThermalShimmer />
     </group>
@@ -79,6 +80,81 @@ function DustBurst() {
         size={0.45}
         transparent
         opacity={0.45}
+        depthWrite={false}
+        sizeAttenuation
+      />
+    </points>
+  )
+}
+
+const WALK_N = 36
+
+function WalkDust() {
+  const points = useRef<THREE.Points>(null)
+  const mat = useRef<THREE.PointsMaterial>(null)
+  const life = useRef(new Float32Array(WALK_N))
+  const vel = useRef(new Float32Array(WALK_N * 3))
+  const acc = useRef(0)
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(WALK_N * 3), 3))
+    return g
+  }, [])
+
+  useFrame((_, dt) => {
+    const pts = points.current
+    if (!pts) return
+    const { flight, biome } = useGameStore.getState()
+    const pos = pts.geometry.attributes.position as THREE.BufferAttribute
+    const arr = pos.array as Float32Array
+    const L = life.current
+    const V = vel.current
+
+    const walking = flight.phase === 'walking' && flight.airspeed > 0.4
+    const color =
+      biome === 'beach' ? '#cbb891' : biome === 'mountains' ? '#8d9b6c' : '#6c757d'
+    if (mat.current) mat.current.color.set(color)
+
+    if (walking) {
+      acc.current += dt * (flight.airspeed > 3.5 ? 18 : 10)
+      while (acc.current > 1) {
+        acc.current -= 1
+        const slot = Math.floor(Math.random() * WALK_N)
+        L[slot] = 0.35 + Math.random() * 0.25
+        const side = (Math.random() - 0.5) * 0.35
+        const fx = Math.sin(flight.yaw)
+        const fz = Math.cos(flight.yaw)
+        arr[slot * 3] = flight.position.x - fx * 0.2 + fz * side
+        arr[slot * 3 + 1] = flight.position.y + 0.05
+        arr[slot * 3 + 2] = flight.position.z - fz * 0.2 - fx * side
+        V[slot * 3] = (Math.random() - 0.5) * 0.8
+        V[slot * 3 + 1] = 0.6 + Math.random() * 0.8
+        V[slot * 3 + 2] = (Math.random() - 0.5) * 0.8
+      }
+    }
+
+    for (let i = 0; i < WALK_N; i++) {
+      if (L[i] <= 0) {
+        arr[i * 3 + 1] = -999
+        continue
+      }
+      L[i] -= dt
+      arr[i * 3] += V[i * 3] * dt
+      arr[i * 3 + 1] += V[i * 3 + 1] * dt
+      arr[i * 3 + 2] += V[i * 3 + 2] * dt
+      V[i * 3 + 1] -= 5 * dt
+    }
+    pos.needsUpdate = true
+  })
+
+  return (
+    <points ref={points} geometry={geo} frustumCulled={false}>
+      <pointsMaterial
+        ref={mat}
+        color="#cbb891"
+        size={0.22}
+        transparent
+        opacity={0.4}
         depthWrite={false}
         sizeAttenuation
       />

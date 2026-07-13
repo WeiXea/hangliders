@@ -33,8 +33,8 @@ const PITCH_DAMP = 2.6
 const ROLL_DAMP = 3.1
 const MAX_PITCH = 0.48
 const MAX_ROLL = 0.7
-const WALK_SPEED = 7.5
-const WALK_SPRINT = 11
+const WALK_SPEED = 2.2
+const WALK_SPRINT = 4.8
 const GRAVITY = 22
 const CHUTE_SINK = 3.6
 const CHUTE_OPEN_SINK = 18
@@ -109,8 +109,14 @@ export function initParkedGliders(config: BiomeConfig): ParkedGlider[] {
 }
 
 function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
-  // Walking uses soft push instead of crash
-  if (next.phase === 'walking' || next.phase === 'landed' || next.phase === 'crashed') {
+  // Walking / ground roll use soft push — don't hard-crash into scenery
+  if (
+    next.phase === 'walking' ||
+    next.phase === 'landed' ||
+    next.phase === 'crashed' ||
+    next.phase === 'grounded' ||
+    next.phase === 'running'
+  ) {
     return next
   }
 

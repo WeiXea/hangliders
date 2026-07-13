@@ -29,6 +29,8 @@ export function getThermals(biomeId: string): Thermal[] {
       { x: 90, z: 220, radius: 50, strength: 4.8, y0: 30, y1: 170 },
       { x: 250, z: 200, radius: 40, strength: 3.8, y0: 20, y1: 150 },
       { x: -20, z: 100, radius: 28, strength: 3.2, y0: 15, y1: 120 },
+      { x: 320, z: 280, radius: 42, strength: 4.0, y0: 22, y1: 165 },
+      { x: 180, z: 320, radius: 36, strength: 3.5, y0: 18, y1: 145 },
     ]
   }
   if (biomeId === 'city') {
@@ -37,6 +39,8 @@ export function getThermals(biomeId: string): Thermal[] {
       { x: 160, z: 160, radius: 36, strength: 3.4, y0: 18, y1: 110 },
       { x: 40, z: 200, radius: 30, strength: 2.8, y0: 12, y1: 95 },
       { x: 120, z: 70, radius: 28, strength: 2.6, y0: 14, y1: 90 },
+      { x: 220, z: 220, radius: 34, strength: 3.1, y0: 16, y1: 105 },
+      { x: 280, z: 140, radius: 30, strength: 2.7, y0: 14, y1: 98 },
     ]
   }
   // beach — coastal thermals off cliffs/dunes
@@ -46,6 +50,8 @@ export function getThermals(biomeId: string): Thermal[] {
     { x: 180, z: 80, radius: 30, strength: 2.8, y0: 10, y1: 100 },
     { x: 140, z: 200, radius: 38, strength: 3.4, y0: 14, y1: 110 },
     { x: 60, z: 160, radius: 28, strength: 2.6, y0: 12, y1: 95 },
+    { x: 260, z: 180, radius: 36, strength: 3.2, y0: 14, y1: 115 },
+    { x: 200, z: 280, radius: 40, strength: 3.0, y0: 12, y1: 108 },
   ]
 }
 

@@ -15,21 +15,22 @@ interface BeachSceneProps {
 }
 
 function PalmTree({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
+  const trunkH = 4.6 + scale * 0.8
   return (
     <group position={position} scale={scale}>
-      <mesh castShadow position={[0, 2.4, 0]}>
-        <cylinderGeometry args={[0.16, 0.28, 5, 8]} />
+      <mesh castShadow position={[0, trunkH * 0.48, 0]}>
+        <cylinderGeometry args={[0.14, 0.26, trunkH, 8]} />
         <meshStandardMaterial color="#6b4423" roughness={0.88} />
       </mesh>
       {[0, 1, 2, 3, 4, 5, 6].map((i) => (
         <mesh
           key={i}
           castShadow
-          position={[Math.sin(i * 0.95) * 1.5, 5.1, Math.cos(i * 0.95) * 1.5]}
+          position={[Math.sin(i * 0.95) * 1.5, trunkH + 0.2, Math.cos(i * 0.95) * 1.5]}
           rotation={[0.55, i * 0.95, 0.12]}
         >
           <boxGeometry args={[0.32, 2.9, 0.08]} />
-          <meshStandardMaterial color="#2d6a4f" roughness={0.72} />
+          <meshStandardMaterial color={i % 2 === 0 ? '#2d6a4f' : '#40916c'} roughness={0.72} />
         </mesh>
       ))}
     </group>
@@ -55,22 +56,46 @@ function DistantIsland({ position, scale = 1 }: { position: [number, number, num
   )
 }
 
-function BeachHut({ position }: { position: [number, number, number] }) {
+function BeachHut({
+  position,
+  variant = 0,
+}: {
+  position: [number, number, number]
+  variant?: number
+}) {
+  const body = variant === 0 ? '#d4a373' : variant === 1 ? '#c98b6a' : '#b08968'
+  const roof = variant === 0 ? '#6b4226' : variant === 1 ? '#432818' : '#7f5539'
+  const w = 3.0 + variant * 0.35
+  const d = 2.6 + (variant % 2) * 0.4
   return (
     <group position={position}>
       <mesh castShadow position={[0, 1.1, 0]}>
-        <boxGeometry args={[3.2, 2.2, 2.8]} />
-        <meshStandardMaterial color="#d4a373" roughness={0.85} />
+        <boxGeometry args={[w, 2.2, d]} />
+        <meshStandardMaterial color={body} roughness={0.85} />
       </mesh>
       <mesh castShadow position={[0, 2.8, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <coneGeometry args={[2.6, 1.6, 4]} />
-        <meshStandardMaterial color="#6b4226" roughness={0.9} />
+        <coneGeometry args={[2.4 + variant * 0.2, 1.5 + variant * 0.15, 4]} />
+        <meshStandardMaterial color={roof} roughness={0.9} />
+      </mesh>
+      <mesh position={[0, 0.95, d * 0.52]}>
+        <boxGeometry args={[0.7, 1.4, 0.08]} />
+        <meshStandardMaterial color="#3d2914" roughness={0.8} />
+      </mesh>
+      <mesh position={[w * 0.28, 1.35, d * 0.52]}>
+        <boxGeometry args={[0.45, 0.45, 0.06]} />
+        <meshStandardMaterial color="#90e0ef" roughness={0.3} metalness={0.2} />
       </mesh>
     </group>
   )
 }
 
-function BeachUmbrella({ position }: { position: [number, number, number] }) {
+function BeachUmbrella({
+  position,
+  color = '#e63946',
+}: {
+  position: [number, number, number]
+  color?: string
+}) {
   return (
     <group position={position}>
       <mesh castShadow position={[0, 1.4, 0]}>
@@ -79,7 +104,7 @@ function BeachUmbrella({ position }: { position: [number, number, number] }) {
       </mesh>
       <mesh castShadow position={[0, 2.7, 0]}>
         <coneGeometry args={[1.6, 0.55, 10]} />
-        <meshStandardMaterial color="#e63946" roughness={0.65} />
+        <meshStandardMaterial color={color} roughness={0.65} />
       </mesh>
     </group>
   )
@@ -91,6 +116,29 @@ function Driftwood({ position, yaw = 0 }: { position: [number, number, number]; 
       <capsuleGeometry args={[0.12, 1.8, 4, 6]} />
       <meshStandardMaterial color="#6b4423" roughness={0.95} />
     </mesh>
+  )
+}
+
+function BeachChair({ position, yaw = 0 }: { position: [number, number, number]; yaw?: number }) {
+  return (
+    <group position={position} rotation={[0, yaw, 0]}>
+      <mesh castShadow position={[0, 0.35, 0]}>
+        <boxGeometry args={[0.55, 0.06, 1.1]} />
+        <meshStandardMaterial color="#f4a261" roughness={0.7} />
+      </mesh>
+      <mesh castShadow position={[0, 0.7, -0.4]} rotation={[0.45, 0, 0]}>
+        <boxGeometry args={[0.55, 0.06, 0.7]} />
+        <meshStandardMaterial color="#e76f51" roughness={0.7} />
+      </mesh>
+      <mesh position={[-0.22, 0.2, 0.4]}>
+        <cylinderGeometry args={[0.025, 0.025, 0.4, 6]} />
+        <meshStandardMaterial color="#adb5bd" metalness={0.5} roughness={0.4} />
+      </mesh>
+      <mesh position={[0.22, 0.2, 0.4]}>
+        <cylinderGeometry args={[0.025, 0.025, 0.4, 6]} />
+        <meshStandardMaterial color="#adb5bd" metalness={0.5} roughness={0.4} />
+      </mesh>
+    </group>
   )
 }
 
@@ -116,14 +164,32 @@ function Seagull({ position }: { position: [number, number, number] }) {
 export function BeachScene({ config }: BeachSceneProps) {
   const palms = useMemo(
     () =>
-      Array.from({ length: 55 }, (_, i) => {
-        const x = -90 + i * 5.5 + Math.sin(i * 1.7) * 8
-        const z = -40 + Math.cos(i * 1.1) * 28 + (i % 4) * 12
+      Array.from({ length: 110 }, (_, i) => {
+        const x = -160 + i * 4.2 + Math.sin(i * 1.7) * 14
+        const z = -80 + Math.cos(i * 1.1) * 48 + (i % 5) * 18
         return {
           pos: [x, config.getHeight(x, z), z] as [number, number, number],
-          scale: 0.75 + (Math.sin(i * 9) * 0.5 + 0.5) * 0.55,
+          scale: 0.7 + (Math.sin(i * 9) * 0.5 + 0.5) * 0.7,
         }
       }),
+    [config],
+  )
+
+  const chairs = useMemo(
+    () =>
+      [
+        [26, 64],
+        [32, 60],
+        [38, 66],
+        [18, 72],
+        [44, 58],
+        [70, 100],
+        [85, 110],
+        [100, 95],
+      ].map(([x, z], i) => ({
+        pos: [x, config.getHeight(x, z), z] as [number, number, number],
+        yaw: i * 0.4,
+      })),
     [config],
   )
 
@@ -131,36 +197,50 @@ export function BeachScene({ config }: BeachSceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="beach" segments={150} />
+      <DetailedTerrain config={config} biome="beach" size={2800} segments={220} />
       <HorizonRing color="#c9a227" y={-1} />
       <OceanSurface y={-0.55} />
       <LaunchRamp config={config} />
-      <CliffFace position={[-70, 10, -10]} size={[12, 24, 55]} rotation={0.18} />
-      <CliffFace position={[-62, 7, 35]} size={[9, 16, 35]} rotation={-0.12} />
-      <CliffFace position={[-55, 12, -40]} size={[14, 28, 40]} rotation={0.32} />
-      <CliffFace position={[-85, 8, 20]} size={[10, 18, 45]} rotation={0.05} />
-      <ScatterRocks config={config} count={70} area={280} />
+      {/* Cliff faces west of the launch plateau — match thin collision sheets */}
+      <CliffFace position={[-78, 10, -10]} size={[8, 24, 55]} rotation={0.18} />
+      <CliffFace position={[-72, 7, 35]} size={[7, 16, 35]} rotation={-0.12} />
+      <CliffFace position={[-68, 12, -40]} size={[9, 28, 40]} rotation={0.32} />
+      <CliffFace position={[-92, 8, 20]} size={[8, 18, 45]} rotation={0.05} />
+      <CliffFace position={[-100, 9, -60]} size={[10, 22, 50]} rotation={0.22} />
+      <CliffFace position={[-88, 6, 70]} size={[7, 14, 30]} rotation={-0.08} />
+      <ScatterRocks config={config} count={140} area={560} />
       {palms.map((p, i) => (
         <PalmTree key={i} position={p.pos} scale={p.scale} />
       ))}
-      <BeachHut position={[20, config.getHeight(20, 55), 55]} />
-      <BeachHut position={[-10, config.getHeight(-10, 70), 70]} />
-      <BeachHut position={[55, config.getHeight(55, 95), 95]} />
-      <BeachUmbrella position={[28, config.getHeight(28, 62), 62]} />
-      <BeachUmbrella position={[35, config.getHeight(35, 58), 58]} />
-      <BeachUmbrella position={[12, config.getHeight(12, 78), 78]} />
+      <BeachHut position={[20, config.getHeight(20, 55), 55]} variant={0} />
+      <BeachHut position={[-10, config.getHeight(-10, 70), 70]} variant={1} />
+      <BeachHut position={[55, config.getHeight(55, 95), 95]} variant={2} />
+      <BeachHut position={[120, config.getHeight(120, 130), 130]} variant={1} />
+      <BeachHut position={[180, config.getHeight(180, 90), 90]} variant={0} />
+      <BeachUmbrella position={[28, config.getHeight(28, 62), 62]} color="#e63946" />
+      <BeachUmbrella position={[35, config.getHeight(35, 58), 58]} color="#457b9d" />
+      <BeachUmbrella position={[12, config.getHeight(12, 78), 78]} color="#f4a261" />
+      <BeachUmbrella position={[75, config.getHeight(75, 105), 105]} color="#2a9d8f" />
+      <BeachUmbrella position={[95, config.getHeight(95, 88), 88]} color="#e9c46a" />
+      {chairs.map((c, i) => (
+        <BeachChair key={i} position={c.pos} yaw={c.yaw} />
+      ))}
       <Driftwood position={[45, config.getHeight(45, 48) + 0.2, 48]} yaw={0.8} />
       <Driftwood position={[70, config.getHeight(70, 110) + 0.15, 110]} yaw={-0.4} />
+      <Driftwood position={[150, config.getHeight(150, 140) + 0.18, 140]} yaw={1.1} />
+      <Driftwood position={[200, config.getHeight(200, 70) + 0.12, 70]} yaw={-0.7} />
       <Seagull position={[40, config.getHeight(40, 80) + 18, 80]} />
       <Seagull position={[90, config.getHeight(90, 100) + 22, 100]} />
       <Seagull position={[130, 28, 150]} />
-      <DistantIsland position={[220, -0.5, 280]} scale={1.6} />
-      <DistantIsland position={[160, -0.3, 320]} scale={1.1} />
-      <DistantIsland position={[300, -0.4, 240]} scale={1.3} />
-      <DistantIsland position={[260, -0.2, 360]} scale={0.9} />
-      <DistantIsland position={[340, -0.3, 300]} scale={1.8} />
-      <DistantIsland position={[380, -0.4, 200]} scale={1.2} />
-      <DistantIsland position={[100, -0.3, 380]} scale={1.4} />
+      <Seagull position={[220, 32, 200]} />
+      <Seagull position={[280, 26, 160]} />
+      <DistantIsland position={[420, -0.5, 520]} scale={1.8} />
+      <DistantIsland position={[320, -0.3, 600]} scale={1.2} />
+      <DistantIsland position={[560, -0.4, 440]} scale={1.5} />
+      <DistantIsland position={[480, -0.2, 680]} scale={1.0} />
+      <DistantIsland position={[640, -0.3, 560]} scale={2.0} />
+      <DistantIsland position={[700, -0.4, 380]} scale={1.3} />
+      <DistantIsland position={[200, -0.3, 720]} scale={1.6} />
     </>
   )
 }

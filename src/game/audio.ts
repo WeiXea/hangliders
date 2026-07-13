@@ -207,6 +207,66 @@ export function playRingSound() {
   osc.stop(ac.currentTime + 0.3)
 }
 
+let stepAcc = 0
+let lastInteract = false
+
+/** Soft footfall ticks while walking / sprinting. */
+export function tickFootsteps(
+  speed: number,
+  phase: string,
+  sprint = false,
+  surface: 'sand' | 'grass' | 'city' = 'sand',
+) {
+  if (phase !== 'walking' || speed < 0.35) {
+    stepAcc = 0
+    return
+  }
+  const ac = getCtx()
+  if (ac.state === 'suspended') void ac.resume()
+  const interval = sprint ? 0.28 : 0.42
+  stepAcc += 1 / 60
+  if (stepAcc < interval) return
+  stepAcc = 0
+
+  const osc = ac.createOscillator()
+  const gain = ac.createGain()
+  const filter = ac.createBiquadFilter()
+  filter.type = 'lowpass'
+  filter.frequency.value = surface === 'city' ? 380 : surface === 'grass' ? 260 : 200
+  osc.type = 'triangle'
+  osc.frequency.value = 70 + Math.random() * 40
+  gain.gain.setValueAtTime(0.028, ac.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08)
+  osc.connect(filter)
+  filter.connect(gain)
+  gain.connect(ac.destination)
+  osc.start()
+  osc.stop(ac.currentTime + 0.09)
+}
+
+/** Brief cue when mounting / entering a building. */
+export function playInteractSound() {
+  const ac = getCtx()
+  if (ac.state === 'suspended') void ac.resume()
+  playWhoosh(0.05, 320, 0.18)
+  const osc = ac.createOscillator()
+  const gain = ac.createGain()
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(520, ac.currentTime)
+  osc.frequency.exponentialRampToValueAtTime(780, ac.currentTime + 0.1)
+  gain.gain.setValueAtTime(0.05, ac.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.22)
+  osc.connect(gain)
+  gain.connect(ac.destination)
+  osc.start()
+  osc.stop(ac.currentTime + 0.25)
+}
+
+export function noteInteractPress(pressed: boolean) {
+  if (pressed && !lastInteract) playInteractSound()
+  lastInteract = pressed
+}
+
 /* --- Variometer (muted — kept stubs so callers stay stable) --- */
 let varioGain: GainNode | null = null
 let varioTimer: number | null = null

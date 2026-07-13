@@ -1,5 +1,5 @@
 import type { NetMsg, RoomSession } from './netRoom'
-import { useGameStore } from './gameStore'
+import { displayPilotName, useGameStore } from './gameStore'
 import { noteRemoteFlight } from './remoteSmooth'
 
 let session: RoomSession | null = null
@@ -12,8 +12,9 @@ export function getRoomSession() {
 export function setRoomSession(s: RoomSession | null) {
   session?.destroy()
   session = s
-  ;(window as unknown as { __hgName?: string }).__hgName =
-    useGameStore.getState().playerName
+  ;(window as unknown as { __hgName?: string }).__hgName = displayPilotName(
+    useGameStore.getState().playerName,
+  )
 }
 
 export function handleNetMessage(msg: NetMsg) {
@@ -49,18 +50,19 @@ export function tickNetSync(dt: number) {
   if (screen !== 'flight' && screen !== 'result') return
   if (!peerConnected && !session.connected) return
 
-  // Faster updates while tandem so the passenger stays smooth
   const interval = flight.tandemRole !== 'none' ? 0.05 : 0.1
   syncAcc += dt
   if (syncAcc < interval) return
   syncAcc = 0
-  session.send({ t: 'state', flight, name: playerName })
+  const name = displayPilotName(playerName)
+  session.send({ t: 'state', flight, name })
 }
 
 export function sendHello() {
   if (!session) return
   const { biome, mode, playerName } = useGameStore.getState()
-  ;(window as unknown as { __hgName?: string }).__hgName = playerName
-  session.send({ t: 'hello', biome, mode, name: playerName })
-  session.send({ t: 'ready', name: playerName })
+  const name = displayPilotName(playerName)
+  ;(window as unknown as { __hgName?: string }).__hgName = name
+  session.send({ t: 'hello', biome, mode, name })
+  session.send({ t: 'ready', name })
 }

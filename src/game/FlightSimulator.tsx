@@ -7,7 +7,7 @@ import { tickNetSync } from './netSync'
 import { bearingTo, horizontalDist } from './multiplayerSocial'
 import { resolveTandem } from './tandem'
 import { applyPulses, clearPulses } from './actionPulses'
-import { tickVario } from './audio'
+import { tickVario, tickFootsteps, noteInteractPress } from './audio'
 import { thermalHint } from './atmosphere'
 import type { InputState } from '../types/game'
 
@@ -179,6 +179,11 @@ export function FlightSimulator() {
         ? thermalHint(config, useGameStore.getState().simTime, flight.position)
         : 0
     tickVario(flight.velocity.y, flight.phase, liftHint)
+    const sprint = frameInput.speedUp
+    const surface =
+      store.biome === 'city' ? 'city' : store.biome === 'mountains' ? 'grass' : 'sand'
+    tickFootsteps(flight.airspeed, flight.phase, sprint, surface)
+    noteInteractPress(frameInput.interact)
     // Hold one-shot pulses until a fixed step actually consumes them
     if (steps > 0) finishInput(frameInput)
     checkRings()

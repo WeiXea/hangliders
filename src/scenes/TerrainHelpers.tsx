@@ -19,7 +19,7 @@ function sampleColor(biome: Biome, h: number, slope: number, x: number, z: numbe
     else if (h < 14) c.set('#74a57f')
     else c.set('#52796f')
     if (slope > 0.4) c.lerp(new THREE.Color('#6b705c'), 0.55)
-    if (z > 40 && h < 1.5) c.lerp(new THREE.Color('#90e0ef'), 0.25)
+    if (z > 50 && h < 1.5) c.lerp(new THREE.Color('#90e0ef'), 0.25)
   } else if (biome === 'mountains') {
     if (h < 16) c.set('#588157')
     else if (h < 32) c.set('#6b8e4e')
@@ -37,7 +37,7 @@ function sampleColor(biome: Biome, h: number, slope: number, x: number, z: numbe
   return c
 }
 
-export function DetailedTerrain({ config, biome, size = 1400, segments = 160 }: DetailedTerrainProps) {
+export function DetailedTerrain({ config, biome, size = 2800, segments = 220 }: DetailedTerrainProps) {
   const ground = useGroundMaps(biome)
 
   const geometry = useMemo(() => {
@@ -130,10 +130,10 @@ const oceanFrag = /* glsl */ `
 
 export function OceanSurface({
   y = -0.55,
-  scale = [1600, 900] as [number, number],
+  scale = [3200, 1800] as [number, number],
   deep = '#012a4a',
   shallow = '#48cae4',
-  position = [80, 0, 200] as [number, number, number],
+  position = [120, 0, 380] as [number, number, number],
 }: {
   y?: number
   scale?: [number, number]
@@ -210,10 +210,23 @@ export function CliffFace({
   rotation?: number
 }) {
   return (
-    <mesh position={position} rotation={[0, rotation, 0]} castShadow receiveShadow>
-      <boxGeometry args={size} />
-      <meshStandardMaterial color="#6c584c" roughness={0.95} />
-    </mesh>
+    <group position={position} rotation={[0, rotation, 0]}>
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={size} />
+        <meshStandardMaterial color="#6c584c" roughness={0.95} />
+      </mesh>
+      {/* Stratified rock bands */}
+      {[0.2, 0.45, 0.7].map((t, i) => (
+        <mesh
+          key={i}
+          position={[size[0] * 0.48, -size[1] * 0.5 + size[1] * t, 0]}
+          castShadow
+        >
+          <boxGeometry args={[0.35, size[1] * 0.06, size[2] * 0.92]} />
+          <meshStandardMaterial color={i % 2 === 0 ? '#8a7564' : '#4a3f35'} roughness={0.98} />
+        </mesh>
+      ))}
+    </group>
   )
 }
 
@@ -253,8 +266,8 @@ export function ScatterRocks({
 /** Distant horizon ring so the world never looks empty at altitude */
 export function HorizonRing({ color = '#7cb518', y = -2 }: { color?: string; y?: number }) {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 120]}>
-      <ringGeometry args={[480, 920, 72]} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 200]}>
+      <ringGeometry args={[900, 1750, 72]} />
       <meshStandardMaterial color={color} roughness={1} metalness={0} side={THREE.DoubleSide} />
     </mesh>
   )

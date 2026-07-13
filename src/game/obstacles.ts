@@ -33,11 +33,16 @@ export const MOUNTAIN_SCENERY: Obstacle[] = [
   { x: 260, z: 50, radius: 7, height: 42 },
   { x: 240, z: 200, radius: 5.5, height: 34 },
   { x: 300, z: 120, radius: 6, height: 36 },
+  { x: -200, z: 220, radius: 5.5, height: 30 },
+  { x: 380, z: 180, radius: 6.5, height: 40 },
+  { x: 160, z: 280, radius: 5, height: 28 },
 ]
 
 const MOUNTAIN_CABINS: BoxObstacle[] = [
   { x: 55, z: 70, halfW: 2.2, halfD: 1.8, y0: 0, height: 3.5 },
   { x: 160, z: 50, halfW: 2.2, halfD: 1.8, y0: 0, height: 3.5 },
+  { x: 220, z: 160, halfW: 2.4, halfD: 2.0, y0: 0, height: 3.6 },
+  { x: 90, z: 190, halfW: 2.0, halfD: 1.7, y0: 0, height: 3.4 },
 ]
 
 /** Match BeachScene hut / cliff footprints */
@@ -45,14 +50,16 @@ const BEACH_HUTS: BoxObstacle[] = [
   { x: 20, z: 55, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
   { x: -10, z: 70, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
   { x: 55, z: 95, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
+  { x: 120, z: 130, halfW: 1.9, halfD: 1.7, y0: 0, height: 3.2 },
+  { x: 180, z: 90, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
 ]
 
-/** Approximate cliff volumes (expanded AABB covers slight rotation) */
+/** Approximate cliff face volumes — thin sheets along the west edge (not solid plateaus). */
 const BEACH_CLIFFS: BoxObstacle[] = [
-  { x: -70, z: -10, halfW: 8, halfD: 30, y0: 0, height: 28 },
-  { x: -62, z: 35, halfW: 7, halfD: 20, y0: 0, height: 20 },
-  { x: -55, z: -40, halfW: 10, halfD: 24, y0: 0, height: 32 },
-  { x: -85, z: 20, halfW: 8, halfD: 26, y0: 0, height: 22 },
+  { x: -78, z: -10, halfW: 4, halfD: 28, y0: 0, height: 28 },
+  { x: -72, z: 35, halfW: 3.5, halfD: 18, y0: 0, height: 20 },
+  { x: -68, z: -40, halfW: 4.5, halfD: 22, y0: 0, height: 32 },
+  { x: -92, z: 20, halfW: 4, halfD: 24, y0: 0, height: 22 },
 ]
 
 export function getCylinderObstacles(biome: Biome): Obstacle[] {

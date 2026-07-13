@@ -81,11 +81,11 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
         color="#ffe0b8"
         castShadow
         shadow-mapSize={[1024, 1024]}
-        shadow-camera-far={350}
-        shadow-camera-left={-120}
-        shadow-camera-right={120}
-        shadow-camera-top={120}
-        shadow-camera-bottom={-120}
+        shadow-camera-far={650}
+        shadow-camera-left={-240}
+        shadow-camera-right={240}
+        shadow-camera-top={240}
+        shadow-camera-bottom={-240}
         shadow-bias={-0.0002}
         shadow-normalBias={0.04}
       />

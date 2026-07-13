@@ -28,6 +28,21 @@ import {
   requestTiltPermission,
   writeStoredTiltPreference,
 } from './tilt'
+
+const PILOT_NAME_KEY = 'hangglider-pilot-name'
+
+function readStoredPilotName(): string {
+  try {
+    return localStorage.getItem(PILOT_NAME_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+export function displayPilotName(name: string): string {
+  const t = name.trim()
+  return t.length > 0 ? t : 'Pilot'
+}
 import { setRoomSession } from './netSync'
 import { resetTandemRejoin } from './tandem'
 
@@ -148,7 +163,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   tiltPermission: isTiltSupported() ? 'unknown' : 'denied',
   tiltCalibration: null,
 
-  playerName: 'Pilot',
+  playerName: readStoredPilotName(),
   roomCode: null,
   roomRole: 'solo',
   roomStatus: '',
@@ -399,7 +414,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })
   },
 
-  setPlayerName: (playerName) => set({ playerName: playerName.slice(0, 16) || 'Pilot' }),
+  setPlayerName: (name) => {
+    const playerName = name.slice(0, 16)
+    try {
+      localStorage.setItem(PILOT_NAME_KEY, playerName)
+    } catch {
+      /* ignore quota / private mode */
+    }
+    set({ playerName })
+  },
 
   setRoomMeta: (partial) => set(partial),
 
