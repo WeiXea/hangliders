@@ -21,7 +21,7 @@ import {
   type TutorialStep,
 } from '../game/tutorial'
 import { xcProgressLabel, xcNavTarget, xcElapsedMs, formatXCTime, xcRelBearing } from '../game/xcTask'
-import { nearestEnterableDoor, sampleCitySupport } from '../game/cityBuildings'
+import { nearestEnterableDoor, sampleCitySupport, nearestElevatorBuilding } from '../game/cityBuildings'
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
 import { FriendFinder } from './FriendFinder'
@@ -140,7 +140,14 @@ export function FlightHUD() {
   const remoteFlight = useGameStore((s) => s.remoteFlight)
   const canLift = onGround && flight.airspeed >= 11
   const canJump = flying && flight.altitude >= JUMP_MIN_ALTITUDE
-  const nearMount = nearestMountable(flight, parkedGliders)
+  const biome = useGameStore((s) => s.biome)
+  const simTime = useGameStore((s) => s.simTime)
+  const config = BIOME_CONFIGS[biome]
+  const nearMount = nearestMountable(flight, parkedGliders, (x, z) =>
+    biome === 'city'
+      ? sampleCitySupport(x, z, config.getHeight).y
+      : config.getHeight(x, z),
+  )
   const nearFriend = canSocialEmote(flight, remoteFlight)
   const tandemOk = peerConnected && canOfferTandem(flight, remoteFlight)
   const inTandem = flight.tandemRole !== 'none'
@@ -155,9 +162,6 @@ export function FlightHUD() {
     flight.altitude > 2 &&
     flight.velocity.y < -0.3 &&
     !flight.stallWarning
-  const biome = useGameStore((s) => s.biome)
-  const simTime = useGameStore((s) => s.simTime)
-  const config = BIOME_CONFIGS[biome]
   const airLift = flying ? thermalHint(config, simTime, flight.position) : 0
   const nearTh = flying
     ? nearestThermal(biome, simTime, flight.position, flight.yaw)
@@ -185,6 +189,25 @@ export function FlightHUD() {
     biome === 'city' &&
     flight.interiorId < 0 &&
     nearestEnterableDoor(flight.position.x, flight.position.z, config.getHeight)
+  const roofElevIds = [
+    ...new Set(
+      parkedGliders
+        .filter((g) => g.available && g.buildingId != null)
+        .map((g) => g.buildingId!),
+    ),
+  ]
+  const nearElev =
+    walking &&
+    biome === 'city' &&
+    flight.interiorId < 0 &&
+    !nearMount &&
+    nearestElevatorBuilding(
+      flight.position.x,
+      flight.position.z,
+      flight.position.y,
+      roofElevIds,
+      config.getHeight,
+    )
   const onRoof =
     walking &&
     biome === 'city' &&
@@ -460,9 +483,9 @@ export function FlightHUD() {
         </div>
       )}
 
-      {walking && !nearMount && !nearDoor && !inside && !onRoof && flight.landAction === 'none' && (
+      {walking && !nearMount && !nearDoor && !nearElev && !inside && !onRoof && flight.landAction === 'none' && (
         <div className={styles.coach}>
-          Explore — Wave · Dance · Sit (1 / 2 / 3) · find gold-ringed gliders
+          Explore — look for green elevators (roof gliders) or gold rings on the street
         </div>
       )}
 
@@ -498,7 +521,15 @@ export function FlightHUD() {
         </div>
       )}
 
-      {nearDoor && !nearMount && (
+      {nearElev && (
+        <div className={styles.nearGround}>
+          {nearElev.toRoof
+            ? 'Green elevator — press E to ride up to the rooftop glider'
+            : 'Roof hatch — press E to ride the elevator back to the street'}
+        </div>
+      )}
+
+      {nearDoor && !nearMount && !nearElev && (
         <div className={styles.nearGround}>Green door mat — press E / Mount to enter</div>
       )}
 
@@ -506,8 +537,8 @@ export function FlightHUD() {
         <div className={styles.coach}>Inside — press E near the doorway to leave</div>
       )}
 
-      {onRoof && !nearDoor && !nearMount && flight.landAction === 'none' && (
-        <div className={styles.coach}>Rooftop — walk the deck or find a way down</div>
+      {onRoof && !nearDoor && !nearMount && !nearElev && flight.landAction === 'none' && (
+        <div className={styles.coach}>Rooftop — mount a green-ringed glider or ride the elevator down</div>
       )}
 
       {freefall && (

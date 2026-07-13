@@ -16,7 +16,7 @@ import {
   hitWorldProps,
   resolvePropPush,
 } from './obstacles'
-import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos } from './cityBuildings'
+import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos, nearestElevatorBuilding, elevatorStreetPos, elevatorRoofPos } from './cityBuildings'
 import { liftCoeff, groundEffectFactor } from './aero'
 import { sampleAtmosphere } from './atmosphere'
 
@@ -107,6 +107,7 @@ export function initParkedGliders(config: BiomeConfig): ParkedGlider[] {
     z: g.z,
     yaw: g.yaw,
     available: true,
+    buildingId: g.buildingId,
   }))
 }
 
@@ -168,21 +169,27 @@ function supportY(
 function parkMountedGlider(
   flight: FlightState,
   parked: ParkedGlider[],
+  config?: BiomeConfig,
 ): ParkedGlider[] {
   const x = flight.position.x
   const z = flight.position.z
   const yaw = flight.yaw
+  let buildingId: number | undefined
+  if (config?.id === 'city') {
+    const support = sampleCitySupport(x, z, config.getHeight)
+    if (support.onRoof) buildingId = support.buildingId
+  }
 
   if (flight.mountedId >= 0) {
     return parked.map((g) =>
       g.id === flight.mountedId
-        ? { ...g, x, z, yaw, available: true }
+        ? { ...g, x, z, yaw, available: true, buildingId }
         : g,
     )
   }
 
   const nextId = parked.reduce((m, g) => Math.max(m, g.id), -1) + 1
-  return [...parked, { id: nextId, x, z, yaw, available: true }]
+  return [...parked, { id: nextId, x, z, yaw, available: true, buildingId }]
 }
 
 function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
@@ -241,11 +248,16 @@ export function findNearestGlider(
   x: number,
   z: number,
   parked: ParkedGlider[],
+  y?: number,
+  supportAt?: (x: number, z: number) => number,
 ): ParkedGlider | null {
   let best: ParkedGlider | null = null
   let bestDist = MOUNT_RANGE
   for (const g of parked) {
     if (!g.available) continue
+    if (y != null && supportAt) {
+      if (Math.abs(y - supportAt(g.x, g.z)) > 4.5) continue
+    }
     const d = Math.hypot(g.x - x, g.z - z)
     if (d < bestDist) {
       bestDist = d
@@ -258,9 +270,16 @@ export function findNearestGlider(
 export function nearestMountable(
   flight: FlightState,
   parked: ParkedGlider[],
+  supportAt?: (x: number, z: number) => number,
 ): ParkedGlider | null {
   if (flight.phase !== 'walking') return null
-  return findNearestGlider(flight.position.x, flight.position.z, parked)
+  return findNearestGlider(
+    flight.position.x,
+    flight.position.z,
+    parked,
+    flight.position.y,
+    supportAt,
+  )
 }
 
 /**
@@ -352,9 +371,47 @@ export function tickFlight(
     next.position.z += next.velocity.z * dt
     next.position.y += next.velocity.y * dt
 
-    // Enter / leave buildings
+    // Enter / leave buildings, ride elevators to rooftop gliders
     if (input.interact && config.id === 'city') {
-      if (next.interiorId >= 0) {
+      const roofBuildingIds = [
+        ...new Set(
+          parked
+            .filter((g) => g.available && g.buildingId != null)
+            .map((g) => g.buildingId!),
+        ),
+      ]
+      const elev = nearestElevatorBuilding(
+        next.position.x,
+        next.position.z,
+        next.position.y,
+        roofBuildingIds,
+        config.getHeight,
+      )
+      const nearGlider = findNearestGlider(
+        next.position.x,
+        next.position.z,
+        parked,
+        next.position.y,
+        (gx, gz) => supportY(config, gx, gz).y,
+      )
+
+      if (elev && !nearGlider) {
+        if (elev.toRoof) {
+          const roof = elevatorRoofPos(elev.building, config.getHeight)
+          next.position.x = roof.x
+          next.position.z = roof.z
+          next.position.y = roof.y + WALK_FEET
+          next.interiorId = -1
+          next.landAction = 'none'
+        } else {
+          const street = elevatorStreetPos(elev.building, config.getHeight)
+          next.position.x = street.x
+          next.position.z = street.z + 0.6
+          next.position.y = street.y + WALK_FEET
+          next.interiorId = -1
+          next.landAction = 'none'
+        }
+      } else if (next.interiorId >= 0) {
         const b = getBuildingById(next.interiorId)
         if (b) {
           const door = doorWorldPos(b, config.getHeight)
@@ -365,7 +422,7 @@ export function tickFlight(
         }
       } else {
         const doorB = nearestEnterableDoor(next.position.x, next.position.z, config.getHeight)
-        if (doorB && !findNearestGlider(next.position.x, next.position.z, parked)) {
+        if (doorB && !nearGlider && !elev) {
           next.interiorId = doorB.id
           next.position.x = doorB.x
           next.position.z = doorB.z
@@ -405,12 +462,21 @@ export function tickFlight(
     next.distance += next.airspeed * dt
 
     if (input.interact && next.interiorId < 0) {
-      const target = findNearestGlider(next.position.x, next.position.z, parked)
+      const target = findNearestGlider(
+        next.position.x,
+        next.position.z,
+        parked,
+        next.position.y,
+        (gx, gz) => supportY(config, gx, gz).y,
+      )
       if (target) {
         parked = parked.map((g) =>
           g.id === target.id ? { ...g, available: false } : g,
         )
-        const gy = config.getHeight(target.x, target.z)
+        const gy =
+          config.id === 'city'
+            ? sampleCitySupport(target.x, target.z, config.getHeight).y
+            : config.getHeight(target.x, target.z)
         next = {
           ...next,
           phase: 'grounded',
@@ -644,7 +710,7 @@ export function tickFlight(
   next.airtime += dt
 
   if (input.jump && next.altitude >= JUMP_MIN_ALTITUDE) {
-    parked = parkMountedGlider(next, parked)
+    parked = parkMountedGlider(next, parked, config)
     next.phase = 'freefall'
     next.mountedId = -1
     next.tandemRole = 'none'
@@ -784,10 +850,10 @@ export function tickFlight(
       input.land && next.airspeed <= 12 && sink < 10 && !takeoffGrace
 
     if (intentional) {
-      parked = parkMountedGlider(next, parked)
+      parked = parkMountedGlider(next, parked, config)
       next = beginLanded(next, config)
     } else if (softLand) {
-      parked = parkMountedGlider(next, parked)
+      parked = parkMountedGlider(next, parked, config)
       next = beginWalking(next, config)
     } else if (sink > 11 || next.airspeed > 24 || next.pitch < -0.45) {
       next.phase = 'crashed'

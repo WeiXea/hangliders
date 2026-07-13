@@ -42,15 +42,15 @@ function sampleColor(biome: Biome, h: number, slope: number, x: number, z: numbe
     if (h > 50) c.lerp(new THREE.Color('#ffffff'), Math.min(1, (h - 50) / 30))
     if (n > 0.5 && h < 35) c.lerp(new THREE.Color('#344e41'), 0.3)
   } else {
-    // City: parks, pavement, plaza patches
+    // City: asphalt corridors + quieter plazas / parks (no bright lattice)
     const road =
-      Math.abs(((x % 22) + 22) % 22 - 11) < 1.4 ||
-      Math.abs(((z % 22) + 22) % 22 - 10) < 1.4
-    if (road) c.set('#2b3035')
-    else if (h < 2.5 || n > 0.4) c.set('#52796f')
-    else if (n < -0.35) c.set('#6c757d')
-    else c.set('#8d99ae')
-    if (!road && Math.abs(n) < 0.12) c.lerp(new THREE.Color('#495057'), 0.25)
+      Math.abs(((x % 22) + 22) % 22 - 11) < 2.8 ||
+      Math.abs(((z % 22) + 22) % 22 - 11) < 2.8
+    if (road) c.set('#1c2024')
+    else if (h < 2.5 || n > 0.45) c.set('#3d5a4c')
+    else if (n < -0.4) c.set('#4a5560')
+    else c.set('#5a6570')
+    if (!road && Math.abs(n) < 0.12) c.lerp(new THREE.Color('#3d4450'), 0.35)
   }
   c.offsetHSL(n * 0.02, n * 0.04, Math.sin(x * 0.08) * Math.cos(z * 0.07) * 0.04)
   return c

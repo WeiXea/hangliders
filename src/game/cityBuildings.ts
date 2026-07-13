@@ -126,6 +126,58 @@ export function getBuildingById(id: number): CityBuilding | null {
   return CITY_BUILDINGS.find((b) => b.id === id) ?? null
 }
 
+/** Street-level elevator alcove on the +Z face (offset from shop door). */
+export function elevatorStreetPos(
+  b: CityBuilding,
+  getHeight: (x: number, z: number) => number,
+): { x: number; y: number; z: number } {
+  const d = buildingDepth(b)
+  return {
+    x: b.x - Math.min(2.4, b.width * 0.28),
+    y: getHeight(b.x, b.z),
+    z: b.z + d * 0.5 + 1.15,
+  }
+}
+
+/** Rooftop elevator hatch near the +Z parapet. */
+export function elevatorRoofPos(
+  b: CityBuilding,
+  getHeight: (x: number, z: number) => number,
+): { x: number; y: number; z: number } {
+  const d = buildingDepth(b)
+  return {
+    x: b.x - Math.min(2.4, b.width * 0.28),
+    y: buildingRoofY(b, getHeight),
+    z: b.z + d * 0.28,
+  }
+}
+
+export function nearestElevatorBuilding(
+  x: number,
+  z: number,
+  y: number,
+  buildingIds: number[],
+  getHeight: (x: number, z: number) => number,
+  range = 3.6,
+): { building: CityBuilding; toRoof: boolean } | null {
+  let best: { building: CityBuilding; toRoof: boolean } | null = null
+  let bestD = range
+  for (const id of buildingIds) {
+    const b = getBuildingById(id)
+    if (!b) continue
+    const street = elevatorStreetPos(b, getHeight)
+    const roof = elevatorRoofPos(b, getHeight)
+    const onRoof = y > roof.y - 2.5
+    const target = onRoof ? roof : street
+    const d = Math.hypot(target.x - x, target.z - z)
+    if (d < bestD) {
+      bestD = d
+      best = { building: b, toRoof: !onRoof }
+    }
+  }
+  return best
+}
+
 /** Door is on the +Z face center of enterable buildings. */
 export function doorWorldPos(
   b: CityBuilding,

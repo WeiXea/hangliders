@@ -1,37 +1,50 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { Text } from '@react-three/drei'
 import { useGameStore } from './gameStore'
 import { BIOME_CONFIGS } from './biomeConfigs'
 import { GliderModel } from './GliderModel'
 import { GLIDER_REST_CLEARANCE } from './obstacles'
 import { MOUNT_RANGE } from '../types/game'
+import {
+  elevatorStreetPos,
+  elevatorRoofPos,
+  getBuildingById,
+  sampleCitySupport,
+} from './cityBuildings'
 
 function ParkedMarker({
   x,
   z,
   yaw,
   highlight,
-  getHeight,
+  buildingId,
 }: {
   x: number
   z: number
   yaw: number
   highlight: boolean
-  getHeight: (x: number, z: number) => number
+  buildingId?: number
 }) {
-  const y = getHeight(x, z) + GLIDER_REST_CLEARANCE
+  const biome = useGameStore((s) => s.biome)
+  const config = BIOME_CONFIGS[biome]
+  const y =
+    biome === 'city'
+      ? sampleCitySupport(x, z, config.getHeight).y + GLIDER_REST_CLEARANCE
+      : config.getHeight(x, z) + GLIDER_REST_CLEARANCE
+
   return (
     <group position={[x, y, z]} rotation={[0, yaw, 0]}>
       <GliderModel hidePilot staticModel />
-      {/* Soft beacon so walkers can spot mounts */}
       <mesh position={[0, -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[3.2, 3.6, 32]} />
         <meshStandardMaterial
-          color={highlight ? '#52b788' : '#e9c46a'}
+          color={highlight ? '#52b788' : buildingId != null ? '#52b788' : '#e9c46a'}
           transparent
-          opacity={highlight ? 0.85 : 0.45}
-          emissive={highlight ? '#52b788' : '#e9c46a'}
-          emissiveIntensity={highlight ? 0.6 : 0.15}
+          opacity={highlight ? 0.85 : 0.5}
+          emissive={highlight ? '#52b788' : buildingId != null ? '#52b788' : '#e9c46a'}
+          emissiveIntensity={highlight ? 0.65 : 0.25}
           side={THREE.DoubleSide}
         />
       </mesh>
@@ -39,11 +52,99 @@ function ParkedMarker({
   )
 }
 
+function ElevatorBeacon({
+  buildingId,
+  available,
+}: {
+  buildingId: number
+  available: boolean
+}) {
+  const getHeight = BIOME_CONFIGS.city.getHeight
+  const lightRef = useRef<THREE.MeshStandardMaterial>(null)
+  const b = getBuildingById(buildingId)
+
+  useFrame((state) => {
+    if (lightRef.current) {
+      lightRef.current.emissiveIntensity = 0.55 + Math.sin(state.clock.elapsedTime * 3.2) * 0.35
+    }
+  })
+
+  if (!b || !available) return null
+
+  const street = elevatorStreetPos(b, getHeight)
+  const roof = elevatorRoofPos(b, getHeight)
+
+  return (
+    <>
+      <group position={[street.x, street.y, street.z]}>
+        <mesh castShadow position={[0, 1.35, 0]}>
+          <boxGeometry args={[1.35, 2.7, 0.55]} />
+          <meshStandardMaterial color="#212529" metalness={0.45} roughness={0.4} />
+        </mesh>
+        <mesh position={[0, 1.5, 0.3]}>
+          <boxGeometry args={[0.95, 2.0, 0.08]} />
+          <meshStandardMaterial color="#1a1a1a" metalness={0.6} roughness={0.3} />
+        </mesh>
+        <mesh position={[0, 2.55, 0.32]}>
+          <circleGeometry args={[0.18, 16]} />
+          <meshStandardMaterial
+            ref={lightRef}
+            color="#52b788"
+            emissive="#52b788"
+            emissiveIntensity={0.8}
+          />
+        </mesh>
+        <mesh position={[0, 0.04, 0.9]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.9, 1.35, 28]} />
+          <meshStandardMaterial
+            color="#52b788"
+            emissive="#52b788"
+            emissiveIntensity={0.55}
+            transparent
+            opacity={0.75}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        <Text
+          position={[0, 3.15, 0.2]}
+          fontSize={0.28}
+          color="#b7f0c8"
+          anchorX="center"
+          outlineWidth={0.015}
+          outlineColor="#0b1f14"
+        >
+          ROOF GLIDER
+        </Text>
+        <pointLight position={[0, 2.4, 0.6]} intensity={0.7} distance={8} color="#52b788" />
+      </group>
+
+      <group position={[roof.x, roof.y + 0.05, roof.z]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[1.1, 20]} />
+          <meshStandardMaterial color="#212529" roughness={0.85} />
+        </mesh>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+          <ringGeometry args={[0.75, 1.05, 20]} />
+          <meshStandardMaterial
+            color="#52b788"
+            emissive="#52b788"
+            emissiveIntensity={0.45}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        <mesh position={[0, 0.55, 0]} castShadow>
+          <boxGeometry args={[0.55, 1.1, 0.55]} />
+          <meshStandardMaterial color="#343a40" metalness={0.4} />
+        </mesh>
+      </group>
+    </>
+  )
+}
+
 export function ParkedGliders() {
   const parked = useGameStore((s) => s.parkedGliders)
   const biome = useGameStore((s) => s.biome)
   const flight = useGameStore((s) => s.flight)
-  const config = BIOME_CONFIGS[biome]
 
   const nearestId = useMemo(() => {
     if (flight.phase !== 'walking') return -1
@@ -52,13 +153,28 @@ export function ParkedGliders() {
     for (const g of parked) {
       if (!g.available) continue
       const d = Math.hypot(g.x - flight.position.x, g.z - flight.position.z)
+      // Must be roughly same level (street vs roof)
+      const support =
+        biome === 'city'
+          ? sampleCitySupport(g.x, g.z, BIOME_CONFIGS.city.getHeight).y
+          : BIOME_CONFIGS[biome].getHeight(g.x, g.z)
+      if (Math.abs(flight.position.y - support) > 4) continue
       if (d < bestD) {
         bestD = d
         best = g.id
       }
     }
     return best
-  }, [parked, flight.phase, flight.position.x, flight.position.z])
+  }, [parked, flight.phase, flight.position.x, flight.position.z, flight.position.y, biome])
+
+  const elevators = useMemo(() => {
+    const map = new Map<number, boolean>()
+    for (const g of parked) {
+      if (g.buildingId == null) continue
+      map.set(g.buildingId, map.get(g.buildingId) === true || g.available)
+    }
+    return [...map.entries()]
+  }, [parked])
 
   return (
     <>
@@ -71,8 +187,12 @@ export function ParkedGliders() {
             z={g.z}
             yaw={g.yaw}
             highlight={g.id === nearestId}
-            getHeight={config.getHeight}
+            buildingId={g.buildingId}
           />
+        ))}
+      {biome === 'city' &&
+        elevators.map(([buildingId, available]) => (
+          <ElevatorBeacon key={buildingId} buildingId={buildingId} available={available} />
         ))}
     </>
   )

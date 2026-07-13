@@ -299,53 +299,122 @@ function BuildingInterior({ config }: { config: BiomeConfig }) {
   )
 }
 
-function StreetGrid() {
-  const lines = useMemo(() => {
+function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => number }) {
+  const parts = useMemo(() => {
     const result: ReactElement[] = []
-    for (let i = -240; i <= 420; i += 22) {
-      // Asphalt lanes
+    const xMin = -55
+    const xMax = 235
+    const zMin = -15
+    const zMax = 205
+    const step = 22
+    const roadW = 10.5
+    const walkW = 2.6
+    const xs: number[] = []
+    const zs: number[] = []
+    for (let x = -44; x <= 220; x += step) xs.push(x)
+    for (let z = 0; z <= 198; z += step) zs.push(z)
+
+    const roadLenX = xMax - xMin
+    const roadLenZ = zMax - zMin
+    const midX = (xMin + xMax) / 2
+    const midZ = (zMin + zMax) / 2
+
+    for (const z of zs) {
+      const y = getHeight(midX, z) + 0.06
       result.push(
-        <mesh key={`h${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[80, 0.08, i]}>
-          <planeGeometry args={[840, 8.5]} />
-          <meshStandardMaterial color="#2b3035" roughness={0.92} />
+        <mesh key={`road-h-${z}`} rotation={[-Math.PI / 2, 0, 0]} position={[midX, y, z]} receiveShadow>
+          <planeGeometry args={[roadLenX, roadW]} />
+          <meshStandardMaterial color="#1e2226" roughness={0.95} />
         </mesh>,
       )
-      result.push(
-        <mesh key={`v${i}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[i, 0.08, 100]}>
-          <planeGeometry args={[840, 8.5]} />
-          <meshStandardMaterial color="#2b3035" roughness={0.92} />
-        </mesh>,
-      )
-      // Center dashed stripe
-      result.push(
-        <mesh key={`hd${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[80, 0.1, i]}>
-          <planeGeometry args={[840, 0.18]} />
-          <meshStandardMaterial color="#ffd60a" roughness={0.7} />
-        </mesh>,
-      )
-      result.push(
-        <mesh key={`vd${i}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[i, 0.1, 100]}>
-          <planeGeometry args={[840, 0.18]} />
-          <meshStandardMaterial color="#ffd60a" roughness={0.7} />
-        </mesh>,
-      )
-      // Sidewalks
-      result.push(
-        <mesh key={`hs${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[80, 0.11, i + 5.8]}>
-          <planeGeometry args={[840, 2.4]} />
-          <meshStandardMaterial color="#adb5bd" roughness={0.95} />
-        </mesh>,
-      )
-      result.push(
-        <mesh key={`hs2${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[80, 0.11, i - 5.8]}>
-          <planeGeometry args={[840, 2.4]} />
-          <meshStandardMaterial color="#adb5bd" roughness={0.95} />
-        </mesh>,
-      )
+      // Sidewalks (short, dark concrete — not a white lattice)
+      for (const side of [-1, 1] as const) {
+        result.push(
+          <mesh
+            key={`walk-h-${z}-${side}`}
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[midX, y + 0.025, z + side * (roadW * 0.5 + walkW * 0.5)]}
+            receiveShadow
+          >
+            <planeGeometry args={[roadLenX, walkW]} />
+            <meshStandardMaterial color="#6c757d" roughness={0.92} />
+          </mesh>,
+        )
+      }
+      // Dashed center line (short dashes only)
+      for (let x = xMin + 4; x < xMax - 4; x += 5.5) {
+        result.push(
+          <mesh
+            key={`dash-h-${z}-${x}`}
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[x, y + 0.035, z]}
+          >
+            <planeGeometry args={[2.4, 0.16]} />
+            <meshStandardMaterial color="#f4d35e" roughness={0.7} />
+          </mesh>,
+        )
+      }
     }
+
+    for (const x of xs) {
+      const y = getHeight(x, midZ) + 0.055
+      result.push(
+        <mesh key={`road-v-${x}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[x, y, midZ]} receiveShadow>
+          <planeGeometry args={[roadLenZ, roadW]} />
+          <meshStandardMaterial color="#1e2226" roughness={0.95} />
+        </mesh>,
+      )
+      for (const side of [-1, 1] as const) {
+        result.push(
+          <mesh
+            key={`walk-v-${x}-${side}`}
+            rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+            position={[x + side * (roadW * 0.5 + walkW * 0.5), y + 0.025, midZ]}
+            receiveShadow
+          >
+            <planeGeometry args={[roadLenZ, walkW]} />
+            <meshStandardMaterial color="#6c757d" roughness={0.92} />
+          </mesh>,
+        )
+      }
+      for (let z = zMin + 4; z < zMax - 4; z += 5.5) {
+        result.push(
+          <mesh
+            key={`dash-v-${x}-${z}`}
+            rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+            position={[x, y + 0.035, z]}
+          >
+            <planeGeometry args={[2.4, 0.16]} />
+            <meshStandardMaterial color="#f4d35e" roughness={0.7} />
+          </mesh>,
+        )
+      }
+    }
+
+    // Crosswalks at intersections
+    for (const x of xs) {
+      for (const z of zs) {
+        if (x < xMin + 10 || x > xMax - 10 || z < zMin + 10 || z > zMax - 10) continue
+        const y = getHeight(x, z) + 0.08
+        for (let k = 0; k < 5; k++) {
+          result.push(
+            <mesh
+              key={`xw-${x}-${z}-${k}`}
+              rotation={[-Math.PI / 2, 0, 0]}
+              position={[x - 2 + k * 1.0, y, z + 4.2]}
+            >
+              <planeGeometry args={[0.55, 2.8]} />
+              <meshStandardMaterial color="#e9ecef" roughness={0.85} />
+            </mesh>,
+          )
+        }
+      }
+    }
+
     return result
-  }, [])
-  return <>{lines}</>
+  }, [getHeight])
+
+  return <group>{parts}</group>
 }
 
 function SkylineSilhouette() {
@@ -433,7 +502,7 @@ export function CityScene({ config }: CitySceneProps) {
       <SharedLighting config={config} />
       <DetailedTerrain config={config} biome="city" size={1280} segments={200} />
       <HorizonRing color="#6c757d" y={0} />
-      <StreetGrid />
+      <CityStreets getHeight={config.getHeight} />
       {CITY_BUILDINGS.map((b) => (
         <Building
           key={b.id}

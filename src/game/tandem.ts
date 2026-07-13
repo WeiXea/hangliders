@@ -3,6 +3,7 @@ import { TANDEM_RANGE, WALK_FEET } from '../types/game'
 import { findNearestGlider } from './flightPhysics'
 import { horizontalDist, isOnGlider } from './multiplayerSocial'
 import { GLIDER_REST_CLEARANCE } from './obstacles'
+import { sampleCitySupport } from './cityBuildings'
 import { smoothFollowPilot } from './remoteSmooth'
 
 export type TandemResult = {
@@ -106,9 +107,21 @@ function becomePilot(
     }
   }
 
-  const target = findNearestGlider(flight.position.x, flight.position.z, parked)
+  const target = findNearestGlider(
+    flight.position.x,
+    flight.position.z,
+    parked,
+    flight.position.y,
+    (gx, gz) =>
+      config.id === 'city'
+        ? sampleCitySupport(gx, gz, config.getHeight).y
+        : config.getHeight(gx, gz),
+  )
   if (target) {
-    const gy = config.getHeight(target.x, target.z)
+    const gy =
+      config.id === 'city'
+        ? sampleCitySupport(target.x, target.z, config.getHeight).y
+        : config.getHeight(target.x, target.z)
     return {
       flight: {
         ...flight,

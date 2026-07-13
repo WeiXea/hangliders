@@ -158,14 +158,20 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
     ],
     landingZone: { center: { x: 210, y: 0, z: 280 }, radius: 26 },
     parkedGliders: [
-      { x: 25, z: 50, yaw: 0.1 },
-      { x: 80, z: 100, yaw: -0.2 },
-      { x: 140, z: 160, yaw: 0.3 },
-      { x: 200, z: 70, yaw: 0.9 },
-      { x: 0, z: 110, yaw: 0.4 },
-      { x: 160, z: 30, yaw: -0.7 },
-      { x: 100, z: 180, yaw: 0.15 },
-      { x: 50, z: 140, yaw: -0.9 },
+      // Rooftop mounts — green elevators at street level
+      { x: 30, z: 35, yaw: 0.2, buildingId: 1 },
+      { x: 15, z: 55, yaw: -0.15, buildingId: 5 },
+      { x: 65, z: 80, yaw: 0.35, buildingId: 7 },
+      { x: 100, z: 60, yaw: -0.4, buildingId: 9 },
+      { x: 110, z: 150, yaw: 0.1, buildingId: 17 },
+      { x: 75, z: 160, yaw: -0.25, buildingId: 21 },
+      { x: 175, z: 40, yaw: 0.55, buildingId: 27 },
+      { x: 40, z: 180, yaw: -0.7, buildingId: 29 },
+      { x: 160, z: 110, yaw: 0.12, buildingId: 14 },
+      { x: 200, z: 100, yaw: -0.08, buildingId: 23 },
+      // Street plaza spares
+      { x: 48, z: 48, yaw: 0.4 },
+      { x: 130, z: 88, yaw: -0.5 },
     ],
   },
 }

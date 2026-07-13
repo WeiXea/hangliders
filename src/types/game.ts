@@ -33,6 +33,8 @@ export interface ParkedGlider {
   yaw: number
   /** false once the player mounts this one (respawns on restart) */
   available: boolean
+  /** City: parked on this building's roof (street elevator at base) */
+  buildingId?: number
 }
 
 export interface FlightState {
@@ -131,7 +133,7 @@ export interface BiomeConfig {
   getHeight: (x: number, z: number) => number
   challengeRings: Vec3[]
   landingZone: { center: Vec3; radius: number }
-  parkedGliders: { x: number; z: number; yaw: number }[]
+  parkedGliders: { x: number; z: number; yaw: number; buildingId?: number }[]
 }
 
 export const JUMP_MIN_ALTITUDE = 15
