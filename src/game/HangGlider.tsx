@@ -263,6 +263,9 @@ export function HangGlider() {
   const jetBurn = useGameStore((s) =>
     s.flight.phase === 'jet' ? Math.min(1, s.flight.airspeed / 95) : 0,
   )
+  const jetGearDown = useGameStore(
+    (s) => s.flight.phase !== 'jet' || s.flight.altitude < 8,
+  )
   const driveColor =
     vehicleId >= 0
       ? getTrafficSnapshots().find((v) => v.id === vehicleId)?.color
@@ -278,7 +281,7 @@ export function HangGlider() {
         )}
         {showJet && (
           <group>
-            <JetModel afterburner={Math.max(0.15, jetBurn)} />
+            <JetModel afterburner={Math.max(0.15, jetBurn)} gearDown={jetGearDown} />
           </group>
         )}
         {showHeli && (
