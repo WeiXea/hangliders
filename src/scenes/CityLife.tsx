@@ -4,11 +4,9 @@ import * as THREE from 'three'
 import { useGameStore } from '../game/gameStore'
 import { BIOME_CONFIGS } from '../game/biomeConfigs'
 import {
-  CITY_BUILDINGS,
   CITY_LAUNCH_PADS,
   CITY_STREET_DECK,
   buildingRoofY,
-  buildingDepth,
   getBuildingById,
 } from '../game/cityBuildings'
 
@@ -29,19 +27,13 @@ type Lane = {
 /** Lanes sit in the real 22m street grid (not through buildings). */
 const LANES: Lane[] = [
   { axis: 'x', fixed: 0, min: -50, max: 230, dir: 1, speed: 13, kind: 'car', offset: 0, color: '#2a6f97' },
-  { axis: 'x', fixed: 22, min: -50, max: 230, dir: -1, speed: 11, kind: 'taxi', offset: 40 },
   { axis: 'x', fixed: 44, min: -40, max: 220, dir: 1, speed: 9, kind: 'bus', offset: 80 },
   { axis: 'x', fixed: 66, min: -50, max: 230, dir: -1, speed: 15, kind: 'police', offset: 20 },
-  { axis: 'x', fixed: 88, min: -40, max: 220, dir: 1, speed: 10, kind: 'fire', offset: 120 },
-  { axis: 'x', fixed: 110, min: -50, max: 230, dir: -1, speed: 12, kind: 'car', offset: 60, color: '#bc4749' },
-  { axis: 'x', fixed: 132, min: -40, max: 210, dir: 1, speed: 11, kind: 'taxi', offset: 95 },
-  { axis: 'z', fixed: 0, min: -10, max: 200, dir: 1, speed: 12, kind: 'car', offset: 30, color: '#386641' },
-  { axis: 'z', fixed: 22, min: -10, max: 200, dir: -1, speed: 14, kind: 'police', offset: 90 },
-  { axis: 'z', fixed: 44, min: -5, max: 195, dir: 1, speed: 8, kind: 'bus', offset: 10 },
-  { axis: 'z', fixed: 66, min: -10, max: 200, dir: -1, speed: 13, kind: 'car', offset: 70, color: '#6c757d' },
-  { axis: 'z', fixed: 88, min: 0, max: 190, dir: 1, speed: 10, kind: 'fire', offset: 50 },
-  { axis: 'z', fixed: 110, min: -10, max: 200, dir: -1, speed: 12, kind: 'taxi', offset: 110 },
-  { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 11, kind: 'car', offset: 25, color: '#6a4c93' },
+  { axis: 'x', fixed: 110, min: -50, max: 230, dir: -1, speed: 12, kind: 'taxi', offset: 60 },
+  { axis: 'z', fixed: 22, min: -10, max: 200, dir: -1, speed: 14, kind: 'car', offset: 90, color: '#bc4749' },
+  { axis: 'z', fixed: 66, min: -10, max: 200, dir: -1, speed: 13, kind: 'fire', offset: 70 },
+  { axis: 'z', fixed: 110, min: -10, max: 200, dir: 1, speed: 11, kind: 'taxi', offset: 110 },
+  { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 10, kind: 'bus', offset: 25 },
 ]
 
 function Wheel({ x, z, scale = 1 }: { x: number; z: number; scale?: number }) {
@@ -64,7 +56,7 @@ function SedanBody({ color, accent }: { color: string; accent?: string }) {
     <group>
       {/* Chassis with rounded silhouette via layered capsules/boxes */}
       <mesh castShadow position={[0, 0.42, 0.15]} rotation={[Math.PI / 2, 0, 0]}>
-        <capsuleGeometry args={[0.42, 2.6, 6, 12]} />
+        <capsuleGeometry args={[0.42, 2.6, 4, 8]} />
         <meshStandardMaterial color={color} roughness={0.28} metalness={0.55} />
       </mesh>
       <mesh castShadow position={[0, 0.55, 0]}>
@@ -73,7 +65,7 @@ function SedanBody({ color, accent }: { color: string; accent?: string }) {
       </mesh>
       {/* Cabin bubble */}
       <mesh castShadow position={[0, 0.98, -0.15]} rotation={[Math.PI / 2, 0, 0]}>
-        <capsuleGeometry args={[0.48, 1.1, 5, 10]} />
+        <capsuleGeometry args={[0.48, 1.1, 4, 8]} />
         <meshStandardMaterial color={accent ?? '#1c1c1c'} roughness={0.35} metalness={0.3} />
       </mesh>
       <mesh position={[0, 1.0, 0.55]} rotation={[0.35, 0, 0]}>
@@ -276,10 +268,10 @@ type Ped = {
 
 const SKINS = ['#e0a882', '#c68642', '#8d5524', '#f1c27d', '#d4a574']
 
-const PEDS: Ped[] = Array.from({ length: 32 }, (_, i) => ({
+const PEDS: Ped[] = Array.from({ length: 14 }, (_, i) => ({
   // Walk sidewalks beside the 22m grid
-  x0: -40 + (i % 8) * 33 + ((i % 2) * 7 - 3.5),
-  z0: 8 + Math.floor(i / 8) * 44 + ((i % 2) * 7 - 3.5),
+  x0: -40 + (i % 7) * 38 + ((i % 2) * 7 - 3.5),
+  z0: 8 + Math.floor(i / 7) * 88 + ((i % 2) * 7 - 3.5),
   amp: 6 + (i % 5) * 2.5,
   axis: i % 2 === 0 ? 'x' : 'z',
   speed: 0.5 + (i % 4) * 0.12,
@@ -459,13 +451,9 @@ function TrafficLights() {
     () =>
       [
         [22, 22],
-        [44, 44],
         [66, 66],
-        [88, 88],
         [110, 110],
-        [0, 44],
-        [132, 66],
-        [154, 110],
+        [154, 44],
       ] as [number, number][],
     [],
   )
@@ -524,19 +512,6 @@ export function CityLife() {
       <PedestrianLayer />
       <RooftopPads />
       <TrafficLights />
-      {CITY_BUILDINGS.filter((b) => b.shop).map((b) => {
-        const d = buildingDepth(b)
-        const gy = BIOME_CONFIGS.city.getHeight(b.x, b.z)
-        return (
-          <pointLight
-            key={`glow-${b.id}`}
-            position={[b.x, gy + 3.1, b.z + d * 0.55]}
-            intensity={0.55}
-            distance={10}
-            color={b.shopColor ?? '#c1272d'}
-          />
-        )
-      })}
     </group>
   )
 }

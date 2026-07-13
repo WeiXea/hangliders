@@ -48,7 +48,7 @@ export function GameCanvas() {
   return (
     <Canvas
       shadows
-      dpr={[1, 1.5]}
+      dpr={[1, 1.25]}
       camera={{ position: [camX, camY, camZ], fov: 58, near: 0.1, far: 1800 }}
       gl={{
         antialias: true,
@@ -58,6 +58,7 @@ export function GameCanvas() {
         toneMappingExposure: 1.05,
         stencil: false,
       }}
+      performance={{ min: 0.5 }}
       style={{ width: '100%', height: '100%' }}
     >
       <color attach="background" args={['#87b8e8']} />

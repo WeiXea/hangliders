@@ -308,8 +308,8 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
     const zMax = 205
     const step = 22
     const roadW = 11
-    const curbH = 0.18
-    const asphaltH = 0.14
+    const curbH = 0.16
+    const asphaltH = 0.12
     const xs: number[] = []
     const zs: number[] = []
     for (let x = -44; x <= 220; x += step) xs.push(x)
@@ -323,42 +323,28 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
     for (const z of zs) {
       const base = getHeight(midX, z)
       const y = base + asphaltH * 0.5
-      // Thick asphalt slab
       result.push(
-        <mesh key={`road-h-${z}`} position={[midX, y, z]} receiveShadow castShadow>
+        <mesh key={`road-h-${z}`} position={[midX, y, z]} receiveShadow>
           <boxGeometry args={[roadLenX, asphaltH, roadW]} />
           <meshStandardMaterial color="#1a1d21" roughness={0.92} />
         </mesh>,
       )
-      // Raised curbs
+      // Single center stripe (not hundreds of dash meshes)
+      result.push(
+        <mesh key={`line-h-${z}`} position={[midX, base + asphaltH + 0.015, z]}>
+          <boxGeometry args={[roadLenX, 0.02, 0.14]} />
+          <meshStandardMaterial color="#c9a227" roughness={0.7} />
+        </mesh>,
+      )
       for (const side of [-1, 1] as const) {
         result.push(
           <mesh
             key={`curb-h-${z}-${side}`}
             position={[midX, base + curbH * 0.5 + asphaltH, z + side * (roadW * 0.5 + 0.2)]}
-            castShadow
             receiveShadow
           >
-            <boxGeometry args={[roadLenX, curbH, 0.4]} />
+            <boxGeometry args={[roadLenX, curbH, 0.35]} />
             <meshStandardMaterial color="#6c757d" roughness={0.88} />
-          </mesh>,
-        )
-        result.push(
-          <mesh
-            key={`walk-h-${z}-${side}`}
-            position={[midX, base + asphaltH + curbH + 0.04, z + side * (roadW * 0.5 + 1.5)]}
-            receiveShadow
-          >
-            <boxGeometry args={[roadLenX, 0.08, 2.4]} />
-            <meshStandardMaterial color="#868e96" roughness={0.9} />
-          </mesh>,
-        )
-      }
-      for (let x = xMin + 4; x < xMax - 4; x += 6) {
-        result.push(
-          <mesh key={`dash-h-${z}-${x}`} position={[x, base + asphaltH + 0.02, z]}>
-            <boxGeometry args={[2.6, 0.03, 0.18]} />
-            <meshStandardMaterial color="#f4d35e" roughness={0.65} />
           </mesh>,
         )
       }
@@ -368,9 +354,15 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
       const base = getHeight(x, midZ)
       const y = base + asphaltH * 0.5
       result.push(
-        <mesh key={`road-v-${x}`} position={[x, y, midZ]} receiveShadow castShadow>
+        <mesh key={`road-v-${x}`} position={[x, y, midZ]} receiveShadow>
           <boxGeometry args={[roadW, asphaltH, roadLenZ]} />
           <meshStandardMaterial color="#1a1d21" roughness={0.92} />
+        </mesh>,
+      )
+      result.push(
+        <mesh key={`line-v-${x}`} position={[x, base + asphaltH + 0.015, midZ]}>
+          <boxGeometry args={[0.14, 0.02, roadLenZ]} />
+          <meshStandardMaterial color="#c9a227" roughness={0.7} />
         </mesh>,
       )
       for (const side of [-1, 1] as const) {
@@ -378,47 +370,32 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
           <mesh
             key={`curb-v-${x}-${side}`}
             position={[x + side * (roadW * 0.5 + 0.2), base + curbH * 0.5 + asphaltH, midZ]}
-            castShadow
             receiveShadow
           >
-            <boxGeometry args={[0.4, curbH, roadLenZ]} />
+            <boxGeometry args={[0.35, curbH, roadLenZ]} />
             <meshStandardMaterial color="#6c757d" roughness={0.88} />
-          </mesh>,
-        )
-        result.push(
-          <mesh
-            key={`walk-v-${x}-${side}`}
-            position={[x + side * (roadW * 0.5 + 1.5), base + asphaltH + curbH + 0.04, midZ]}
-            receiveShadow
-          >
-            <boxGeometry args={[2.4, 0.08, roadLenZ]} />
-            <meshStandardMaterial color="#868e96" roughness={0.9} />
-          </mesh>,
-        )
-      }
-      for (let z = zMin + 4; z < zMax - 4; z += 6) {
-        result.push(
-          <mesh key={`dash-v-${x}-${z}`} position={[x, base + asphaltH + 0.02, z]}>
-            <boxGeometry args={[0.18, 0.03, 2.6]} />
-            <meshStandardMaterial color="#f4d35e" roughness={0.65} />
           </mesh>,
         )
       }
     }
 
-    // Intersection crosswalks
-    for (const x of xs) {
-      for (const z of zs) {
-        if (x < xMin + 10 || x > xMax - 10 || z < zMin + 10 || z > zMax - 10) continue
-        const base = getHeight(x, z) + asphaltH + 0.03
-        for (let k = 0; k < 6; k++) {
-          result.push(
-            <mesh key={`xw-${x}-${z}-${k}`} position={[x - 2.5 + k * 1.0, base, z + 4.4]}>
-              <boxGeometry args={[0.55, 0.025, 2.6]} />
-              <meshStandardMaterial color="#e9ecef" roughness={0.8} />
-            </mesh>,
-          )
-        }
+    // Sparse crosswalks only
+    const xwPairs: [number, number][] = [
+      [22, 22],
+      [66, 66],
+      [110, 110],
+      [44, 132],
+      [154, 44],
+    ]
+    for (const [x, z] of xwPairs) {
+      const base = getHeight(x, z) + asphaltH + 0.03
+      for (let k = 0; k < 5; k++) {
+        result.push(
+          <mesh key={`xw-${x}-${z}-${k}`} position={[x - 2 + k * 1.0, base, z + 4.2]}>
+            <boxGeometry args={[0.5, 0.02, 2.4]} />
+            <meshStandardMaterial color="#e9ecef" roughness={0.8} />
+          </mesh>,
+        )
       }
     }
 
@@ -431,8 +408,8 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
 function SkylineSilhouette() {
   return (
     <group position={[400, 0, 360]}>
-      {Array.from({ length: 24 }, (_, i) => (
-        <mesh key={i} position={[i * 11, 12 + (i % 5) * 8, (i % 3) * 10]} castShadow>
+      {Array.from({ length: 16 }, (_, i) => (
+        <mesh key={i} position={[i * 14, 12 + (i % 5) * 8, (i % 3) * 10]}>
           <boxGeometry args={[8, 20 + (i % 6) * 10, 8]} />
           <meshStandardMaterial color="#495057" roughness={0.8} />
         </mesh>
@@ -511,7 +488,7 @@ export function CityScene({ config }: CitySceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="city" size={1280} segments={200} />
+      <DetailedTerrain config={config} biome="city" size={1280} segments={128} />
       <HorizonRing color="#6c757d" y={0} />
       <CityStreets getHeight={config.getHeight} />
       {CITY_BUILDINGS.map((b) => (

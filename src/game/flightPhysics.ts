@@ -539,15 +539,16 @@ export function tickFlight(
     if (input.bankLeft) next.yaw += 1.55 * dt
     if (input.bankRight) next.yaw -= 1.55 * dt
 
-    let climb = -0.8
+    // Accessible mapping: ↑/W forward, ↓/S climb, − descend (no Shift required)
+    let climb = -1.0
     if (input.pitchUp) climb = 11
-    else if (input.pitchDown) climb = -9
+    else if (input.speedDown) climb = -10
 
-    if (input.speedUp) next.airspeed = Math.min(32, next.airspeed + 12 * dt)
-    else if (input.speedDown) next.airspeed = Math.max(0, next.airspeed - 16 * dt)
-    else next.airspeed = Math.max(0, next.airspeed - 2.5 * dt)
+    const wantForward = input.pitchDown || input.speedUp
+    if (wantForward) next.airspeed = Math.min(30, next.airspeed + 16 * dt)
+    else next.airspeed = Math.max(0, next.airspeed - 6 * dt)
 
-    next.pitch = lerp(next.pitch, input.speedUp ? -0.22 : input.pitchDown ? 0.12 : 0, Math.min(1, 4 * dt))
+    next.pitch = lerp(next.pitch, wantForward ? -0.2 : 0, Math.min(1, 5 * dt))
     next.roll = lerp(next.roll, input.bankLeft ? 0.18 : input.bankRight ? -0.18 : 0, Math.min(1, 5 * dt))
 
     next.velocity.x = Math.sin(next.yaw) * next.airspeed

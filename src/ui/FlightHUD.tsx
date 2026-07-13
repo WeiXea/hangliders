@@ -516,7 +516,7 @@ export function FlightHUD() {
 
       {heli && (
         <div className={styles.coach}>
-          Chopper · ↓ climb · ↑ descend · + forward · A/D yaw · E/L land when idle on pad
+          Chopper · ↑ forward · ↓ climb · − descend · A/D yaw · E land when idle
         </div>
       )}
 
@@ -591,7 +591,15 @@ export function FlightHUD() {
           <div className={styles.leftPads}>
             <ControlPad
               label="↑"
-              sub={walking ? 'Fwd' : freefall || parachuting ? 'Brake' : 'Dive'}
+              sub={
+                walking
+                  ? 'Fwd'
+                  : freefall || parachuting
+                    ? 'Brake'
+                    : heli
+                      ? 'Fwd'
+                      : 'Dive'
+              }
               action="pitchDown"
               className={styles.padUp}
               active={input.pitchDown}
@@ -600,7 +608,15 @@ export function FlightHUD() {
               <ControlPad label="←" sub="Left" action="bankLeft" active={input.bankLeft} />
               <ControlPad
                 label="↓"
-                sub={walking ? 'Back' : freefall || parachuting ? 'Sink' : 'Climb'}
+                sub={
+                  walking
+                    ? 'Back'
+                    : freefall || parachuting
+                      ? 'Sink'
+                      : heli
+                        ? 'Climb'
+                        : 'Climb'
+                }
                 action="pitchUp"
                 active={input.pitchUp}
               />

@@ -2,6 +2,7 @@ import { Cloud, Environment, Sky, ContactShadows } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, SMAA } from '@react-three/postprocessing'
 import type { BiomeConfig } from '../types/game'
 import { biomeHdriPath } from '../game/pbrMaps'
+import { useGameStore } from '../game/gameStore'
 
 export function SharedSky({ config }: { config: BiomeConfig }) {
   const [sx, sy, sz] = config.sunPosition
@@ -101,6 +102,16 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
 
 /** Lightweight post — avoid multi-pass stacks that stutter on mobile. */
 export function FlightPostFX() {
+  const biome = useGameStore((s) => s.biome)
+  // City is mesh-heavy — skip bloom there for smoother frames
+  if (biome === 'city') {
+    return (
+      <EffectComposer multisampling={0}>
+        <SMAA />
+        <Vignette offset={0.3} darkness={0.28} />
+      </EffectComposer>
+    )
+  }
   return (
     <EffectComposer multisampling={0}>
       <SMAA />
