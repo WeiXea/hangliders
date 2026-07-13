@@ -14,6 +14,8 @@ import {
   PARKED_VEHICLES,
   setParkedTraffic,
   pedInVehiclePath,
+  consumeNpcVehicleHit,
+  vehicleRadius,
 } from '../game/trafficRegistry'
 
 export type VehicleKind = 'car' | 'bus' | 'police' | 'fire' | 'taxi'
@@ -46,7 +48,7 @@ const LANE_HALF_WIDTH = 5.5
 const STOP_LOOKAHEAD = 18
 const FOLLOW_GAP = 9
 
-type TrafficSim = { along: number; speed: number }
+type TrafficSim = { along: number; speed: number; stun: number }
 
 function laneWorld(lane: Lane, along: number) {
   if (lane.axis === 'x') {
@@ -266,7 +268,7 @@ function TrafficLayer() {
     LANES.map((lane) => {
       const span = lane.max - lane.min
       const along = lane.min + ((((lane.offset % span) + span) % span))
-      return { along, speed: lane.speed }
+      return { along, speed: lane.speed, stun: 0 }
     }),
   )
 
@@ -290,8 +292,12 @@ function TrafficLayer() {
 
     const targets = LANES.map((lane, i) => {
       if (drivenId === i || remoteDriven === i) return 0
-      let want = lane.speed
       const sim = sims.current[i]!
+      if (sim.stun > 0) {
+        sim.stun = Math.max(0, sim.stun - dt)
+        return 0
+      }
+      let want = lane.speed
       const world = laneWorld(lane, sim.along)
 
       if (yieldToPed) {
@@ -344,6 +350,9 @@ function TrafficLayer() {
       parked?: boolean
     }[] = []
 
+    // Staging world poses for NPC-NPC solid collision
+    const poses: { x: number; z: number; yaw: number; r: number; i: number }[] = []
+
     group.current.children.forEach((child, i) => {
       const lane = LANES[i]
       const sim = sims.current[i]
@@ -365,6 +374,16 @@ function TrafficLayer() {
         return
       }
 
+      // Player crash shove
+      const knock = consumeNpcVehicleHit(i)
+      if (knock) {
+        sim.stun = Math.max(sim.stun, knock.stun)
+        sim.speed = Math.max(0, sim.speed - knock.impulse * 0.85)
+        if (knock.impulse > 5) sim.speed = 0
+        if (lane.axis === 'x') sim.along += knock.dx
+        else sim.along += knock.dz
+      }
+
       const want = targets[i] ?? lane.speed
       // Brake hard when yielding
       const rate = want < sim.speed - 0.2 ? 22 : want > sim.speed + 0.2 ? 5.5 : 8
@@ -378,6 +397,7 @@ function TrafficLayer() {
       while (sim.along < lane.min) sim.along += span
 
       const { x, z, yaw } = laneWorld(lane, sim.along)
+      poses.push({ x, z, yaw, r: vehicleRadius(lane.kind), i })
       child.visible = true
       child.position.set(x, getHeight(x, z) + CITY_STREET_DECK, z)
       child.rotation.y = yaw
@@ -394,6 +414,99 @@ function TrafficLayer() {
         taken: false,
       })
     })
+
+    // Solid NPC vs NPC (incl. intersections) — separate and brake
+    for (let a = 0; a < poses.length; a++) {
+      for (let b = a + 1; b < poses.length; b++) {
+        const pa = poses[a]!
+        const pb = poses[b]!
+        let dx = pa.x - pb.x
+        let dz = pa.z - pb.z
+        let dist = Math.hypot(dx, dz)
+        const minD = pa.r + pb.r
+        if (dist >= minD || dist < 1e-4) continue
+        const nx = dx / dist
+        const nz = dz / dist
+        const push = (minD - dist) * 0.5
+        const sa = sims.current[pa.i]!
+        const sb = sims.current[pb.i]!
+        const la = LANES[pa.i]!
+        const lb = LANES[pb.i]!
+        if (la.axis === 'x') sa.along += nx * push
+        else sa.along += nz * push
+        if (lb.axis === 'x') sb.along -= nx * push
+        else sb.along -= nz * push
+        sa.speed *= 0.35
+        sb.speed *= 0.35
+        if (dist < minD * 0.85) {
+          sa.stun = Math.max(sa.stun, 0.4)
+          sb.stun = Math.max(sb.stun, 0.4)
+        }
+        // Refresh mesh poses after nudge
+        const wa = laneWorld(la, sa.along)
+        const wb = laneWorld(lb, sb.along)
+        const ca = group.current.children[pa.i]
+        const cb = group.current.children[pb.i]
+        if (ca) {
+          ca.position.set(wa.x, getHeight(wa.x, wa.z) + CITY_STREET_DECK, wa.z)
+          ca.rotation.y = wa.yaw
+        }
+        if (cb) {
+          cb.position.set(wb.x, getHeight(wb.x, wb.z) + CITY_STREET_DECK, wb.z)
+          cb.rotation.y = wb.yaw
+        }
+        const snapA = snaps.find((s) => s.id === pa.i)
+        const snapB = snaps.find((s) => s.id === pb.i)
+        if (snapA) {
+          snapA.x = wa.x
+          snapA.z = wa.z
+          snapA.yaw = wa.yaw
+          snapA.speed = sa.speed
+        }
+        if (snapB) {
+          snapB.x = wb.x
+          snapB.z = wb.z
+          snapB.yaw = wb.yaw
+          snapB.speed = sb.speed
+        }
+      }
+    }
+
+    // Parked cars are also solid to NPCs
+    for (const p of PARKED_VEHICLES) {
+      if (drivenId === p.id || remoteDriven === p.id) continue
+      const pr = vehicleRadius(p.kind)
+      for (const pose of poses) {
+        const sim = sims.current[pose.i]!
+        const lane = LANES[pose.i]!
+        let dx = pose.x - p.x
+        let dz = pose.z - p.z
+        let dist = Math.hypot(dx, dz)
+        const minD = pose.r + pr
+        if (dist >= minD || dist < 1e-4) continue
+        const nx = dx / dist
+        const nz = dz / dist
+        const push = minD - dist
+        if (lane.axis === 'x') sim.along += nx * push
+        else sim.along += nz * push
+        sim.speed = 0
+        sim.stun = Math.max(sim.stun, 0.6)
+        const w = laneWorld(lane, sim.along)
+        const child = group.current.children[pose.i]
+        if (child) {
+          child.position.set(w.x, getHeight(w.x, w.z) + CITY_STREET_DECK, w.z)
+          child.rotation.y = w.yaw
+        }
+        const snap = snaps.find((s) => s.id === pose.i)
+        if (snap) {
+          snap.x = w.x
+          snap.z = w.z
+          snap.speed = 0
+        }
+        pose.x = w.x
+        pose.z = w.z
+      }
+    }
 
     setMovingTraffic(snaps)
   })

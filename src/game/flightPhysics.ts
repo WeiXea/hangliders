@@ -27,7 +27,9 @@ import {
   vehicleRestClearance,
   vehicleAccel,
   vehicleBrake,
+  resolveDriveCollisions,
 } from './trafficRegistry'
+import { playCrashImpact, playWhoosh } from './audio'
 import { liftCoeff, groundEffectFactor } from './aero'
 import { sampleAtmosphere } from './atmosphere'
 
@@ -63,6 +65,8 @@ let pitchVel = 0
 let rollVel = 0
 /** Low-pass vertical lift so thermal climb doesn't judder */
 let smoothLift = 0
+/** Cooldown so car impacts don't spam crash audio */
+let lastCarCrashAt = 0
 
 function smoothstep(t: number) {
   const x = Math.min(1, Math.max(0, t))
@@ -637,6 +641,36 @@ export function tickFlight(
     next.position.z += next.velocity.z * dt
 
     if (config.id === 'city') {
+      const hit = resolveDriveCollisions(
+        next.vehicleId,
+        kind,
+        next.position.x,
+        next.position.z,
+        next.yaw,
+        next.airspeed,
+      )
+      next.position.x = hit.x
+      next.position.z = hit.z
+      next.yaw = hit.yaw
+      next.airspeed = hit.speed
+      next.velocity.x = Math.sin(next.yaw) * next.airspeed
+      next.velocity.z = Math.cos(next.yaw) * next.airspeed
+
+      if (hit.impact > 2.5) {
+        const now = performance.now()
+        if (now - lastCarCrashAt > 380) {
+          lastCarCrashAt = now
+          if (hit.impact > 7) playCrashImpact()
+          else playWhoosh(0.12, 90, Math.min(0.5, hit.impact * 0.05))
+        }
+        // Accident jolt
+        next.pitch += Math.min(0.22, hit.impact * 0.018)
+        next.roll += (Math.random() > 0.5 ? 1 : -1) * Math.min(0.28, hit.impact * 0.02)
+        if (hit.impact > 10) {
+          next.airspeed *= 0.15
+        }
+      }
+
       const pushed = resolveBuildingPush(next.position, config.getHeight, 1.35, -1)
       next.position.x = pushed.x
       next.position.z = pushed.z

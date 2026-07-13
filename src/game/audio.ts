@@ -118,7 +118,7 @@ export function stopWindAudio() {
   stopVario()
 }
 
-function playWhoosh(gainPeak: number, freq: number, dur: number) {
+export function playWhoosh(gainPeak: number, freq: number, dur: number) {
   const ac = getCtx()
   if (ac.state === 'suspended') void ac.resume()
 
