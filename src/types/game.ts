@@ -1,7 +1,7 @@
 export type Biome = 'beach' | 'mountains' | 'city'
 export type GameMode = 'free' | 'challenge' | 'xc'
 export type Screen = 'home' | 'flight' | 'result'
-export type CraftType = 'glider' | 'helicopter'
+export type CraftType = 'glider' | 'helicopter' | 'jet'
 export type VehicleKind = 'car' | 'bus' | 'police' | 'fire' | 'taxi'
 
 export type FlightPhase =
@@ -9,6 +9,7 @@ export type FlightPhase =
   | 'running'
   | 'flying'
   | 'helicopter'
+  | 'jet'
   | 'driving'
   | 'freefall'
   | 'parachuting'

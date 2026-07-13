@@ -6,8 +6,10 @@ import { useGameStore } from './gameStore'
 import { BIOME_CONFIGS } from './biomeConfigs'
 import { GliderModel } from './GliderModel'
 import { HelicopterModel } from './HelicopterModel'
-import { GLIDER_REST_CLEARANCE, HELI_REST_CLEARANCE } from './obstacles'
+import { JetModel } from './JetModel'
+import { GLIDER_REST_CLEARANCE, HELI_REST_CLEARANCE, JET_REST_CLEARANCE } from './obstacles'
 import { MOUNT_RANGE } from '../types/game'
+import type { CraftType } from '../types/game'
 import {
   elevatorStreetPos,
   elevatorRoofPos,
@@ -15,6 +17,12 @@ import {
   sampleCitySupport,
   CITY_STREET_DECK,
 } from './cityBuildings'
+
+function craftClearance(craftType?: CraftType) {
+  if (craftType === 'helicopter') return HELI_REST_CLEARANCE
+  if (craftType === 'jet') return JET_REST_CLEARANCE
+  return GLIDER_REST_CLEARANCE
+}
 
 function ParkedMarker({
   x,
@@ -29,7 +37,7 @@ function ParkedMarker({
   yaw: number
   highlight: boolean
   buildingId?: number
-  craftType?: 'glider' | 'helicopter'
+  craftType?: CraftType
 }) {
   const biome = useGameStore((s) => s.biome)
   const config = BIOME_CONFIGS[biome]
@@ -37,20 +45,38 @@ function ParkedMarker({
     biome === 'city'
       ? sampleCitySupport(x, z, config.getHeight).y
       : config.getHeight(x, z)
-  const clearance = craftType === 'helicopter' ? HELI_REST_CLEARANCE : GLIDER_REST_CLEARANCE
+  const clearance = craftClearance(craftType)
   const y = support + clearance
   const isHeli = craftType === 'helicopter'
+  const isJet = craftType === 'jet'
+  const ringInner = isJet ? 5.2 : isHeli ? 4.0 : 3.2
+  const ringOuter = isJet ? 5.9 : isHeli ? 4.5 : 3.6
+  const ringColor = highlight
+    ? '#52b788'
+    : isJet
+      ? '#ffd60a'
+      : isHeli
+        ? '#4cc9f0'
+        : buildingId != null
+          ? '#52b788'
+          : '#e9c46a'
 
   return (
     <group position={[x, y, z]} rotation={[0, yaw, 0]}>
-      {isHeli ? <HelicopterModel staticModel /> : <GliderModel hidePilot staticModel />}
-      <mesh position={[0, isHeli ? -0.55 : -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[isHeli ? 4.0 : 3.2, isHeli ? 4.5 : 3.6, 32]} />
+      {isJet ? (
+        <JetModel staticModel />
+      ) : isHeli ? (
+        <HelicopterModel staticModel />
+      ) : (
+        <GliderModel hidePilot staticModel />
+      )}
+      <mesh position={[0, isJet ? -0.7 : isHeli ? -0.55 : -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[ringInner, ringOuter, 32]} />
         <meshStandardMaterial
-          color={highlight ? '#52b788' : isHeli ? '#4cc9f0' : buildingId != null ? '#52b788' : '#e9c46a'}
+          color={ringColor}
           transparent
           opacity={highlight ? 0.85 : 0.5}
-          emissive={highlight ? '#52b788' : isHeli ? '#4cc9f0' : buildingId != null ? '#52b788' : '#e9c46a'}
+          emissive={ringColor}
           emissiveIntensity={highlight ? 0.65 : 0.3}
           side={THREE.DoubleSide}
         />
@@ -61,101 +87,71 @@ function ParkedMarker({
 
 function ElevatorBeacon({
   buildingId,
+  getHeight,
   available,
   craftType,
 }: {
   buildingId: number
+  getHeight: (x: number, z: number) => number
   available: boolean
-  craftType: 'glider' | 'helicopter'
+  craftType: CraftType
 }) {
-  const getHeight = BIOME_CONFIGS.city.getHeight
-  const lightRef = useRef<THREE.MeshStandardMaterial>(null)
   const b = getBuildingById(buildingId)
-
-  useFrame((state) => {
-    if (lightRef.current) {
-      lightRef.current.emissiveIntensity = 0.55 + Math.sin(state.clock.elapsedTime * 3.2) * 0.35
-    }
-  })
-
-  if (!b || !available) return null
-
+  if (!b) return null
   const street = elevatorStreetPos(b, getHeight)
   const roof = elevatorRoofPos(b, getHeight)
-  const color = craftType === 'helicopter' ? '#4cc9f0' : '#52b788'
-  const label = craftType === 'helicopter' ? 'ROOF CHOPPER' : 'ROOF GLIDER'
+  const pulse = useRef(0)
+  const mat = useRef<THREE.MeshStandardMaterial>(null)
+  useFrame((_, dt) => {
+    pulse.current += dt
+    if (mat.current) {
+      mat.current.emissiveIntensity = 0.35 + Math.sin(pulse.current * 3) * 0.25
+    }
+  })
+  const color =
+    craftType === 'helicopter' ? '#4cc9f0' : craftType === 'jet' ? '#ffd60a' : '#52b788'
+  const label =
+    craftType === 'helicopter'
+      ? 'ROOF CHOPPER'
+      : craftType === 'jet'
+        ? 'ROOF JET'
+        : 'ROOF GLIDER'
 
   return (
-    <>
-      <group position={[street.x, street.y + CITY_STREET_DECK, street.z]}>
-        <mesh castShadow position={[0, 1.35, 0]}>
-          <boxGeometry args={[1.35, 2.7, 0.55]} />
-          <meshStandardMaterial color="#212529" metalness={0.45} roughness={0.4} />
-        </mesh>
-        <mesh position={[0, 1.5, 0.3]}>
-          <boxGeometry args={[0.95, 2.0, 0.08]} />
-          <meshStandardMaterial color="#1a1a1a" metalness={0.6} roughness={0.3} />
-        </mesh>
-        <mesh position={[0, 2.55, 0.32]}>
-          <circleGeometry args={[0.18, 16]} />
-          <meshStandardMaterial
-            ref={lightRef}
-            color={color}
-            emissive={color}
-            emissiveIntensity={0.8}
-          />
-        </mesh>
-        <mesh position={[0, 0.04, 0.9]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.9, 1.35, 28]} />
-          <meshStandardMaterial
-            color={color}
-            emissive={color}
-            emissiveIntensity={0.55}
-            transparent
-            opacity={0.75}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-        <Text
-          position={[0, 3.15, 0.2]}
-          fontSize={0.26}
-          color="#f8f9fa"
-          anchorX="center"
-          outlineWidth={0.015}
-          outlineColor="#0b1f14"
-        >
-          {label}
-        </Text>
-        <pointLight position={[0, 2.4, 0.6]} intensity={0.7} distance={8} color={color} />
-      </group>
-
-      <group position={[roof.x, roof.y + 0.05, roof.z]}>
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <circleGeometry args={[1.1, 20]} />
-          <meshStandardMaterial color="#212529" roughness={0.85} />
-        </mesh>
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-          <ringGeometry args={[0.75, 1.05, 20]} />
-          <meshStandardMaterial
-            color={color}
-            emissive={color}
-            emissiveIntensity={0.45}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-        <mesh position={[0, 0.55, 0]} castShadow>
-          <boxGeometry args={[0.55, 1.1, 0.55]} />
-          <meshStandardMaterial color="#343a40" metalness={0.4} />
-        </mesh>
-      </group>
-    </>
+    <group>
+      <mesh position={[street.x, street.y + 0.08 + CITY_STREET_DECK, street.z]}>
+        <boxGeometry args={[2.2, 0.16, 2.2]} />
+        <meshStandardMaterial
+          ref={mat}
+          color={available ? color : '#495057'}
+          emissive={available ? color : '#000'}
+          emissiveIntensity={available ? 0.5 : 0}
+          roughness={0.4}
+        />
+      </mesh>
+      <Text
+        position={[street.x, street.y + 2.2 + CITY_STREET_DECK, street.z]}
+        fontSize={0.55}
+        color={color}
+        anchorX="center"
+        outlineWidth={0.02}
+        outlineColor="#000"
+      >
+        {label}
+      </Text>
+      <mesh position={[roof.x, roof.y + 0.06, roof.z]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.1, 1.45, 20]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
+      </mesh>
+    </group>
   )
 }
 
 export function ParkedGliders() {
   const parked = useGameStore((s) => s.parkedGliders)
-  const biome = useGameStore((s) => s.biome)
   const flight = useGameStore((s) => s.flight)
+  const biome = useGameStore((s) => s.biome)
+  const config = BIOME_CONFIGS[biome]
 
   const nearestId = useMemo(() => {
     if (flight.phase !== 'walking') return -1
@@ -164,57 +160,62 @@ export function ParkedGliders() {
     for (const g of parked) {
       if (!g.available) continue
       const d = Math.hypot(g.x - flight.position.x, g.z - flight.position.z)
+      if (d >= bestD) continue
       const support =
         biome === 'city'
-          ? sampleCitySupport(g.x, g.z, BIOME_CONFIGS.city.getHeight).y
-          : BIOME_CONFIGS[biome].getHeight(g.x, g.z)
+          ? sampleCitySupport(g.x, g.z, config.getHeight).y
+          : config.getHeight(g.x, g.z)
       if (Math.abs(flight.position.y - support) > 4) continue
-      if (d < bestD) {
-        bestD = d
-        best = g.id
-      }
+      bestD = d
+      best = g.id
     }
     return best
   }, [parked, flight.phase, flight.position.x, flight.position.z, flight.position.y, biome])
 
   const elevators = useMemo(() => {
-    const map = new Map<number, { available: boolean; craftType: 'glider' | 'helicopter' }>()
+    const map = new Map<number, { available: boolean; craftType: CraftType }>()
     for (const g of parked) {
       if (g.buildingId == null) continue
       const prev = map.get(g.buildingId)
       const craft = g.craftType ?? 'glider'
       map.set(g.buildingId, {
-        available: (prev?.available ?? false) || g.available,
-        craftType: craft === 'helicopter' || prev?.craftType === 'helicopter' ? 'helicopter' : 'glider',
+        available: g.available || !!prev?.available,
+        craftType:
+          craft === 'jet' || prev?.craftType === 'jet'
+            ? 'jet'
+            : craft === 'helicopter' || prev?.craftType === 'helicopter'
+              ? 'helicopter'
+              : 'glider',
       })
     }
     return [...map.entries()]
   }, [parked])
 
   return (
-    <>
-      {parked
-        .filter((g) => g.available)
-        .map((g) => (
-          <ParkedMarker
-            key={g.id}
-            x={g.x}
-            z={g.z}
-            yaw={g.yaw}
-            highlight={g.id === nearestId}
-            buildingId={g.buildingId}
-            craftType={g.craftType}
-          />
-        ))}
-      {biome === 'city' &&
-        elevators.map(([buildingId, info]) => (
-          <ElevatorBeacon
-            key={buildingId}
-            buildingId={buildingId}
-            available={info.available}
-            craftType={info.craftType}
-          />
-        ))}
-    </>
+    <group>
+      {parked.map(
+        (g) =>
+          g.available && (
+            <ParkedMarker
+              key={g.id}
+              x={g.x}
+              z={g.z}
+              yaw={g.yaw}
+              highlight={g.id === nearestId}
+              buildingId={g.buildingId}
+              craftType={g.craftType}
+            />
+          ),
+      )}
+      {elevators.map(([id, info]) => (
+        <ElevatorBeacon
+          key={`el-${id}`}
+          buildingId={id}
+          getHeight={config.getHeight}
+          available={info.available}
+          craftType={info.craftType}
+        />
+      ))}
+    </group>
   )
 }

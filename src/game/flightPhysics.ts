@@ -15,6 +15,7 @@ import {
   GROUND_CLEARANCE,
   GLIDER_REST_CLEARANCE,
   HELI_REST_CLEARANCE,
+  JET_REST_CLEARANCE,
   hitCityBuildings,
   hitWorldProps,
   resolvePropPush,
@@ -535,6 +536,26 @@ export function tickFlight(
             interiorId: -1,
             stallWarning: false,
           }
+        } else if (craft === 'jet') {
+          next = {
+            ...next,
+            phase: 'jet',
+            craftType: 'jet',
+            position: { x: target.x, y: gy + JET_REST_CLEARANCE, z: target.z },
+            yaw: target.yaw,
+            pitch: 0,
+            roll: 0,
+            airspeed: 0,
+            velocity: { x: 0, y: 0, z: 0 },
+            altitude: 0,
+            mountedId: target.id,
+            chuteDeployed: false,
+            chuteInflation: 0,
+            chuteSwing: 0,
+            landAction: 'none',
+            interiorId: -1,
+            stallWarning: false,
+          }
         } else {
           next = {
             ...next,
@@ -774,6 +795,107 @@ export function tickFlight(
       next.chuteInflation = 0
       return { flight: next, parked }
     }
+
+    return { flight: collideWorld(next, config), parked }
+  }
+
+  // --- F-35 jet ---
+  if (next.phase === 'jet') {
+    next.craftType = 'jet'
+    next.airtime += dt
+    next.stallWarning = false
+
+    const onDeck = next.altitude < 0.35
+    const JET_MAX = 95
+    const ROTATE_SPD = 42
+
+    // Throttle: ↑/W / + = thrust, − = cut (W does not dive — pitch is ↓ only)
+    const throttle = input.pitchDown || input.speedUp
+    const cut = input.speedDown && !throttle
+    if (throttle) next.airspeed = Math.min(JET_MAX, next.airspeed + (onDeck ? 22 : 28) * dt)
+    else if (cut) next.airspeed = Math.max(0, next.airspeed - 18 * dt)
+    else next.airspeed = Math.max(0, next.airspeed - (onDeck ? 8 : 3.5) * dt)
+
+    // Yaw on ground; in air bank steers (with slight yaw)
+    if (onDeck) {
+      if (input.bankLeft) next.yaw += 1.1 * dt
+      if (input.bankRight) next.yaw -= 1.1 * dt
+      next.roll = lerp(next.roll, 0, Math.min(1, 6 * dt))
+      // Rotate for takeoff once fast enough (↓ Climb)
+      if (input.pitchUp && next.airspeed >= ROTATE_SPD) {
+        next.pitch = lerp(next.pitch, 0.28, Math.min(1, 4 * dt))
+      } else {
+        next.pitch = lerp(next.pitch, 0, Math.min(1, 5 * dt))
+      }
+    } else {
+      if (input.bankLeft) {
+        next.roll = Math.min(1.05, next.roll + 1.6 * dt)
+        next.yaw += next.roll * 1.35 * dt
+      } else if (input.bankRight) {
+        next.roll = Math.max(-1.05, next.roll - 1.6 * dt)
+        next.yaw += next.roll * 1.35 * dt
+      } else {
+        next.roll = lerp(next.roll, 0, Math.min(1, 2.2 * dt))
+      }
+      // ↓ = nose up / climb; release settles slightly nose-down
+      if (input.pitchUp) next.pitch = Math.min(0.55, next.pitch + 0.95 * dt)
+      else next.pitch = lerp(next.pitch, -0.06, Math.min(1, 1.2 * dt))
+    }
+
+    const climbRate = Math.sin(next.pitch) * next.airspeed
+    next.velocity.x = Math.sin(next.yaw) * Math.cos(next.pitch) * next.airspeed
+    next.velocity.z = Math.cos(next.yaw) * Math.cos(next.pitch) * next.airspeed
+    next.velocity.y = onDeck && next.airspeed < ROTATE_SPD ? 0 : climbRate
+
+    // Lift leave runway when nose up at rotate speed
+    if (onDeck && next.airspeed >= ROTATE_SPD && next.pitch > 0.12) {
+      next.velocity.y = Math.max(next.velocity.y, 6)
+    }
+
+    next.position.x += next.velocity.x * dt
+    next.position.y += next.velocity.y * dt
+    next.position.z += next.velocity.z * dt
+
+    support = supportY(config, next.position.x, next.position.z)
+    groundY = support.y
+    next.altitude = Math.max(0, next.position.y - groundY)
+    next.maxAltitude = Math.max(next.maxAltitude, next.altitude)
+    next.distance += Math.hypot(next.velocity.x, next.velocity.z) * dt
+    if (next.velocity.y > 1) {
+      next.maxClimbRate = Math.max(next.maxClimbRate, next.velocity.y)
+    }
+
+    if (next.position.y <= groundY + JET_REST_CLEARANCE) {
+      next.position.y = groundY + JET_REST_CLEARANCE
+      next.velocity.y = 0
+      next.altitude = 0
+      // Hard landing
+      if (!onDeck && next.airspeed > 55) {
+        next.phase = 'crashed'
+        next.airspeed = 0
+        return { flight: next, parked }
+      }
+      const idle = next.airspeed < 2.5
+      if (idle && (input.land || input.interact || input.jump)) {
+        parked = parkMountedGlider(next, parked, config)
+        next = beginWalking(next, config)
+        return { flight: next, parked }
+      }
+    }
+
+    // Eject
+    if (input.jump && next.altitude >= 12) {
+      parked = parkMountedGlider(next, parked, config)
+      next.phase = 'freefall'
+      next.mountedId = -1
+      next.craftType = 'glider'
+      next.chuteDeployed = false
+      next.chuteInflation = 0
+      return { flight: next, parked }
+    }
+
+    // Stall warning at low airspeed aloft
+    next.stallWarning = !onDeck && next.airspeed < 28
 
     return { flight: collideWorld(next, config), parked }
   }

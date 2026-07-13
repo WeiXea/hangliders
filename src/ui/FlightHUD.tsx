@@ -138,6 +138,7 @@ export function FlightHUD() {
   const parachuting = flight.phase === 'parachuting'
   const flying = flight.phase === 'flying'
   const heli = flight.phase === 'helicopter'
+  const jet = flight.phase === 'jet'
   const driving = flight.phase === 'driving'
   const canUnmount = onGround && flight.airspeed < 3.2
   const peerConnected = useGameStore((s) => s.peerConnected)
@@ -256,7 +257,7 @@ export function FlightHUD() {
   }
 
   const showSteerPads =
-    !tiltEnabled || walking || driving || freefall || parachuting || heli
+    !tiltEnabled || walking || driving || freefall || parachuting || heli || jet
 
   return (
     <div className={styles.hud}>
@@ -510,7 +511,7 @@ export function FlightHUD() {
         !onRoof &&
         flight.landAction === 'none' && (
         <div className={styles.coach}>
-          Green-ring cars are parked — walk up and press E · or stand in a moving car&apos;s path to stop it
+          Green-ring cars · gold-ring F-35 at Skyline Municipal (west) · Shift to sprint
         </div>
       )}
 
@@ -534,7 +535,9 @@ export function FlightHUD() {
         <div className={styles.nearGround}>
           {(nearMount.craftType ?? 'glider') === 'helicopter'
             ? 'Chopper ready — press E to board'
-            : 'Hang glider nearby — press E / Mount to fly again'}
+            : (nearMount.craftType ?? 'glider') === 'jet'
+              ? 'F-35 on the apron — press E to board'
+              : 'Hang glider nearby — press E / Mount to fly again'}
         </div>
       )}
 
@@ -554,6 +557,16 @@ export function FlightHUD() {
         <div className={styles.coach}>
           Chopper · ↑ forward · ↓ climb · − descend · A/D yaw · E land when idle
         </div>
+      )}
+
+      {jet && (
+        <div className={styles.coach}>
+          F-35 · ↑ throttle · ↓ nose-up (rotate ~150 km/h) · − cut · A/D bank · E exit when stopped
+        </div>
+      )}
+
+      {jet && flight.stallWarning && (
+        <div className={styles.stallWarning}>Low speed — add throttle or nose down</div>
       )}
 
       {approach && !flareCue && (
@@ -628,7 +641,7 @@ export function FlightHUD() {
             <ControlPad
               label="↑"
               sub={
-                walking || driving
+                walking || driving || jet
                   ? 'Fwd'
                   : freefall || parachuting
                     ? 'Brake'
@@ -649,11 +662,13 @@ export function FlightHUD() {
                     ? 'Back'
                     : driving
                       ? 'Brake'
-                      : freefall || parachuting
-                        ? 'Sink'
-                        : heli
-                          ? 'Climb'
-                          : 'Climb'
+                      : jet
+                        ? 'Nose↑'
+                        : freefall || parachuting
+                          ? 'Sink'
+                          : heli
+                            ? 'Climb'
+                            : 'Climb'
                 }
                 action="pitchUp"
                 active={input.pitchUp}

@@ -16,6 +16,7 @@ import {
 import { SharedSky, SharedLighting } from './SharedSky'
 import { prepMap } from '../game/pbrMaps'
 import { CityLife } from './CityLife'
+import { CityAirport } from './CityAirport'
 
 interface CitySceneProps {
   config: BiomeConfig
@@ -503,6 +504,7 @@ export function CityScene({ config }: CitySceneProps) {
       <BuildingInterior config={config} />
       <SkylineSilhouette />
       <CityLife />
+      <CityAirport />
       <ParkBench position={[22, config.getHeight(22, 48), 48]} yaw={0.3} />
       <ParkBench position={[48, config.getHeight(48, 88), 88]} yaw={-0.5} />
       <ParkBench position={[90, config.getHeight(90, 130), 130]} yaw={0.8} />

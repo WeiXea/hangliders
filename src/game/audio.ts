@@ -31,7 +31,7 @@ export function startWindAudio(
   bank = 0,
   lift = 0,
 ) {
-  if (phase !== 'flying' && phase !== 'running' && phase !== 'freefall' && phase !== 'parachuting' && phase !== 'helicopter') {
+  if (phase !== 'flying' && phase !== 'running' && phase !== 'freefall' && phase !== 'parachuting' && phase !== 'helicopter' && phase !== 'jet') {
     stopWindAudio()
     lastPhase = phase
     return
@@ -84,19 +84,32 @@ export function startWindAudio(
     const fall = phase === 'freefall'
     const chute = phase === 'parachuting'
     const heli = phase === 'helicopter'
+    const jet = phase === 'jet'
     const bankBoost = Math.min(0.04, Math.abs(bank) * 0.05)
     const liftBoost = Math.min(0.035, Math.max(0, lift) * 0.012)
-    const base = fall ? 0.08 : chute ? 0.035 : heli ? 0.06 : flying ? 0.045 : 0.02
-    const level = Math.min(0.22, base + airspeed * 0.0035 + bankBoost + liftBoost)
+    const base = fall
+      ? 0.08
+      : chute
+        ? 0.035
+        : jet
+          ? 0.09
+          : heli
+            ? 0.06
+            : flying
+              ? 0.045
+              : 0.02
+    const level = Math.min(0.28, base + airspeed * (jet ? 0.0022 : 0.0035) + bankBoost + liftBoost)
     const freq = fall
       ? 380 + airspeed * 8
       : chute
         ? 180 + airspeed * 5
-        : heli
-          ? 140 + airspeed * 6
-          : flying
-            ? 220 + airspeed * 12 + Math.abs(bank) * 40
-            : 160 + airspeed * 6
+        : jet
+          ? 90 + airspeed * 4
+          : heli
+            ? 140 + airspeed * 6
+            : flying
+              ? 220 + airspeed * 12 + Math.abs(bank) * 40
+              : 160 + airspeed * 6
     windFilter.frequency.setTargetAtTime(freq, ac.currentTime, 0.12)
     windGain.gain.setTargetAtTime(level, ac.currentTime, 0.15)
   }

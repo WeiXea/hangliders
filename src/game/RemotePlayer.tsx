@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useGameStore } from './gameStore'
 import { GliderModel } from './GliderModel'
 import { HelicopterModel } from './HelicopterModel'
+import { JetModel } from './JetModel'
 import { AnimatedPilot, ParachuteCanopy, PILOT_HIP } from './Pilot'
 import { VehicleMesh } from '../scenes/CityLife'
 import { predictedRemote } from './remoteSmooth'
@@ -72,6 +73,7 @@ export function RemotePlayer() {
   const showWing =
     phase === 'grounded' || phase === 'running' || phase === 'flying' || phase === 'landed'
   const showHeli = phase === 'helicopter'
+  const showJet = phase === 'jet'
   const showDrive = phase === 'driving'
   const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
   const showChute = phase === 'parachuting'
@@ -96,6 +98,11 @@ export function RemotePlayer() {
         {showDrive && (
           <group>
             <VehicleMesh kind={driveKind} color={driveColor} />
+          </group>
+        )}
+        {showJet && (
+          <group>
+            <JetModel afterburner={0.4} />
           </group>
         )}
         {showHeli && (

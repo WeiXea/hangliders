@@ -57,8 +57,8 @@ function mountainHeight(x: number, z: number): number {
 }
 
 function cityHeight(x: number, z: number): number {
-  // Downtown pad is nearly flat so roads/walkers/vehicles share one deck
-  const downtown = x > -70 && x < 250 && z > -30 && z < 220
+  // Downtown + municipal airfield share one flat deck
+  const downtown = x > -170 && x < 250 && z > -30 && z < 220
   if (downtown) {
     const micro =
       Math.sin(x * 0.11) * Math.cos(z * 0.09) * 0.04 +
@@ -176,6 +176,8 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
       { x: 180, z: 70, yaw: 0.2, buildingId: 15, craftType: 'helicopter' },
       { x: -25, z: 60, yaw: 0.15, buildingId: 19, craftType: 'helicopter' },
       { x: 120, z: 90, yaw: -0.2, buildingId: 12, craftType: 'helicopter' },
+      // Skyline Municipal — F-35 on the apron
+      { x: -135, z: 62, yaw: Math.PI / 2, craftType: 'jet' },
       // Street plaza spare gliders
       { x: 48, z: 48, yaw: 0.4 },
       { x: 130, z: 88, yaw: -0.5 },

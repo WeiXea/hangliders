@@ -21,6 +21,7 @@ export function isOnGlider(phase: FlightState['phase']): boolean {
     phase === 'running' ||
     phase === 'flying' ||
     phase === 'helicopter' ||
+    phase === 'jet' ||
     phase === 'landed'
   )
 }
