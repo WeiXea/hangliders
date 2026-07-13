@@ -3,14 +3,22 @@ import type { BiomeConfig } from '../types/game'
 /** Longer-wavelength terrain for a ~2× world with finer local detail */
 function beachHeight(x: number, z: number): number {
   const cliff = Math.max(0, Math.sin((x + 90) * 0.018) * 32 + Math.cos(z * 0.01) * 12)
-  const dunes = Math.sin(x * 0.06) * Math.cos(z * 0.048) * 5.5
-  const ripples = Math.sin(x * 0.22) * Math.cos(z * 0.18) * 0.55
-  const terrace = Math.floor(Math.max(0, cliff) / 7) * 0.65
-  const beachFlat = z > 50 ? Math.sin(x * 0.1) * 0.55 : 0
-  const farDune = Math.sin(x * 0.02 + z * 0.016) * 4
+  const dunes = Math.sin(x * 0.055) * Math.cos(z * 0.042) * 7
+  const duneRidges = Math.max(0, Math.sin(x * 0.09 + z * 0.05) - 0.35) * 4.5
+  const ripples = Math.sin(x * 0.28) * Math.cos(z * 0.22) * 0.85
+  const terrace = Math.floor(Math.max(0, cliff) / 6) * 0.85
+  // Soft shore shelf toward the sea (high z)
+  const shore = z > 60 ? Math.max(0, 1 - (z - 60) / 80) * 2.5 : 0
+  const beachFlat = z > 55 ? Math.sin(x * 0.08) * 0.4 - shore * 0.6 : 0
+  const farDune = Math.sin(x * 0.018 + z * 0.014) * 5
   const rockOutcrop =
-    Math.max(0, Math.sin(x * 0.09 + 2) * Math.cos(z * 0.08 - 1) - 0.72) * 6
-  return Math.max(0, cliff * 0.85 + dunes + ripples + terrace + beachFlat + farDune + rockOutcrop)
+    Math.max(0, Math.sin(x * 0.085 + 2) * Math.cos(z * 0.075 - 1) - 0.65) * 8
+  const wash =
+    Math.max(0, Math.sin(x * 0.15) * Math.cos(z * 0.12) - 0.55) * 2.2
+  return Math.max(
+    0,
+    cliff * 0.85 + dunes + duneRidges + ripples + terrace + beachFlat + farDune + rockOutcrop + wash,
+  )
 }
 
 function mountainHeight(x: number, z: number): number {
@@ -22,19 +30,22 @@ function mountainHeight(x: number, z: number): number {
     Math.max(0, Math.sin(x * 0.006) * Math.cos(z * 0.0055)) ** 1.35 * 105
   const valley = Math.min(0, Math.sin(z * 0.022) * 16)
   const ridge = Math.abs(Math.sin(x * 0.026 + z * 0.018)) * 22
-  const scree = Math.sin(x * 0.18) * Math.cos(z * 0.15) * 1.2
-  return Math.max(8, base + peaks + valley + ridge + scree)
+  const scree = Math.sin(x * 0.18) * Math.cos(z * 0.15) * 1.8
+  const bench = Math.floor(Math.max(0, base + peaks) / 14) * 1.1
+  const bowl = -Math.max(0, Math.sin(x * 0.04 + 1) * Math.cos(z * 0.035) - 0.4) * 12
+  return Math.max(8, base + peaks + valley + ridge + scree + bench + bowl)
 }
 
 function cityHeight(x: number, z: number): number {
-  const park = Math.sin(x * 0.04) * 3.2 + Math.cos(z * 0.038) * 2.6
-  const hill = Math.max(0, Math.sin((x + 50) * 0.02)) * 9
+  const park = Math.sin(x * 0.038) * 3.5 + Math.cos(z * 0.034) * 2.8
+  const hill = Math.max(0, Math.sin((x + 50) * 0.018)) * 10
   const riverBank = z < -40 ? 1.1 : 0
+  const plaza = Math.max(0, Math.sin(x * 0.07) * Math.cos(z * 0.06) - 0.55) * -1.2
   const curb =
     Math.abs(((x % 22) + 22) % 22 - 11) < 1.4 || Math.abs(((z % 22) + 22) % 22 - 11) < 1.4
-      ? 0.12
+      ? 0.14
       : 0
-  return Math.max(0, park + hill + riverBank + curb)
+  return Math.max(0, park + hill + riverBank + plaza + curb)
 }
 
 export const BIOME_CONFIGS: Record<string, BiomeConfig> = {

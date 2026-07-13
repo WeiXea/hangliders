@@ -235,13 +235,33 @@ export function tickFootsteps(
   filter.frequency.value = surface === 'city' ? 380 : surface === 'grass' ? 260 : 200
   osc.type = 'triangle'
   osc.frequency.value = 70 + Math.random() * 40
-  gain.gain.setValueAtTime(0.028, ac.currentTime)
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08)
+  gain.gain.setValueAtTime(surface === 'city' ? 0.034 : 0.04, ac.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.1)
   osc.connect(filter)
   filter.connect(gain)
   gain.connect(ac.destination)
   osc.start()
-  osc.stop(ac.currentTime + 0.09)
+  osc.stop(ac.currentTime + 0.11)
+
+  // Soft sand/grass rustle layer
+  if (surface !== 'city') {
+    const n = ac.createBufferSource()
+    const nb = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.06), ac.sampleRate)
+    const d = nb.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.4
+    n.buffer = nb
+    const ng = ac.createGain()
+    const nf = ac.createBiquadFilter()
+    nf.type = 'bandpass'
+    nf.frequency.value = surface === 'sand' ? 900 : 700
+    ng.gain.setValueAtTime(0.018, ac.currentTime)
+    ng.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.06)
+    n.connect(nf)
+    nf.connect(ng)
+    ng.connect(ac.destination)
+    n.start()
+    n.stop(ac.currentTime + 0.07)
+  }
 }
 
 /** Brief cue when mounting / entering a building. */

@@ -38,9 +38,9 @@ export function HangGlider() {
     const { position, pitch, roll, yaw, phase: ph, chuteSwing: swing } = flight
 
     // Soft attitude + position — speed changes used to telegraph as shake
-    const attDamp = 1 - Math.exp(-4.5 * delta)
-    const posDamp = 1 - Math.exp(-14 * delta)
-    const yawDamp = 1 - Math.exp(-8 * delta)
+    const attDamp = 1 - Math.exp(-7.5 * delta)
+    const posDamp = 1 - Math.exp(-12 * delta)
+    const yawDamp = 1 - Math.exp(-7 * delta)
     smoothPitch.current = THREE.MathUtils.lerp(smoothPitch.current, pitch, attDamp)
     smoothRoll.current = THREE.MathUtils.lerp(smoothRoll.current, roll, attDamp)
     // Unwrap-ish yaw lerp via shortest path
@@ -166,7 +166,7 @@ export function HangGlider() {
       flight.tandemRole === 'passenger'
         ? 1 - Math.exp(-2.2 * delta)
         : ph === 'flying' || ph === 'running'
-          ? 1 - Math.exp(-5.5 * delta)
+          ? 1 - Math.exp(-4.2 * delta)
           : 1 - Math.exp(-8 * delta)
 
     if (!camInit.current) {

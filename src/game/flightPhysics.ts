@@ -50,6 +50,8 @@ let swingVel = 0
 /** Weight-shift angular rates (rad/s) — rigid-body lite */
 let pitchVel = 0
 let rollVel = 0
+/** Low-pass vertical lift so thermal climb doesn't judder */
+let smoothLift = 0
 
 function smoothstep(t: number) {
   const x = Math.min(1, Math.max(0, t))
@@ -670,12 +672,20 @@ export function tickFlight(
   const fx = Math.sin(next.yaw) * Math.cos(next.pitch)
   const fz = Math.cos(next.yaw) * Math.cos(next.pitch)
 
-  // Base sink ~1.35 m/s; better Cl → slightly less sink; thermals/ridge via wind.y
+  // Smooth thermal / ridge lift so climb doesn't telegraph as shake
+  const liftK = 1 - Math.exp(-3.2 * dt)
+  smoothLift += (wind.y - smoothLift) * liftK
+
+  // Base sink ~1.35 m/s; better Cl → slightly less sink; thermals/ridge via smoothed lift
   const ldSink = BASE_SINK * (1.12 - Math.min(0.3, cl * 0.2))
   const ge = groundEffectFactor(next.altitude)
-  let vy = next.pitch * speed * 1.05 - ldSink * ge + wind.y
+  let vy = next.pitch * speed * 1.05 - ldSink * ge + smoothLift
   if (input.pitchDown) vy -= 5 + Math.abs(next.pitch) * 8
-  if (input.pitchUp) vy += 3.2 + next.pitch * 4
+  // Soften pitch-up boost when already in strong lift (avoids overshoot wobble)
+  if (input.pitchUp) {
+    const liftSoft = smoothLift > 2 ? 0.45 : 1
+    vy += (3.2 + next.pitch * 4) * liftSoft
+  }
   if (speedStall) vy -= 7
   else if (aoaStall) vy -= 3 + stallSeverity * 3
 
@@ -687,7 +697,7 @@ export function tickFlight(
   if (next.velocity.y > next.maxClimbRate) {
     next.maxClimbRate = next.velocity.y
   }
-  const airLift = wind.y
+  const airLift = smoothLift
   if (airLift > 0.35 || next.velocity.y > 0.55) {
     next.timeInLift += dt
   }

@@ -11,16 +11,16 @@ interface MountainSceneProps {
 function PineTree({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
   return (
     <group position={position} scale={scale}>
-      <mesh castShadow position={[0, 1.8, 0]}>
-        <cylinderGeometry args={[0.14, 0.2, 3.5, 6]} />
+      <mesh castShadow position={[0, 2.6, 0]}>
+        <cylinderGeometry args={[0.2, 0.32, 5.2, 6]} />
         <meshStandardMaterial color="#4a3728" roughness={0.9} />
       </mesh>
-      <mesh castShadow position={[0, 4.2, 0]}>
-        <coneGeometry args={[1.4, 3, 7]} />
+      <mesh castShadow position={[0, 6.2, 0]}>
+        <coneGeometry args={[2.1, 4.2, 7]} />
         <meshStandardMaterial color="#1b4332" roughness={0.82} />
       </mesh>
-      <mesh castShadow position={[0, 6, 0]}>
-        <coneGeometry args={[1.05, 2.4, 7]} />
+      <mesh castShadow position={[0, 8.8, 0]}>
+        <coneGeometry args={[1.55, 3.4, 7]} />
         <meshStandardMaterial color="#2d6a4f" roughness={0.82} />
       </mesh>
     </group>
@@ -68,22 +68,25 @@ function Cabin({
 }) {
   const wall = variant === 0 ? '#8b5e3c' : variant === 1 ? '#6f4e37' : '#a47148'
   const roof = variant === 0 ? '#495057' : '#343a40'
+  const wallH = 3.2
+  const w = 5.2 + variant * 0.35
+  const d = 4.2 + variant * 0.25
   return (
     <group position={position}>
-      <mesh castShadow position={[0, 1.2, 0]}>
-        <boxGeometry args={[4 + variant * 0.3, 2.4, 3.2 + variant * 0.2]} />
+      <mesh castShadow position={[0, wallH * 0.5, 0]}>
+        <boxGeometry args={[w, wallH, d]} />
         <meshStandardMaterial color={wall} roughness={0.88} />
       </mesh>
-      <mesh castShadow position={[0, 2.9, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <coneGeometry args={[3.2, 1.8, 4]} />
+      <mesh castShadow position={[0, wallH + 1.0, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[w * 0.72, 2.2, 4]} />
         <meshStandardMaterial color={roof} roughness={0.85} />
       </mesh>
-      <mesh position={[0, 1.1, 1.65]}>
-        <boxGeometry args={[0.7, 1.1, 0.08]} />
+      <mesh position={[0, 1.05, d * 0.505]}>
+        <boxGeometry args={[0.95, 2.05, 0.1]} />
         <meshStandardMaterial color="#343a40" />
       </mesh>
-      <mesh position={[1.1, 1.5, 1.62]}>
-        <boxGeometry args={[0.4, 0.4, 0.06]} />
+      <mesh position={[w * 0.28, 1.7, d * 0.505]}>
+        <boxGeometry args={[0.65, 0.65, 0.08]} />
         <meshStandardMaterial color="#90e0ef" roughness={0.3} />
       </mesh>
     </group>

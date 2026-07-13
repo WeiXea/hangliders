@@ -64,21 +64,21 @@ export function useGroundMaps(biome: Biome): GroundMaps {
       map = maps.sandDiff
       normalMap = maps.sandNor
       roughnessMap = maps.sandRough
-      repeat = 28
-      roughness = 0.92
-      normalScale = new THREE.Vector2(0.55, 0.55)
+      repeat = 16
+      roughness = 0.9
+      normalScale = new THREE.Vector2(0.65, 0.65)
     } else if (biome === 'mountains') {
       map = maps.rockDiff
       normalMap = maps.rockNor
       roughnessMap = maps.rockRough
-      repeat = 36
+      repeat = 28
       roughness = 0.88
-      normalScale = new THREE.Vector2(1.4, 1.4)
+      normalScale = new THREE.Vector2(1.35, 1.35)
     } else {
       map = maps.concreteDiff
       normalMap = maps.concreteNor
       roughnessMap = maps.concreteRough
-      repeat = 42
+      repeat = 36
       roughness = 0.86
       normalScale = new THREE.Vector2(0.85, 0.85)
     }

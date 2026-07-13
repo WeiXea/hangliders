@@ -318,7 +318,7 @@ function applyLimb(
   if (foreArm) foreArm.rotation.set(pose.foreArm, 0, 0)
 }
 
-/** PUBG-style rectangular ram-air canopy fabric (green + Moroccan star). */
+/** PUBG-style rectangular ram-air canopy — Moroccan flag fabric. */
 function makeRamAirTexture(): THREE.CanvasTexture {
   const w = 1024
   const h = 512
@@ -327,16 +327,18 @@ function makeRamAirTexture(): THREE.CanvasTexture {
   c.height = h
   const g = c.getContext('2d')!
 
-  g.fillStyle = '#2d8a3e'
+  // Moroccan red field
+  g.fillStyle = '#C1272D'
   g.fillRect(0, 0, w, h)
 
   const cells = 9
   for (let i = 0; i < cells; i++) {
     const x0 = (i / cells) * w
     const x1 = ((i + 1) / cells) * w
-    g.fillStyle = i % 2 === 0 ? '#348f45' : '#267a36'
+    // Subtle cell shade variation on the red field
+    g.fillStyle = i % 2 === 0 ? '#C1272D' : '#B01F28'
     g.fillRect(x0, 0, x1 - x0 + 1, h)
-    g.strokeStyle = 'rgba(0,0,0,0.28)'
+    g.strokeStyle = 'rgba(0,0,0,0.22)'
     g.lineWidth = 3
     g.beginPath()
     g.moveTo(x0, 0)
@@ -345,15 +347,15 @@ function makeRamAirTexture(): THREE.CanvasTexture {
   }
 
   // Leading-edge dark band
-  g.fillStyle = 'rgba(0,0,0,0.18)'
-  g.fillRect(0, 0, w, h * 0.12)
+  g.fillStyle = 'rgba(0,0,0,0.2)'
+  g.fillRect(0, 0, w, h * 0.1)
   // Trailing edge stitch
-  g.fillStyle = 'rgba(255,255,255,0.12)'
-  g.fillRect(0, h * 0.88, w, h * 0.12)
+  g.fillStyle = 'rgba(255,255,255,0.1)'
+  g.fillRect(0, h * 0.9, w, h * 0.1)
 
   // Cross seams
   for (let j = 1; j < 4; j++) {
-    g.strokeStyle = 'rgba(0,0,0,0.2)'
+    g.strokeStyle = 'rgba(0,0,0,0.18)'
     g.lineWidth = 2
     g.beginPath()
     g.moveTo(0, (j / 4) * h)
@@ -361,10 +363,10 @@ function makeRamAirTexture(): THREE.CanvasTexture {
     g.stroke()
   }
 
-  // Center Moroccan star accent
+  // Large filled green pentagram (Moroccan flag)
   const cx = w * 0.5
-  const cy = h * 0.52
-  const R = h * 0.28
+  const cy = h * 0.5
+  const R = h * 0.32
   g.beginPath()
   for (let i = 0; i < 5; i++) {
     const a = -Math.PI / 2 + (i * 4 * Math.PI) / 5
@@ -374,10 +376,19 @@ function makeRamAirTexture(): THREE.CanvasTexture {
     else g.lineTo(x, y)
   }
   g.closePath()
-  g.strokeStyle = '#C1272D'
-  g.lineWidth = 10
+  g.fillStyle = '#006233'
+  g.fill()
+  g.strokeStyle = '#004d28'
+  g.lineWidth = 6
   g.lineJoin = 'miter'
   g.stroke()
+
+  // Soft vignette
+  const edge = g.createRadialGradient(cx, cy, h * 0.1, cx, cy, w * 0.55)
+  edge.addColorStop(0, 'rgba(0,0,0,0)')
+  edge.addColorStop(1, 'rgba(0,0,0,0.16)')
+  g.fillStyle = edge
+  g.fillRect(0, 0, w, h)
 
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
@@ -560,26 +571,26 @@ export function ParachuteCanopy({
           side={THREE.DoubleSide}
           roughness={0.78}
           metalness={0.02}
-          sheen={0.35}
-          sheenRoughness={0.7}
-          sheenColor="#a8e6b0"
+          sheen={0.4}
+          sheenRoughness={0.65}
+          sheenColor="#ffc9c0"
         />
       </mesh>
 
       {cellMouths.map((m, i) => (
         <mesh key={i} position={[m.x, m.y, 1.12]} rotation={[0.15, 0, 0]}>
           <boxGeometry args={[0.48, 0.28, 0.06]} />
-          <meshStandardMaterial color="#0d2818" roughness={0.9} />
+          <meshStandardMaterial color="#4a1518" roughness={0.9} />
         </mesh>
       ))}
 
       <mesh position={[-2.85, 0.15, 0]} rotation={[0, 0, 0.35]}>
         <boxGeometry args={[0.08, 0.55, 1.8]} />
-        <meshStandardMaterial color="#1f6b30" roughness={0.75} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#006233" roughness={0.75} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[2.85, 0.15, 0]} rotation={[0, 0, -0.35]}>
         <boxGeometry args={[0.08, 0.55, 1.8]} />
-        <meshStandardMaterial color="#1f6b30" roughness={0.75} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#006233" roughness={0.75} side={THREE.DoubleSide} />
       </mesh>
 
       {lineXforms.map((lx, i) => (
@@ -802,10 +813,43 @@ export function AnimatedPilot({
             <cylinderGeometry args={[0.018, 0.018, 0.42, 8]} />
             <meshStandardMaterial color={HARNESS} roughness={0.6} />
           </mesh>
+          {/* Chest buckle */}
           <mesh position={[0, 0.1, 0.22]} castShadow>
             <boxGeometry args={[0.09, 0.055, 0.035]} />
             <meshPhysicalMaterial color="#c9a227" metalness={0.85} roughness={0.25} />
           </mesh>
+
+          {/* Parachute pack on the back (walking / freefall) */}
+          {standing && (
+            <group position={[0, 0.18, -0.22]}>
+              <mesh castShadow>
+                <boxGeometry args={[0.42, 0.52, 0.2]} />
+                <meshStandardMaterial color="#2a2a2a" roughness={0.78} />
+              </mesh>
+              <mesh position={[0, 0.02, -0.02]} castShadow>
+                <boxGeometry args={[0.36, 0.42, 0.12]} />
+                <meshStandardMaterial color="#1a1a1a" roughness={0.7} />
+              </mesh>
+              {/* Pack straps */}
+              <mesh position={[-0.14, 0.1, 0.12]} rotation={[0.2, 0, 0]}>
+                <boxGeometry args={[0.04, 0.45, 0.03]} />
+                <meshStandardMaterial color={HARNESS} roughness={0.65} />
+              </mesh>
+              <mesh position={[0.14, 0.1, 0.12]} rotation={[0.2, 0, 0]}>
+                <boxGeometry args={[0.04, 0.45, 0.03]} />
+                <meshStandardMaterial color={HARNESS} roughness={0.65} />
+              </mesh>
+              {/* Tiny flag patch on pack */}
+              <mesh position={[0.12, 0.12, -0.11]}>
+                <boxGeometry args={[0.12, 0.08, 0.01]} />
+                <meshStandardMaterial color="#C1272D" roughness={0.6} />
+              </mesh>
+              <mesh position={[0.12, 0.12, -0.115]}>
+                <boxGeometry args={[0.04, 0.04, 0.008]} />
+                <meshStandardMaterial color="#006233" roughness={0.6} />
+              </mesh>
+            </group>
+          )}
 
           {/* Head — slightly larger stylized proportions */}
           <group position={[0, 0.55, 0.02]}>

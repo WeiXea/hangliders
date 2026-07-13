@@ -388,6 +388,7 @@ export function CityScene({ config }: CitySceneProps) {
         deep="#023e8a"
         shallow="#48cae4"
         position={[40, 0, -60]}
+        followPlayer={false}
       />
     </>
   )

@@ -15,21 +15,21 @@ interface BeachSceneProps {
 }
 
 function PalmTree({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
-  const trunkH = 4.6 + scale * 0.8
+  const trunkH = 9.5 + scale * 2.2
   return (
     <group position={position} scale={scale}>
       <mesh castShadow position={[0, trunkH * 0.48, 0]}>
-        <cylinderGeometry args={[0.14, 0.26, trunkH, 8]} />
+        <cylinderGeometry args={[0.22, 0.42, trunkH, 8]} />
         <meshStandardMaterial color="#6b4423" roughness={0.88} />
       </mesh>
-      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
         <mesh
           key={i}
           castShadow
-          position={[Math.sin(i * 0.95) * 1.5, trunkH + 0.2, Math.cos(i * 0.95) * 1.5]}
-          rotation={[0.55, i * 0.95, 0.12]}
+          position={[Math.sin(i * 0.85) * 2.2, trunkH + 0.15, Math.cos(i * 0.85) * 2.2]}
+          rotation={[0.65, i * 0.85, 0.1]}
         >
-          <boxGeometry args={[0.32, 2.9, 0.08]} />
+          <boxGeometry args={[0.45, 4.8, 0.1]} />
           <meshStandardMaterial color={i % 2 === 0 ? '#2d6a4f' : '#40916c'} roughness={0.72} />
         </mesh>
       ))}
@@ -65,24 +65,25 @@ function BeachHut({
 }) {
   const body = variant === 0 ? '#d4a373' : variant === 1 ? '#c98b6a' : '#b08968'
   const roof = variant === 0 ? '#6b4226' : variant === 1 ? '#432818' : '#7f5539'
-  const w = 3.0 + variant * 0.35
-  const d = 2.6 + (variant % 2) * 0.4
+  const w = 4.2 + variant * 0.4
+  const d = 3.6 + (variant % 2) * 0.5
+  const wallH = 3.1
   return (
     <group position={position}>
-      <mesh castShadow position={[0, 1.1, 0]}>
-        <boxGeometry args={[w, 2.2, d]} />
+      <mesh castShadow position={[0, wallH * 0.5, 0]}>
+        <boxGeometry args={[w, wallH, d]} />
         <meshStandardMaterial color={body} roughness={0.85} />
       </mesh>
-      <mesh castShadow position={[0, 2.8, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <coneGeometry args={[2.4 + variant * 0.2, 1.5 + variant * 0.15, 4]} />
+      <mesh castShadow position={[0, wallH + 0.85, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[w * 0.78, 1.9, 4]} />
         <meshStandardMaterial color={roof} roughness={0.9} />
       </mesh>
-      <mesh position={[0, 0.95, d * 0.52]}>
-        <boxGeometry args={[0.7, 1.4, 0.08]} />
+      <mesh position={[0, 1.05, d * 0.505]}>
+        <boxGeometry args={[0.95, 2.05, 0.1]} />
         <meshStandardMaterial color="#3d2914" roughness={0.8} />
       </mesh>
-      <mesh position={[w * 0.28, 1.35, d * 0.52]}>
-        <boxGeometry args={[0.45, 0.45, 0.06]} />
+      <mesh position={[w * 0.28, 1.7, d * 0.505]}>
+        <boxGeometry args={[0.7, 0.7, 0.08]} />
         <meshStandardMaterial color="#90e0ef" roughness={0.3} metalness={0.2} />
       </mesh>
     </group>
@@ -113,7 +114,7 @@ function BeachUmbrella({
 function Driftwood({ position, yaw = 0 }: { position: [number, number, number]; yaw?: number }) {
   return (
     <mesh castShadow position={position} rotation={[0.1, yaw, 0.2]}>
-      <capsuleGeometry args={[0.12, 1.8, 4, 6]} />
+      <capsuleGeometry args={[0.2, 3.2, 4, 6]} />
       <meshStandardMaterial color="#6b4423" roughness={0.95} />
     </mesh>
   )

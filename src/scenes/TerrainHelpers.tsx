@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Biome, BiomeConfig } from '../types/game'
 import { useGroundMaps } from '../game/pbrMaps'
+import { useGameStore } from '../game/gameStore'
 
 interface DetailedTerrainProps {
   config: BiomeConfig
@@ -13,27 +14,45 @@ interface DetailedTerrainProps {
 
 function sampleColor(biome: Biome, h: number, slope: number, x: number, z: number): THREE.Color {
   const c = new THREE.Color()
+  const n =
+    Math.sin(x * 0.045) * Math.cos(z * 0.038) * 0.5 +
+    Math.sin(x * 0.11 + z * 0.09) * 0.35 +
+    Math.sin((x + z) * 0.02) * 0.2
+
   if (biome === 'beach') {
-    if (h < 1.2) c.set('#f1e3c6')
-    else if (h < 6) c.set('#e9c46a')
-    else if (h < 14) c.set('#74a57f')
-    else c.set('#52796f')
-    if (slope > 0.4) c.lerp(new THREE.Color('#6b705c'), 0.55)
-    if (z > 50 && h < 1.5) c.lerp(new THREE.Color('#90e0ef'), 0.25)
+    // Shore → dunes → scrub → cliff rock — strong spatial breaks
+    if (h < 0.8 || (z > 70 && h < 2.2)) c.set('#f7e9c8')
+    else if (h < 3.5) c.set('#e8d4a0')
+    else if (h < 7 + n * 2) c.set(n > 0.15 ? '#c4a35a' : '#d4b978')
+    else if (h < 12 + n * 3) c.set(n > 0 ? '#6a994e' : '#8ab17d')
+    else if (slope > 0.35) c.set('#7a6c5d')
+    else c.set('#4a7c59')
+    if (slope > 0.55) c.lerp(new THREE.Color('#5c5346'), 0.65)
+    if (z > 90 && h < 1.8) c.lerp(new THREE.Color('#7ec8e3'), 0.4)
+    // Patchy scrub / rock outcrops
+    if (n > 0.55 && h > 8) c.lerp(new THREE.Color('#6b705c'), 0.45)
+    if (n < -0.5 && h > 4 && h < 10) c.lerp(new THREE.Color('#a3b18a'), 0.35)
   } else if (biome === 'mountains') {
-    if (h < 16) c.set('#588157')
-    else if (h < 32) c.set('#6b8e4e')
-    else if (h < 52) c.set('#8d99ae')
-    else c.set('#f1faee')
-    if (slope > 0.45 && h > 22) c.lerp(new THREE.Color('#495057'), 0.5)
-    if (h > 48) c.lerp(new THREE.Color('#ffffff'), Math.min(1, (h - 48) / 28))
+    if (h < 14) c.set(n > 0 ? '#4f772d' : '#606c38')
+    else if (h < 28) c.set(n > 0.2 ? '#6b8e4e' : '#588157')
+    else if (h < 45) c.set('#8d99ae')
+    else if (h < 60) c.set('#adb5bd')
+    else c.set('#f8f9fa')
+    if (slope > 0.4 && h > 18) c.lerp(new THREE.Color('#495057'), 0.55)
+    if (h > 50) c.lerp(new THREE.Color('#ffffff'), Math.min(1, (h - 50) / 30))
+    if (n > 0.5 && h < 35) c.lerp(new THREE.Color('#344e41'), 0.3)
   } else {
-    c.set(h < 3.5 ? '#40916c' : '#adb5bd')
-    if (Math.abs(((x % 20) + 20) % 20 - 10) < 1.1 || Math.abs(((z % 20) + 20) % 20 - 10) < 1.1) {
-      c.set('#343a40')
-    }
+    // City: parks, pavement, plaza patches
+    const road =
+      Math.abs(((x % 22) + 22) % 22 - 11) < 1.4 ||
+      Math.abs(((z % 22) + 22) % 22 - 10) < 1.4
+    if (road) c.set('#2b3035')
+    else if (h < 2.5 || n > 0.4) c.set('#52796f')
+    else if (n < -0.35) c.set('#6c757d')
+    else c.set('#8d99ae')
+    if (!road && Math.abs(n) < 0.12) c.lerp(new THREE.Color('#495057'), 0.25)
   }
-  c.offsetHSL(0, 0, Math.sin(x * 0.15) * Math.cos(z * 0.12) * 0.03)
+  c.offsetHSL(n * 0.02, n * 0.04, Math.sin(x * 0.08) * Math.cos(z * 0.07) * 0.04)
   return c
 }
 
@@ -55,8 +74,8 @@ export function DetailedTerrain({ config, biome, size = 2800, segments = 220 }: 
       const hz = config.getHeight(x, z + 1.2) - config.getHeight(x, z - 1.2)
       const slope = Math.hypot(hx, hz) / 2.4
       const col = sampleColor(biome, h, slope, x, z)
-      // Soften vertex tint so PBR albedo reads through
-      col.offsetHSL(0, -0.05, 0.08)
+      // Mild soften so PBR albedo still reads
+      col.offsetHSL(0, -0.02, 0.03)
       colors[i * 3] = col.r
       colors[i * 3 + 1] = col.g
       colors[i * 3 + 2] = col.b
@@ -130,17 +149,21 @@ const oceanFrag = /* glsl */ `
 
 export function OceanSurface({
   y = -0.55,
-  scale = [3200, 1800] as [number, number],
+  scale = [6000, 6000] as [number, number],
   deep = '#012a4a',
   shallow = '#48cae4',
-  position = [120, 0, 380] as [number, number, number],
+  position = [0, 0, 0] as [number, number, number],
+  /** When true, ocean XZ tracks the player so the sea never ends */
+  followPlayer = true,
 }: {
   y?: number
   scale?: [number, number]
   deep?: string
   shallow?: string
   position?: [number, number, number]
+  followPlayer?: boolean
 }) {
+  const meshRef = useRef<THREE.Mesh>(null)
   const matRef = useRef<THREE.ShaderMaterial>(null)
   const uniforms = useMemo(
     () => ({
@@ -154,16 +177,24 @@ export function OceanSurface({
 
   useFrame(({ clock }) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = clock.getElapsedTime()
+    if (!followPlayer || !meshRef.current) return
+    // Snap to 40 m grid so waves don't crawl under the camera
+    const { flight } = useGameStore.getState()
+    const snap = 40
+    meshRef.current.position.x = Math.round(flight.position.x / snap) * snap + position[0]
+    meshRef.current.position.z = Math.round(flight.position.z / snap) * snap + position[2]
+    meshRef.current.position.y = y
   })
 
   return (
     <mesh
+      ref={meshRef}
       rotation={[-Math.PI / 2, 0, 0]}
       position={[position[0], y, position[2]]}
       receiveShadow
       renderOrder={-2}
     >
-      <planeGeometry args={[scale[0], scale[1], 48, 32]} />
+      <planeGeometry args={[scale[0], scale[1], 64, 48]} />
       <shaderMaterial
         ref={matRef}
         uniforms={uniforms}

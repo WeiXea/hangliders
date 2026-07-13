@@ -39,19 +39,19 @@ export const MOUNTAIN_SCENERY: Obstacle[] = [
 ]
 
 const MOUNTAIN_CABINS: BoxObstacle[] = [
-  { x: 55, z: 70, halfW: 2.2, halfD: 1.8, y0: 0, height: 3.5 },
-  { x: 160, z: 50, halfW: 2.2, halfD: 1.8, y0: 0, height: 3.5 },
-  { x: 220, z: 160, halfW: 2.4, halfD: 2.0, y0: 0, height: 3.6 },
-  { x: 90, z: 190, halfW: 2.0, halfD: 1.7, y0: 0, height: 3.4 },
+  { x: 55, z: 70, halfW: 2.9, halfD: 2.4, y0: 0, height: 5.6 },
+  { x: 160, z: 50, halfW: 2.9, halfD: 2.4, y0: 0, height: 5.6 },
+  { x: 220, z: 160, halfW: 3.0, halfD: 2.5, y0: 0, height: 5.6 },
+  { x: 90, z: 190, halfW: 2.8, halfD: 2.3, y0: 0, height: 5.6 },
 ]
 
 /** Match BeachScene hut / cliff footprints */
 const BEACH_HUTS: BoxObstacle[] = [
-  { x: 20, z: 55, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
-  { x: -10, z: 70, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
-  { x: 55, z: 95, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
-  { x: 120, z: 130, halfW: 1.9, halfD: 1.7, y0: 0, height: 3.2 },
-  { x: 180, z: 90, halfW: 1.8, halfD: 1.6, y0: 0, height: 3.2 },
+  { x: 20, z: 55, halfW: 2.4, halfD: 2.0, y0: 0, height: 5.2 },
+  { x: -10, z: 70, halfW: 2.4, halfD: 2.0, y0: 0, height: 5.2 },
+  { x: 55, z: 95, halfW: 2.4, halfD: 2.0, y0: 0, height: 5.2 },
+  { x: 120, z: 130, halfW: 2.5, halfD: 2.1, y0: 0, height: 5.2 },
+  { x: 180, z: 90, halfW: 2.4, halfD: 2.0, y0: 0, height: 5.2 },
 ]
 
 /** Approximate cliff face volumes — thin sheets along the west edge (not solid plateaus). */

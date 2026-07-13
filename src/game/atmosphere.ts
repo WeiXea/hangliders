@@ -138,7 +138,7 @@ export function sampleAtmosphere(
   const gust = hashNoise(pos.x, pos.z, time)
   const wx = Math.sin(windDir) * windSpeed * (1 + gust * 0.15)
   const wz = Math.cos(windDir) * windSpeed * (1 + gust * 0.12)
-  let wy = hashNoise(pos.x * 0.5, pos.z * 0.5, time * 0.7) * 0.35 * config.thermalStrength
+  let wy = hashNoise(pos.x * 0.5, pos.z * 0.5, time * 0.7) * 0.18 * config.thermalStrength
 
   for (const th of getThermals(config.id)) {
     const { cx, cz } = thermalCenter(th, time)
@@ -149,9 +149,13 @@ export function sampleAtmosphere(
     if (pos.y < th.y0 || pos.y > th.y1) continue
     const radial = 1 - dist / th.radius
     const core = radial * radial
-    const heightBand =
-      0.5 + 0.5 * Math.sin(((pos.y - th.y0) / Math.max(1, th.y1 - th.y0)) * Math.PI)
-    const pulse = 0.85 + 0.15 * Math.sin(time * 0.8 + th.x * 0.02)
+    const heightBand = (() => {
+      const t = (pos.y - th.y0) / Math.max(1, th.y1 - th.y0)
+      // Smoothstep band — no sharp sin mid-column dips
+      const s = Math.max(0, Math.min(1, t))
+      return s * s * (3 - 2 * s) * (1 - Math.abs(s - 0.55) * 0.35)
+    })()
+    const pulse = 0.94 + 0.06 * Math.sin(time * 0.35 + th.x * 0.02)
     wy += th.strength * config.thermalStrength * core * heightBand * pulse
   }
 
