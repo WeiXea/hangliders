@@ -16,7 +16,13 @@ export function isGroundSocial(phase: FlightState['phase']): boolean {
 }
 
 export function isOnGlider(phase: FlightState['phase']): boolean {
-  return phase === 'grounded' || phase === 'running' || phase === 'flying' || phase === 'landed'
+  return (
+    phase === 'grounded' ||
+    phase === 'running' ||
+    phase === 'flying' ||
+    phase === 'helicopter' ||
+    phase === 'landed'
+  )
 }
 
 export function canSocialEmote(local: FlightState, remote: FlightState | null): boolean {

@@ -12,6 +12,7 @@ import {
 import {
   GROUND_CLEARANCE,
   GLIDER_REST_CLEARANCE,
+  HELI_REST_CLEARANCE,
   hitCityBuildings,
   hitWorldProps,
   resolvePropPush,
@@ -97,6 +98,7 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     tandemRole: 'none',
     tandemWant: false,
     interiorId: -1,
+    craftType: 'glider',
   }
 }
 
@@ -108,6 +110,7 @@ export function initParkedGliders(config: BiomeConfig): ParkedGlider[] {
     yaw: g.yaw,
     available: true,
     buildingId: g.buildingId,
+    craftType: g.craftType ?? 'glider',
   }))
 }
 
@@ -125,7 +128,7 @@ function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
 
   if (
     config.id === 'city' &&
-    hitCityBuildings(next.position, config.getHeight, next.interiorId)
+    hitCityBuildings(next.position, config.getHeight, next.interiorId, next.yaw)
   ) {
     return {
       ...next,
@@ -174,6 +177,7 @@ function parkMountedGlider(
   const x = flight.position.x
   const z = flight.position.z
   const yaw = flight.yaw
+  const craftType = flight.craftType ?? 'glider'
   let buildingId: number | undefined
   if (config?.id === 'city') {
     const support = sampleCitySupport(x, z, config.getHeight)
@@ -183,13 +187,13 @@ function parkMountedGlider(
   if (flight.mountedId >= 0) {
     return parked.map((g) =>
       g.id === flight.mountedId
-        ? { ...g, x, z, yaw, available: true, buildingId }
+        ? { ...g, x, z, yaw, available: true, buildingId, craftType }
         : g,
     )
   }
 
   const nextId = parked.reduce((m, g) => Math.max(m, g.id), -1) + 1
-  return [...parked, { id: nextId, x, z, yaw, available: true, buildingId }]
+  return [...parked, { id: nextId, x, z, yaw, available: true, buildingId, craftType }]
 }
 
 function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
@@ -215,6 +219,7 @@ function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
     tandemWant: false,
     stallWarning: false,
     interiorId: -1,
+    craftType: 'glider',
   }
 }
 
@@ -241,6 +246,7 @@ function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
     tandemWant: false,
     stallWarning: false,
     interiorId: -1,
+    craftType: 'glider',
   }
 }
 
@@ -477,27 +483,111 @@ export function tickFlight(
           config.id === 'city'
             ? sampleCitySupport(target.x, target.z, config.getHeight).y
             : config.getHeight(target.x, target.z)
-        next = {
-          ...next,
-          phase: 'grounded',
-          position: { x: target.x, y: gy + GLIDER_REST_CLEARANCE, z: target.z },
-          yaw: target.yaw,
-          pitch: 0,
-          roll: 0,
-          airspeed: 0,
-          velocity: { x: 0, y: 0, z: 0 },
-          altitude: 0,
-          mountedId: target.id,
-          chuteDeployed: false,
-          chuteInflation: 0,
-          chuteSwing: 0,
-          landAction: 'none',
-          interiorId: -1,
+        const craft = target.craftType ?? 'glider'
+        if (craft === 'helicopter') {
+          next = {
+            ...next,
+            phase: 'helicopter',
+            craftType: 'helicopter',
+            position: { x: target.x, y: gy + HELI_REST_CLEARANCE, z: target.z },
+            yaw: target.yaw,
+            pitch: 0,
+            roll: 0,
+            airspeed: 0,
+            velocity: { x: 0, y: 0, z: 0 },
+            altitude: 0,
+            mountedId: target.id,
+            chuteDeployed: false,
+            chuteInflation: 0,
+            chuteSwing: 0,
+            landAction: 'none',
+            interiorId: -1,
+            stallWarning: false,
+          }
+        } else {
+          next = {
+            ...next,
+            phase: 'grounded',
+            craftType: 'glider',
+            position: { x: target.x, y: gy + GLIDER_REST_CLEARANCE, z: target.z },
+            yaw: target.yaw,
+            pitch: 0,
+            roll: 0,
+            airspeed: 0,
+            velocity: { x: 0, y: 0, z: 0 },
+            altitude: 0,
+            mountedId: target.id,
+            chuteDeployed: false,
+            chuteInflation: 0,
+            chuteSwing: 0,
+            landAction: 'none',
+            interiorId: -1,
+          }
         }
       }
     }
 
     return { flight: next, parked }
+  }
+
+  // --- Helicopter ---
+  if (next.phase === 'helicopter') {
+    next.craftType = 'helicopter'
+    next.airtime += dt
+    next.stallWarning = false
+
+    if (input.bankLeft) next.yaw += 1.55 * dt
+    if (input.bankRight) next.yaw -= 1.55 * dt
+
+    let climb = -0.8
+    if (input.pitchUp) climb = 11
+    else if (input.pitchDown) climb = -9
+
+    if (input.speedUp) next.airspeed = Math.min(32, next.airspeed + 12 * dt)
+    else if (input.speedDown) next.airspeed = Math.max(0, next.airspeed - 16 * dt)
+    else next.airspeed = Math.max(0, next.airspeed - 2.5 * dt)
+
+    next.pitch = lerp(next.pitch, input.speedUp ? -0.22 : input.pitchDown ? 0.12 : 0, Math.min(1, 4 * dt))
+    next.roll = lerp(next.roll, input.bankLeft ? 0.18 : input.bankRight ? -0.18 : 0, Math.min(1, 5 * dt))
+
+    next.velocity.x = Math.sin(next.yaw) * next.airspeed
+    next.velocity.z = Math.cos(next.yaw) * next.airspeed
+    next.velocity.y = climb
+
+    next.position.x += next.velocity.x * dt
+    next.position.y += next.velocity.y * dt
+    next.position.z += next.velocity.z * dt
+
+    support = supportY(config, next.position.x, next.position.z)
+    groundY = support.y
+    next.altitude = Math.max(0, next.position.y - groundY)
+    next.maxAltitude = Math.max(next.maxAltitude, next.altitude)
+    next.distance += Math.hypot(next.velocity.x, next.velocity.z) * dt
+    if (climb > 1) next.maxClimbRate = Math.max(next.maxClimbRate, climb)
+
+    if (next.position.y <= groundY + HELI_REST_CLEARANCE) {
+      next.position.y = groundY + HELI_REST_CLEARANCE
+      next.velocity.y = 0
+      next.altitude = 0
+      const idle = next.airspeed < 1.8 && !input.pitchUp
+      if (idle && (input.land || input.interact || input.jump)) {
+        parked = parkMountedGlider(next, parked, config)
+        next = beginWalking(next, config)
+        return { flight: next, parked }
+      }
+    }
+
+    if (input.jump && next.altitude >= 6) {
+      parked = parkMountedGlider(next, parked, config)
+      next.phase = 'freefall'
+      next.mountedId = -1
+      next.craftType = 'glider'
+      next.chuteDeployed = false
+      next.chuteInflation = 0
+      return { flight: next, parked }
+    }
+
+    return { flight: collideWorld(next, config), parked }
   }
 
   // --- Freefall ---

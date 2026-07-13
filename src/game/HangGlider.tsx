@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from './gameStore'
 import { GliderModel } from './GliderModel'
+import { HelicopterModel } from './HelicopterModel'
 import { AnimatedPilot, ParachuteCanopy, PILOT_EYE, PILOT_HIP } from './Pilot'
 import { getLookOffsets, setKeyLookTarget, tickLook } from './lookCamera'
 import { GliderContactShadow } from '../scenes/SharedSky'
@@ -11,7 +12,6 @@ export function HangGlider() {
   const groupRef = useRef<THREE.Group>(null)
   const bodyRef = useRef<THREE.Group>(null)
   const barRef = useRef<THREE.Group>(null)
-  // Structural only — pose/position read live in useFrame to avoid stuttery remounts
   const phase = useGameStore((s) => s.flight.phase)
   const tandemRole = useGameStore((s) => s.flight.tandemRole)
   const chuteDeployed = useGameStore((s) => s.flight.chuteDeployed)
@@ -37,13 +37,11 @@ export function HangGlider() {
     const { flight, input } = useGameStore.getState()
     const { position, pitch, roll, yaw, phase: ph, chuteSwing: swing } = flight
 
-    // Soft attitude + position — speed changes used to telegraph as shake
     const attDamp = 1 - Math.exp(-7.5 * delta)
     const posDamp = 1 - Math.exp(-12 * delta)
     const yawDamp = 1 - Math.exp(-7 * delta)
     smoothPitch.current = THREE.MathUtils.lerp(smoothPitch.current, pitch, attDamp)
     smoothRoll.current = THREE.MathUtils.lerp(smoothRoll.current, roll, attDamp)
-    // Unwrap-ish yaw lerp via shortest path
     let dy = yaw - smoothYaw.current
     while (dy > Math.PI) dy -= Math.PI * 2
     while (dy < -Math.PI) dy += Math.PI * 2
@@ -57,7 +55,6 @@ export function HangGlider() {
       smoothYaw.current = yaw
       posInit.current = true
     } else if (smoothPos.current.distanceToSquared(position) > 400) {
-      // Teleport / restart — snap instead of lerping across the map
       smoothPos.current.set(position.x, position.y, position.z)
       smoothYaw.current = yaw
       smoothPitch.current = pitch
@@ -74,19 +71,21 @@ export function HangGlider() {
       ph === 'grounded' || ph === 'running' || ph === 'landed' || ph === 'walking'
     const crashed = ph === 'crashed'
     const airbornePilot = ph === 'freefall' || ph === 'parachuting'
+    const heli = ph === 'helicopter'
     const swingRoll = ph === 'parachuting' ? -swing * 0.35 : 0
-    // Physics pitch > 0 = climb / nose-up; Three.js +X rotation tips nose down when facing +Z
     const visualPitch = -sp
     bodyRef.current.rotation.set(
       crashed
         ? visualPitch - 0.35
-        : onGround
-          ? 0
-          : airbornePilot
-            ? Math.max(-0.4, visualPitch)
-            : visualPitch,
+        : heli
+          ? visualPitch
+          : onGround
+            ? 0
+            : airbornePilot
+              ? Math.max(-0.4, visualPitch)
+              : visualPitch,
       crashed ? 0.25 : 0,
-      crashed ? -sr : onGround ? 0 : -sr + swingRoll,
+      crashed ? -sr : heli ? -sr : onGround ? 0 : -sr + swingRoll,
     )
 
     if (barRef.current) {
@@ -112,9 +111,9 @@ export function HangGlider() {
 
     worldQuat.current.setFromEuler(
       new THREE.Euler(
-        onGround ? 0 : visualPitch * 0.28,
+        onGround && !heli ? 0 : visualPitch * 0.28,
         sy,
-        onGround ? 0 : -sr * 0.35 + swingRoll,
+        onGround && !heli ? 0 : -sr * 0.35 + swingRoll,
         'YXZ',
       ),
     )
@@ -142,6 +141,20 @@ export function HangGlider() {
         eye.set(0, 2.8, -12)
         lookAt.set(0, -1.5, 10)
         targetFov = 64
+      }
+    } else if (ph === 'helicopter') {
+      if (cameraMode === 'fpv') {
+        eye.set(0, 0.55, 0.4)
+        lookAt.set(0, 0.2, 18)
+        targetFov = 70
+      } else if (cameraMode === 'side') {
+        eye.set(16, 5, -2)
+        lookAt.set(0, 0, 8)
+        targetFov = 58
+      } else {
+        eye.set(0, 6.5, -18)
+        lookAt.set(0, -1, 12)
+        targetFov = 60
       }
     } else if (cameraMode === 'chase') {
       if (ph === 'flying' && flight.altitude < 22) {
@@ -172,7 +185,7 @@ export function HangGlider() {
     const camLerp =
       flight.tandemRole === 'passenger'
         ? 1 - Math.exp(-2.2 * delta)
-        : ph === 'flying' || ph === 'running'
+        : ph === 'flying' || ph === 'running' || ph === 'helicopter'
           ? 1 - Math.exp(-4.2 * delta)
           : 1 - Math.exp(-8 * delta)
 
@@ -195,14 +208,14 @@ export function HangGlider() {
     }
   })
 
-  const onFootGround =
-    phase === 'grounded' || phase === 'running'
+  const onFootGround = phase === 'grounded' || phase === 'running'
   const showWing =
     phase === 'grounded' ||
     phase === 'running' ||
     phase === 'flying' ||
     phase === 'landed' ||
     tandemRole === 'passenger'
+  const showHeli = phase === 'helicopter'
   const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
   const showChute = phase === 'parachuting' || (phase === 'freefall' && chuteDeployed)
   const showTandemPassenger = peerConnected && tandemRole === 'pilot' && showWing
@@ -210,6 +223,14 @@ export function HangGlider() {
   return (
     <group ref={groupRef}>
       <group ref={bodyRef}>
+        {showHeli && (
+          <group>
+            <HelicopterModel rpm={1.15} />
+            <group position={[0, 0.15, 0.2]}>
+              <AnimatedPilot mode="stand" />
+            </group>
+          </group>
+        )}
         {showWing && (
           <group>
             <GliderModel

@@ -307,8 +307,9 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
     const zMin = -15
     const zMax = 205
     const step = 22
-    const roadW = 10.5
-    const walkW = 2.6
+    const roadW = 11
+    const curbH = 0.18
+    const asphaltH = 0.14
     const xs: number[] = []
     const zs: number[] = []
     for (let x = -44; x <= 220; x += step) xs.push(x)
@@ -320,91 +321,101 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
     const midZ = (zMin + zMax) / 2
 
     for (const z of zs) {
-      const y = getHeight(midX, z) + 0.06
+      const base = getHeight(midX, z)
+      const y = base + asphaltH * 0.5
+      // Thick asphalt slab
       result.push(
-        <mesh key={`road-h-${z}`} rotation={[-Math.PI / 2, 0, 0]} position={[midX, y, z]} receiveShadow>
-          <planeGeometry args={[roadLenX, roadW]} />
-          <meshStandardMaterial color="#1e2226" roughness={0.95} />
+        <mesh key={`road-h-${z}`} position={[midX, y, z]} receiveShadow castShadow>
+          <boxGeometry args={[roadLenX, asphaltH, roadW]} />
+          <meshStandardMaterial color="#1a1d21" roughness={0.92} />
         </mesh>,
       )
-      // Sidewalks (short, dark concrete — not a white lattice)
+      // Raised curbs
       for (const side of [-1, 1] as const) {
+        result.push(
+          <mesh
+            key={`curb-h-${z}-${side}`}
+            position={[midX, base + curbH * 0.5 + asphaltH, z + side * (roadW * 0.5 + 0.2)]}
+            castShadow
+            receiveShadow
+          >
+            <boxGeometry args={[roadLenX, curbH, 0.4]} />
+            <meshStandardMaterial color="#6c757d" roughness={0.88} />
+          </mesh>,
+        )
         result.push(
           <mesh
             key={`walk-h-${z}-${side}`}
-            rotation={[-Math.PI / 2, 0, 0]}
-            position={[midX, y + 0.025, z + side * (roadW * 0.5 + walkW * 0.5)]}
+            position={[midX, base + asphaltH + curbH + 0.04, z + side * (roadW * 0.5 + 1.5)]}
             receiveShadow
           >
-            <planeGeometry args={[roadLenX, walkW]} />
-            <meshStandardMaterial color="#6c757d" roughness={0.92} />
+            <boxGeometry args={[roadLenX, 0.08, 2.4]} />
+            <meshStandardMaterial color="#868e96" roughness={0.9} />
           </mesh>,
         )
       }
-      // Dashed center line (short dashes only)
-      for (let x = xMin + 4; x < xMax - 4; x += 5.5) {
+      for (let x = xMin + 4; x < xMax - 4; x += 6) {
         result.push(
-          <mesh
-            key={`dash-h-${z}-${x}`}
-            rotation={[-Math.PI / 2, 0, 0]}
-            position={[x, y + 0.035, z]}
-          >
-            <planeGeometry args={[2.4, 0.16]} />
-            <meshStandardMaterial color="#f4d35e" roughness={0.7} />
+          <mesh key={`dash-h-${z}-${x}`} position={[x, base + asphaltH + 0.02, z]}>
+            <boxGeometry args={[2.6, 0.03, 0.18]} />
+            <meshStandardMaterial color="#f4d35e" roughness={0.65} />
           </mesh>,
         )
       }
     }
 
     for (const x of xs) {
-      const y = getHeight(x, midZ) + 0.055
+      const base = getHeight(x, midZ)
+      const y = base + asphaltH * 0.5
       result.push(
-        <mesh key={`road-v-${x}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[x, y, midZ]} receiveShadow>
-          <planeGeometry args={[roadLenZ, roadW]} />
-          <meshStandardMaterial color="#1e2226" roughness={0.95} />
+        <mesh key={`road-v-${x}`} position={[x, y, midZ]} receiveShadow castShadow>
+          <boxGeometry args={[roadW, asphaltH, roadLenZ]} />
+          <meshStandardMaterial color="#1a1d21" roughness={0.92} />
         </mesh>,
       )
       for (const side of [-1, 1] as const) {
         result.push(
           <mesh
-            key={`walk-v-${x}-${side}`}
-            rotation={[-Math.PI / 2, 0, Math.PI / 2]}
-            position={[x + side * (roadW * 0.5 + walkW * 0.5), y + 0.025, midZ]}
+            key={`curb-v-${x}-${side}`}
+            position={[x + side * (roadW * 0.5 + 0.2), base + curbH * 0.5 + asphaltH, midZ]}
+            castShadow
             receiveShadow
           >
-            <planeGeometry args={[roadLenZ, walkW]} />
-            <meshStandardMaterial color="#6c757d" roughness={0.92} />
+            <boxGeometry args={[0.4, curbH, roadLenZ]} />
+            <meshStandardMaterial color="#6c757d" roughness={0.88} />
+          </mesh>,
+        )
+        result.push(
+          <mesh
+            key={`walk-v-${x}-${side}`}
+            position={[x + side * (roadW * 0.5 + 1.5), base + asphaltH + curbH + 0.04, midZ]}
+            receiveShadow
+          >
+            <boxGeometry args={[2.4, 0.08, roadLenZ]} />
+            <meshStandardMaterial color="#868e96" roughness={0.9} />
           </mesh>,
         )
       }
-      for (let z = zMin + 4; z < zMax - 4; z += 5.5) {
+      for (let z = zMin + 4; z < zMax - 4; z += 6) {
         result.push(
-          <mesh
-            key={`dash-v-${x}-${z}`}
-            rotation={[-Math.PI / 2, 0, Math.PI / 2]}
-            position={[x, y + 0.035, z]}
-          >
-            <planeGeometry args={[2.4, 0.16]} />
-            <meshStandardMaterial color="#f4d35e" roughness={0.7} />
+          <mesh key={`dash-v-${x}-${z}`} position={[x, base + asphaltH + 0.02, z]}>
+            <boxGeometry args={[0.18, 0.03, 2.6]} />
+            <meshStandardMaterial color="#f4d35e" roughness={0.65} />
           </mesh>,
         )
       }
     }
 
-    // Crosswalks at intersections
+    // Intersection crosswalks
     for (const x of xs) {
       for (const z of zs) {
         if (x < xMin + 10 || x > xMax - 10 || z < zMin + 10 || z > zMax - 10) continue
-        const y = getHeight(x, z) + 0.08
-        for (let k = 0; k < 5; k++) {
+        const base = getHeight(x, z) + asphaltH + 0.03
+        for (let k = 0; k < 6; k++) {
           result.push(
-            <mesh
-              key={`xw-${x}-${z}-${k}`}
-              rotation={[-Math.PI / 2, 0, 0]}
-              position={[x - 2 + k * 1.0, y, z + 4.2]}
-            >
-              <planeGeometry args={[0.55, 2.8]} />
-              <meshStandardMaterial color="#e9ecef" roughness={0.85} />
+            <mesh key={`xw-${x}-${z}-${k}`} position={[x - 2.5 + k * 1.0, base, z + 4.4]}>
+              <boxGeometry args={[0.55, 0.025, 2.6]} />
+              <meshStandardMaterial color="#e9ecef" roughness={0.8} />
             </mesh>,
           )
         }

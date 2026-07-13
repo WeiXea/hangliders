@@ -1,4 +1,8 @@
 /** Shared city building defs — visuals and collision must stay in sync. */
+
+/** Raised street deck above downtown terrain (roads, walkers, traffic). */
+export const CITY_STREET_DECK = 0.12
+
 export type CityBuilding = {
   id: number
   x: number
@@ -104,7 +108,7 @@ export function sampleCitySupport(
   getHeight: (x: number, z: number) => number,
 ): { y: number; buildingId: number; onRoof: boolean } {
   const terrain = getHeight(x, z)
-  let best = terrain
+  let best = terrain + CITY_STREET_DECK
   let buildingId = -1
   for (const b of CITY_BUILDINGS) {
     if (!b.roofLandable) continue
@@ -216,18 +220,37 @@ export function buildingWallCrash(
   pos: { x: number; y: number; z: number },
   getHeight: (x: number, z: number) => number,
   interiorId: number,
+  yaw = 0,
 ): boolean {
-  for (const b of CITY_BUILDINGS) {
-    if (interiorId === b.id) continue
-    const gy = getHeight(b.x, b.z)
-    const roof = gy + b.height
-    // Slightly generous footprint so wingtip scrapes count
-    if (!horizInBuilding(pos.x, pos.z, b, 0.65)) continue
-    // Roof deck / launch clearance — don't smash into the top floors
-    if (pos.y >= roof - 0.9) continue
-    // Street-level doorways / sidewalks
-    if (pos.y <= gy + 1.15) continue
-    return true
+  const samples = [
+    pos,
+    // Wing / rotor tips — stop clipping through facades
+    {
+      x: pos.x + Math.cos(yaw) * 4.2,
+      y: pos.y,
+      z: pos.z - Math.sin(yaw) * 4.2,
+    },
+    {
+      x: pos.x - Math.cos(yaw) * 4.2,
+      y: pos.y,
+      z: pos.z + Math.sin(yaw) * 4.2,
+    },
+    {
+      x: pos.x + Math.sin(yaw) * 2.2,
+      y: pos.y,
+      z: pos.z + Math.cos(yaw) * 2.2,
+    },
+  ]
+  for (const sample of samples) {
+    for (const b of CITY_BUILDINGS) {
+      if (interiorId === b.id) continue
+      const gy = getHeight(b.x, b.z)
+      const roof = gy + b.height
+      if (!horizInBuilding(sample.x, sample.z, b, 0.85)) continue
+      if (sample.y >= roof - 0.9) continue
+      if (sample.y <= gy + 1.15) continue
+      return true
+    }
   }
   return false
 }

@@ -6,6 +6,7 @@ import { BIOME_CONFIGS } from '../game/biomeConfigs'
 import {
   CITY_BUILDINGS,
   CITY_LAUNCH_PADS,
+  CITY_STREET_DECK,
   buildingRoofY,
   buildingDepth,
   getBuildingById,
@@ -43,16 +44,16 @@ const LANES: Lane[] = [
   { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 11, kind: 'car', offset: 25, color: '#6a4c93' },
 ]
 
-function Wheel({ x, z }: { x: number; z: number }) {
+function Wheel({ x, z, scale = 1 }: { x: number; z: number; scale?: number }) {
   return (
-    <group position={[x, 0.32, z]}>
+    <group position={[x, 0.34 * scale, z]} scale={scale}>
       <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
-        <cylinderGeometry args={[0.32, 0.32, 0.22, 12]} />
-        <meshStandardMaterial color="#1a1a1a" roughness={0.9} />
+        <cylinderGeometry args={[0.34, 0.34, 0.28, 14]} />
+        <meshStandardMaterial color="#111111" roughness={0.95} />
       </mesh>
       <mesh rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.14, 0.14, 0.24, 8]} />
-        <meshStandardMaterial color="#adb5bd" metalness={0.7} roughness={0.35} />
+        <cylinderGeometry args={[0.16, 0.16, 0.3, 10]} />
+        <meshStandardMaterial color="#ced4da" metalness={0.75} roughness={0.3} />
       </mesh>
     </group>
   )
@@ -61,51 +62,45 @@ function Wheel({ x, z }: { x: number; z: number }) {
 function SedanBody({ color, accent }: { color: string; accent?: string }) {
   return (
     <group>
-      {/* Lower body */}
-      <mesh castShadow position={[0, 0.48, 0]}>
-        <boxGeometry args={[1.85, 0.55, 4.2]} />
-        <meshStandardMaterial color={color} roughness={0.35} metalness={0.45} />
+      {/* Chassis with rounded silhouette via layered capsules/boxes */}
+      <mesh castShadow position={[0, 0.42, 0.15]} rotation={[Math.PI / 2, 0, 0]}>
+        <capsuleGeometry args={[0.42, 2.6, 6, 12]} />
+        <meshStandardMaterial color={color} roughness={0.28} metalness={0.55} />
       </mesh>
-      {/* Hood taper */}
-      <mesh castShadow position={[0, 0.72, 1.35]}>
-        <boxGeometry args={[1.75, 0.22, 1.1]} />
-        <meshStandardMaterial color={color} roughness={0.35} metalness={0.45} />
+      <mesh castShadow position={[0, 0.55, 0]}>
+        <boxGeometry args={[1.7, 0.45, 3.6]} />
+        <meshStandardMaterial color={color} roughness={0.28} metalness={0.55} />
       </mesh>
-      {/* Cabin */}
-      <mesh castShadow position={[0, 1.05, -0.15]}>
-        <boxGeometry args={[1.65, 0.7, 2.15]} />
-        <meshStandardMaterial color={accent ?? '#1a1a1a'} roughness={0.4} metalness={0.25} />
+      {/* Cabin bubble */}
+      <mesh castShadow position={[0, 0.98, -0.15]} rotation={[Math.PI / 2, 0, 0]}>
+        <capsuleGeometry args={[0.48, 1.1, 5, 10]} />
+        <meshStandardMaterial color={accent ?? '#1c1c1c'} roughness={0.35} metalness={0.3} />
       </mesh>
-      {/* Glass */}
-      <mesh position={[0, 1.08, 0.55]}>
-        <boxGeometry args={[1.55, 0.55, 0.08]} />
-        <meshStandardMaterial color="#a8dadc" transparent opacity={0.55} roughness={0.08} metalness={0.4} />
+      <mesh position={[0, 1.0, 0.55]} rotation={[0.35, 0, 0]}>
+        <planeGeometry args={[1.35, 0.55]} />
+        <meshStandardMaterial color="#caf0f8" transparent opacity={0.55} roughness={0.05} metalness={0.5} side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[0, 1.08, -0.85]}>
-        <boxGeometry args={[1.55, 0.55, 0.08]} />
-        <meshStandardMaterial color="#a8dadc" transparent opacity={0.45} roughness={0.08} metalness={0.4} />
+      <mesh position={[0, 1.0, -0.85]} rotation={[-0.25, 0, 0]}>
+        <planeGeometry args={[1.35, 0.5]} />
+        <meshStandardMaterial color="#caf0f8" transparent opacity={0.45} roughness={0.05} metalness={0.5} side={THREE.DoubleSide} />
       </mesh>
-      {/* Headlights / taillights */}
-      <mesh position={[-0.55, 0.55, 2.05]}>
-        <boxGeometry args={[0.35, 0.18, 0.08]} />
-        <meshStandardMaterial color="#fff3bf" emissive="#fff3bf" emissiveIntensity={0.6} />
-      </mesh>
-      <mesh position={[0.55, 0.55, 2.05]}>
-        <boxGeometry args={[0.35, 0.18, 0.08]} />
-        <meshStandardMaterial color="#fff3bf" emissive="#fff3bf" emissiveIntensity={0.6} />
-      </mesh>
-      <mesh position={[-0.55, 0.55, -2.05]}>
-        <boxGeometry args={[0.35, 0.16, 0.08]} />
-        <meshStandardMaterial color="#e63946" emissive="#e63946" emissiveIntensity={0.45} />
-      </mesh>
-      <mesh position={[0.55, 0.55, -2.05]}>
-        <boxGeometry args={[0.35, 0.16, 0.08]} />
-        <meshStandardMaterial color="#e63946" emissive="#e63946" emissiveIntensity={0.45} />
-      </mesh>
-      <Wheel x={-0.85} z={1.25} />
-      <Wheel x={0.85} z={1.25} />
-      <Wheel x={-0.85} z={-1.35} />
-      <Wheel x={0.85} z={-1.35} />
+      {/* Lights */}
+      {([-0.52, 0.52] as const).map((x) => (
+        <mesh key={`h${x}`} position={[x, 0.48, 1.95]}>
+          <sphereGeometry args={[0.12, 10, 10]} />
+          <meshStandardMaterial color="#fff3bf" emissive="#fff3bf" emissiveIntensity={0.85} />
+        </mesh>
+      ))}
+      {([-0.52, 0.52] as const).map((x) => (
+        <mesh key={`t${x}`} position={[x, 0.48, -1.95]}>
+          <sphereGeometry args={[0.1, 8, 8]} />
+          <meshStandardMaterial color="#e63946" emissive="#e63946" emissiveIntensity={0.55} />
+        </mesh>
+      ))}
+      <Wheel x={-0.78} z={1.15} />
+      <Wheel x={0.78} z={1.15} />
+      <Wheel x={-0.78} z={-1.25} />
+      <Wheel x={0.78} z={-1.25} />
     </group>
   )
 }
@@ -121,29 +116,29 @@ function VehicleMesh({ kind, color }: { kind: VehicleKind; color?: string }) {
   if (kind === 'bus') {
     return (
       <group>
+        <mesh castShadow position={[0, 1.25, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <capsuleGeometry args={[1.05, 6.2, 6, 14]} />
+          <meshStandardMaterial color="#e9c46a" roughness={0.35} metalness={0.3} />
+        </mesh>
         <mesh castShadow position={[0, 1.35, 0]}>
-          <boxGeometry args={[2.45, 2.4, 9.2]} />
-          <meshStandardMaterial color="#e9c46a" roughness={0.4} metalness={0.25} />
+          <boxGeometry args={[2.2, 2.0, 7.8]} />
+          <meshStandardMaterial color="#e9c46a" roughness={0.35} metalness={0.3} />
         </mesh>
-        <mesh position={[0, 1.55, 4.4]}>
-          <boxGeometry args={[2.2, 1.3, 0.1]} />
-          <meshStandardMaterial color="#90e0ef" transparent opacity={0.5} roughness={0.1} />
+        <mesh position={[0, 1.55, 3.85]}>
+          <planeGeometry args={[1.9, 1.2]} />
+          <meshStandardMaterial color="#90e0ef" transparent opacity={0.5} side={THREE.DoubleSide} />
         </mesh>
-        {[-2.6, -0.4, 1.8].map((z) => (
-          <mesh key={z} position={[1.15, 1.7, z]}>
-            <boxGeometry args={[0.06, 0.85, 1.5]} />
-            <meshStandardMaterial color="#90e0ef" transparent opacity={0.4} />
+        {[-2.4, -0.5, 1.4].map((z) => (
+          <mesh key={z} position={[1.12, 1.65, z]}>
+            <planeGeometry args={[0.05, 0.9]} />
+            <meshStandardMaterial color="#90e0ef" transparent opacity={0.4} side={THREE.DoubleSide} />
           </mesh>
         ))}
-        <mesh position={[0, 2.65, 3.6]}>
-          <boxGeometry args={[1.4, 0.25, 0.5]} />
-          <meshStandardMaterial color="#212529" />
-        </mesh>
-        {[-3.2, -0.8, 1.6, 3.2].map((z) => (
-          <Wheel key={z} x={-1.05} z={z} />
+        {[-2.9, -0.7, 1.5, 3.0].map((z) => (
+          <Wheel key={z} x={-1.0} z={z} scale={1.15} />
         ))}
-        {[-3.2, -0.8, 1.6, 3.2].map((z) => (
-          <Wheel key={`r${z}`} x={1.05} z={z} />
+        {[-2.9, -0.7, 1.5, 3.0].map((z) => (
+          <Wheel key={`r${z}`} x={1.0} z={z} scale={1.15} />
         ))}
       </group>
     )
@@ -249,10 +244,10 @@ function TrafficLayer() {
       const u = ((t * lane.speed * lane.dir + lane.offset) % span + span) % span
       const along = lane.min + u
       if (lane.axis === 'x') {
-        child.position.set(along, getHeight(along, lane.fixed) + 0.02, lane.fixed)
+        child.position.set(along, getHeight(along, lane.fixed) + CITY_STREET_DECK, lane.fixed)
         child.rotation.y = lane.dir > 0 ? Math.PI / 2 : -Math.PI / 2
       } else {
-        child.position.set(lane.fixed, getHeight(lane.fixed, along) + 0.02, along)
+        child.position.set(lane.fixed, getHeight(lane.fixed, along) + CITY_STREET_DECK, along)
         child.rotation.y = lane.dir > 0 ? 0 : Math.PI
       }
     })
@@ -373,7 +368,7 @@ function PedestrianLayer() {
       const walk = Math.sin(t * p.speed + i) * p.amp
       const x = p.axis === 'x' ? p.x0 + walk : p.x0
       const z = p.axis === 'z' ? p.z0 + walk : p.z0
-      child.position.set(x, getHeight(x, z), z)
+      child.position.set(x, getHeight(x, z) + CITY_STREET_DECK, z)
       const vx = p.axis === 'x' ? Math.cos(t * p.speed + i) : 0
       const vz = p.axis === 'z' ? Math.cos(t * p.speed + i) : 0
       child.rotation.y = Math.atan2(vx, vz)

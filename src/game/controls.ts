@@ -110,7 +110,7 @@ export function useKeyboardControls() {
       if (e.code === 'Space') {
         e.preventDefault()
         const phase = useGameStore.getState().flight.phase
-        if (phase === 'walking' || phase === 'flying') {
+        if (phase === 'walking' || phase === 'flying' || phase === 'helicopter') {
           pulseAction('jump')
           setInput({ jump: true })
         } else if (phase === 'freefall') {

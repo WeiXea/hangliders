@@ -26,6 +26,9 @@ export const GROUND_CLEARANCE = 2.15
 /** Origin height when glider rests on the ground (A-frame base tube ≈ local y −0.55). */
 export const GLIDER_REST_CLEARANCE = 0.58
 
+/** Helicopter skids rest height above support surface. */
+export const HELI_REST_CLEARANCE = 0.9
+
 /** Rock pillars — now collidable */
 export const MOUNTAIN_SCENERY: Obstacle[] = [
   { x: -140, z: 60, radius: 6, height: 38 },
@@ -104,8 +107,9 @@ export function hitCityBuildings(
   pos: Vec3,
   getHeight: (x: number, z: number) => number,
   interiorId = -1,
+  yaw = 0,
 ): boolean {
-  return buildingWallCrash(pos, getHeight, interiorId)
+  return buildingWallCrash(pos, getHeight, interiorId, yaw)
 }
 
 /** Flight crash vs biome props (huts, cliffs, pillars). */

@@ -57,15 +57,19 @@ function mountainHeight(x: number, z: number): number {
 }
 
 function cityHeight(x: number, z: number): number {
+  // Downtown pad is nearly flat so roads/walkers/vehicles share one deck
+  const downtown = x > -70 && x < 250 && z > -30 && z < 220
+  if (downtown) {
+    const micro =
+      Math.sin(x * 0.11) * Math.cos(z * 0.09) * 0.04 +
+      Math.sin((x + z) * 0.05) * 0.03
+    return Math.max(0, 0.12 + micro)
+  }
   const park = Math.sin(x * 0.038) * 3.5 + Math.cos(z * 0.034) * 2.8
   const hill = Math.max(0, Math.sin((x + 50) * 0.018)) * 10
   const riverBank = z < -40 ? 1.1 : 0
   const plaza = Math.max(0, Math.sin(x * 0.07) * Math.cos(z * 0.06) - 0.55) * -1.2
-  const curb =
-    Math.abs(((x % 22) + 22) % 22 - 11) < 1.4 || Math.abs(((z % 22) + 22) % 22 - 11) < 1.4
-      ? 0.14
-      : 0
-  return Math.max(0, park + hill + riverBank + plaza + curb)
+  return Math.max(0, park + hill + riverBank + plaza)
 }
 
 export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
@@ -168,8 +172,11 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
       { x: 175, z: 40, yaw: 0.55, buildingId: 27 },
       { x: 40, z: 180, yaw: -0.7, buildingId: 29 },
       { x: 160, z: 110, yaw: 0.12, buildingId: 14 },
-      { x: 200, z: 100, yaw: -0.08, buildingId: 23 },
-      // Street plaza spares
+      // Rooftop choppers
+      { x: 180, z: 70, yaw: 0.2, buildingId: 15, craftType: 'helicopter' },
+      { x: -25, z: 60, yaw: 0.15, buildingId: 19, craftType: 'helicopter' },
+      { x: 120, z: 90, yaw: -0.2, buildingId: 12, craftType: 'helicopter' },
+      // Street plaza spare gliders
       { x: 48, z: 48, yaw: 0.4 },
       { x: 130, z: 88, yaw: -0.5 },
     ],

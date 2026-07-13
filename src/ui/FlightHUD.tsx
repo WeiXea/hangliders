@@ -135,6 +135,7 @@ export function FlightHUD() {
   const freefall = flight.phase === 'freefall'
   const parachuting = flight.phase === 'parachuting'
   const flying = flight.phase === 'flying'
+  const heli = flight.phase === 'helicopter'
   const peerConnected = useGameStore((s) => s.peerConnected)
   const remoteName = useGameStore((s) => s.remoteName)
   const remoteFlight = useGameStore((s) => s.remoteFlight)
@@ -246,7 +247,7 @@ export function FlightHUD() {
   }
 
   const showSteerPads =
-    !tiltEnabled || walking || freefall || parachuting
+    !tiltEnabled || walking || freefall || parachuting || heli
 
   return (
     <div className={styles.hud}>
@@ -506,7 +507,17 @@ export function FlightHUD() {
       )}
 
       {walking && nearMount && (
-        <div className={styles.nearGround}>Hang glider nearby — press E / Mount to fly again</div>
+        <div className={styles.nearGround}>
+          {(nearMount.craftType ?? 'glider') === 'helicopter'
+            ? 'Chopper ready — press E to board'
+            : 'Hang glider nearby — press E / Mount to fly again'}
+        </div>
+      )}
+
+      {heli && (
+        <div className={styles.coach}>
+          Chopper · ↓ climb · ↑ descend · + forward · A/D yaw · E/L land when idle on pad
+        </div>
       )}
 
       {approach && !flareCue && (
@@ -524,7 +535,7 @@ export function FlightHUD() {
       {nearElev && (
         <div className={styles.nearGround}>
           {nearElev.toRoof
-            ? 'Green elevator — press E to ride up to the rooftop glider'
+            ? 'Green elevator — press E to ride up to the rooftop craft'
             : 'Roof hatch — press E to ride the elevator back to the street'}
         </div>
       )}

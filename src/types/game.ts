@@ -1,10 +1,13 @@
 export type Biome = 'beach' | 'mountains' | 'city'
 export type GameMode = 'free' | 'challenge' | 'xc'
 export type Screen = 'home' | 'flight' | 'result'
+export type CraftType = 'glider' | 'helicopter'
+
 export type FlightPhase =
   | 'grounded'
   | 'running'
   | 'flying'
+  | 'helicopter'
   | 'freefall'
   | 'parachuting'
   | 'walking'
@@ -35,6 +38,7 @@ export interface ParkedGlider {
   available: boolean
   /** City: parked on this building's roof (street elevator at base) */
   buildingId?: number
+  craftType?: CraftType
 }
 
 export interface FlightState {
@@ -69,6 +73,8 @@ export interface FlightState {
   tandemWant: boolean
   /** City: inside enterable building id, or -1 */
   interiorId: number
+  /** Active craft while mounted (glider default) */
+  craftType: CraftType
 }
 
 export interface InputState {
@@ -133,7 +139,7 @@ export interface BiomeConfig {
   getHeight: (x: number, z: number) => number
   challengeRings: Vec3[]
   landingZone: { center: Vec3; radius: number }
-  parkedGliders: { x: number; z: number; yaw: number; buildingId?: number }[]
+  parkedGliders: { x: number; z: number; yaw: number; buildingId?: number; craftType?: CraftType }[]
 }
 
 export const JUMP_MIN_ALTITUDE = 15
@@ -169,6 +175,7 @@ export const INITIAL_FLIGHT: FlightState = {
   tandemRole: 'none',
   tandemWant: false,
   interiorId: -1,
+  craftType: 'glider',
 }
 
 export const INITIAL_INPUT: InputState = {
