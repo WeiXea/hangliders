@@ -1,0 +1,125 @@
+.wrap {
+  position: absolute;
+  left: 12px;
+  bottom: max(120px, env(safe-area-inset-bottom));
+  z-index: 14;
+  width: min(200px, 42vw);
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(8, 16, 28, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  color: #f8f9fa;
+}
+
+.mapBtn {
+  position: absolute;
+  left: 12px;
+  bottom: max(120px, env(safe-area-inset-bottom));
+  z-index: 14;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(8, 16, 28, 0.78);
+  color: #ffd60a;
+  font: 600 12px/1 system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.title {
+  font: 700 11px/1 system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffd60a;
+}
+
+.close {
+  border: none;
+  background: transparent;
+  color: #adb5bd;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.board {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.region {
+  position: absolute;
+  border-radius: 6px;
+  opacity: 0.45;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.regionActive {
+  opacity: 0.85;
+  box-shadow: inset 0 0 0 2px #ffd60a;
+}
+
+.regionLabel {
+  position: absolute;
+  left: 6px;
+  top: 5px;
+  font: 700 9px/1 system-ui, sans-serif;
+  color: #111;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+.poi {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.poiDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #52b788;
+  box-shadow: 0 0 6px #52b788;
+}
+
+.poiLabel {
+  font: 600 8px/1 system-ui, sans-serif;
+  color: #e9ecef;
+  white-space: nowrap;
+}
+
+.you {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 12px solid #ffd60a;
+  filter: drop-shadow(0 0 3px #000);
+  z-index: 2;
+}
+
+.hint {
+  margin: 6px 0 0;
+  font: 500 9px/1.35 system-ui, sans-serif;
+  color: #adb5bd;
+}

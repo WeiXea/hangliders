@@ -48,6 +48,10 @@ const RELEASE_MAP: Record<string, Partial<InputState>> = {
   KeyF: { deployChute: false },
   KeyE: { interact: false, lookRight: false },
   KeyJ: { jump: false },
+  Minus: { speedDown: false },
+  NumpadSubtract: { speedDown: false },
+  Equal: { speedUp: false },
+  NumpadAdd: { speedUp: false },
   Digit1: { emoteWave: false },
   Digit2: { emoteDance: false },
   Digit3: { emoteSit: false },
@@ -104,6 +108,24 @@ export function useKeyboardControls() {
       if (e.code === 'KeyC') {
         e.preventDefault()
         cycleCamera()
+        return
+      }
+
+      if (e.code === 'KeyM') {
+        e.preventDefault()
+        const { mapOpen, setMapOpen } = useGameStore.getState()
+        setMapOpen(!mapOpen)
+        return
+      }
+
+      if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
+        e.preventDefault()
+        setInput({ speedDown: true })
+        return
+      }
+      if (e.code === 'Equal' || e.code === 'NumpadAdd') {
+        e.preventDefault()
+        setInput({ speedUp: true })
         return
       }
 

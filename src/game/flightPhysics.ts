@@ -813,8 +813,10 @@ export function tickFlight(
     const throttle = input.pitchDown || input.speedUp
     const cut = input.speedDown && !throttle
     if (throttle) next.airspeed = Math.min(JET_MAX, next.airspeed + (onDeck ? 22 : 28) * dt)
-    else if (cut) next.airspeed = Math.max(0, next.airspeed - 18 * dt)
+    else if (cut) next.airspeed = Math.max(0, next.airspeed - 22 * dt)
     else next.airspeed = Math.max(0, next.airspeed - (onDeck ? 8 : 3.5) * dt)
+
+    next.stallWarning = !onDeck && next.airspeed < 28 && next.altitude > 8
 
     // Yaw on ground; in air bank steers (with slight yaw)
     if (onDeck) {
@@ -867,20 +869,33 @@ export function tickFlight(
 
     if (next.position.y <= groundY + JET_REST_CLEARANCE) {
       next.position.y = groundY + JET_REST_CLEARANCE
+      const sink = -next.velocity.y
       next.velocity.y = 0
       next.altitude = 0
-      // Hard landing
-      if (!onDeck && next.airspeed > 55) {
+      // Crash only on very hot / high-sink arrivals
+      if (!onDeck && (next.airspeed > 78 || sink > 16)) {
         next.phase = 'crashed'
         next.airspeed = 0
         return { flight: next, parked }
       }
-      const idle = next.airspeed < 2.5
+      // Soft touchdown bleeds speed
+      if (!onDeck && next.airspeed > 8) {
+        next.airspeed *= 0.45
+        next.pitch = 0
+        next.roll = next.roll * 0.3
+      }
+      const idle = next.airspeed < 3.5
       if (idle && (input.land || input.interact || input.jump)) {
         parked = parkMountedGlider(next, parked, config)
         next = beginWalking(next, config)
         return { flight: next, parked }
       }
+    }
+
+    // Approach help: near ground, ↓ nose-up acts as flare and kills sink
+    if (next.altitude > 0.5 && next.altitude < 35 && input.pitchUp) {
+      next.velocity.y = Math.max(next.velocity.y, next.altitude < 15 ? -2.5 : -5)
+      if (next.altitude < 18) next.airspeed = Math.max(16, next.airspeed - 14 * dt)
     }
 
     // Eject

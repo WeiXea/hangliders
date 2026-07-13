@@ -9,6 +9,7 @@ import { resolveTandem } from './tandem'
 import { applyPulses, clearPulses } from './actionPulses'
 import { tickVario, tickFootsteps, noteInteractPress, tickVehicleEngine } from './audio'
 import { vehicleMaxSpeed } from './trafficRegistry'
+import { checkBiomeGate } from './worldTravel'
 import { thermalHint } from './atmosphere'
 import type { InputState } from '../types/game'
 
@@ -175,6 +176,16 @@ export function FlightSimulator() {
     }
 
     updateFlight(flight, parkedOut)
+
+    // Jet long-range: cross into another biome at the horizon
+    if (flight.phase === 'jet') {
+      const gate = checkBiomeGate(store.biome, flight)
+      if (gate) {
+        useGameStore.getState().travelToBiome(gate.to, gate.spawn, gate.label)
+        flight = useGameStore.getState().flight
+      }
+    }
+
     const liftHint =
       flight.phase === 'flying'
         ? thermalHint(config, useGameStore.getState().simTime, flight.position)

@@ -82,6 +82,9 @@ interface GameStore {
   /** Active city rooftop pad id, or null outside city / unset */
   cityLaunchPadId: number | null
   cityLaunchLabel: string | null
+  /** Brief banner when crossing into another biome */
+  travelBanner: string | null
+  mapOpen: boolean
 
   setScreen: (screen: Screen) => void
   setBiome: (biome: Biome) => void
@@ -93,6 +96,14 @@ interface GameStore {
   setTiltEnabled: (enabled: boolean) => Promise<boolean>
   setTiltCalibration: (calib: TiltCalibration | null) => void
   startFlight: () => void
+  /** Keep jet flight while swapping biome scenery */
+  travelToBiome: (
+    biome: Biome,
+    spawn: { x: number; z: number; yaw: number; alt: number },
+    label: string,
+  ) => void
+  clearTravelBanner: () => void
+  setMapOpen: (open: boolean) => void
   updateFlight: (flight: FlightState, parked?: ParkedGlider[]) => void
   setSimTime: (t: number) => void
   checkRings: () => void
@@ -180,6 +191,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   remoteName: '',
   cityLaunchPadId: null,
   cityLaunchLabel: null,
+  travelBanner: null,
+  mapOpen: false,
 
   setScreen: (screen) => set({ screen }),
   setBiome: (biome) =>
@@ -189,6 +202,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
       xcTask: get().mode === 'xc' ? buildXCTask(biome) : null,
       parkedGliders: initParkedGliders(BIOME_CONFIGS[biome]),
     }),
+  setMapOpen: (mapOpen) => set({ mapOpen }),
+  clearTravelBanner: () => set({ travelBanner: null }),
+
+  travelToBiome: (biome, spawn, label) => {
+    const config = BIOME_CONFIGS[biome]
+    const ground = config.getHeight(spawn.x, spawn.z)
+    const { flight } = get()
+    set({
+      biome,
+      rings: initRings(biome),
+      xcTask: get().mode === 'xc' ? buildXCTask(biome) : null,
+      parkedGliders: initParkedGliders(config),
+      cityLaunchPadId: null,
+      cityLaunchLabel: null,
+      travelBanner: `Entering ${label}`,
+      flight: {
+        ...flight,
+        position: {
+          x: spawn.x,
+          y: ground + spawn.alt,
+          z: spawn.z,
+        },
+        yaw: spawn.yaw,
+        altitude: spawn.alt,
+        pitch: Math.min(0.12, flight.pitch),
+        roll: flight.roll * 0.4,
+      },
+    })
+  },
   setMode: (mode) =>
     set({
       mode,
@@ -442,6 +484,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       xcTask: null,
       cityLaunchPadId: null,
       cityLaunchLabel: null,
+      travelBanner: null,
+      mapOpen: false,
       roomCode: null,
       roomRole: 'solo',
       roomStatus: '',

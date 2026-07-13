@@ -301,6 +301,24 @@
   backdrop-filter: blur(10px);
 }
 
+.travelBanner {
+  position: absolute;
+  top: 118px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 16;
+  padding: 12px 22px;
+  border-radius: 14px;
+  background: rgba(233, 196, 106, 0.92);
+  color: #111;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
 .xcCompass {
   position: absolute;
   top: max(78px, calc(env(safe-area-inset-top) + 68px));

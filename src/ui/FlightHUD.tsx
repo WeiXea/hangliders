@@ -27,6 +27,7 @@ import { nearestEnterableDoor, sampleCitySupport, nearestElevatorBuilding } from
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
 import { FriendFinder } from './FriendFinder'
+import { WorldMap } from './WorldMap'
 import styles from './FlightHUD.module.css'
 
 const CAMERA_LABELS = { chase: 'Chase', fpv: 'Cockpit', side: 'Side' } as const
@@ -141,9 +142,20 @@ export function FlightHUD() {
   const jet = flight.phase === 'jet'
   const driving = flight.phase === 'driving'
   const canUnmount = onGround && flight.airspeed < 3.2
+  const jetCanExit = jet && flight.altitude < 0.4 && flight.airspeed < 3.5
+  const jetCanEject = jet && flight.altitude >= 12
+  const travelBanner = useGameStore((s) => s.travelBanner)
+  const clearTravelBanner = useGameStore((s) => s.clearTravelBanner)
   const peerConnected = useGameStore((s) => s.peerConnected)
   const remoteName = useGameStore((s) => s.remoteName)
   const remoteFlight = useGameStore((s) => s.remoteFlight)
+
+  useEffect(() => {
+    if (!travelBanner) return
+    const t = window.setTimeout(() => clearTravelBanner(), 4200)
+    return () => window.clearTimeout(t)
+  }, [travelBanner, clearTravelBanner])
+
   const canLift = onGround && flight.airspeed >= 11
   const canJump = flying && flight.altitude >= JUMP_MIN_ALTITUDE
   const biome = useGameStore((s) => s.biome)
@@ -264,6 +276,8 @@ export function FlightHUD() {
       <GameCanvas />
       <div className={cameraMode === 'fpv' ? styles.fpvFrame : styles.viewFrame} aria-hidden />
       {peerConnected && <FriendFinder />}
+      <WorldMap />
+      {travelBanner && <div className={styles.travelBanner}>{travelBanner}</div>}
 
       <header className={styles.topBar}>
         <div className={styles.instruments}>
@@ -274,10 +288,11 @@ export function FlightHUD() {
           </div>
           <div className={styles.divider} />
           <div className={styles.instrument}>
-            <span className={styles.instrumentLabel}>Spd</span>
+            <span className={styles.instrumentLabel}>{jet ? 'IAS' : 'Spd'}</span>
             <span className={`${styles.instrumentValue} ${flight.stallWarning ? styles.stall : ''} ${canLift ? styles.ready : ''}`}>
-              {Math.round(flight.airspeed)}
+              {jet ? Math.round(flight.airspeed * 3.6) : Math.round(flight.airspeed)}
             </span>
+            <span className={styles.instrumentUnit}>{jet ? 'km/h' : 'm/s'}</span>
           </div>
           <div className={styles.divider} />
           <div className={styles.instrument}>
@@ -561,12 +576,34 @@ export function FlightHUD() {
 
       {jet && (
         <div className={styles.coach}>
-          F-35 · ↑ throttle · ↓ nose-up (rotate ~150 km/h) · − cut · A/D bank · E exit when stopped
+          {flight.altitude < 0.4
+            ? `TAKEOFF · hold ↑ / + to ${Math.round(42 * 3.6)}+ km/h · then ↓ to rotate · A/D steer`
+            : flight.altitude < 40 && flight.velocity.y < -1
+              ? `LANDING · cut − to ~${Math.round(40 * 3.6)} km/h · shallow · ↓ flare near ground · roll out · E exit`
+              : `F-35 · ↑/+ throttle · ↓ climb/flare · − cut · A/D bank · M map · west→Beach · north→Mountains`}
         </div>
       )}
 
       {jet && flight.stallWarning && (
-        <div className={styles.stallWarning}>Low speed — add throttle or nose down</div>
+        <div className={styles.stallWarning}>Too slow — add ↑ throttle</div>
+      )}
+
+      {jet && flight.altitude < 0.4 && flight.airspeed >= 40 && (
+        <div className={styles.nearGround}>Rotate ready — hold ↓ to lift off</div>
+      )}
+
+      {jet &&
+        flight.altitude > 2 &&
+        flight.altitude < 35 &&
+        flight.airspeed > 20 &&
+        flight.velocity.y < -0.5 && (
+          <div className={styles.nearGround}>
+            Flare! Hold ↓ · keep under {Math.round(55 * 3.6)} km/h for a soft landing
+          </div>
+        )}
+
+      {jetCanEject && (
+        <div className={styles.nearGround}>Eject ready — Space / Jump</div>
       )}
 
       {approach && !flareCue && (
@@ -641,13 +678,15 @@ export function FlightHUD() {
             <ControlPad
               label="↑"
               sub={
-                walking || driving || jet
+                walking || driving
                   ? 'Fwd'
-                  : freefall || parachuting
-                    ? 'Brake'
-                    : heli
-                      ? 'Fwd'
-                      : 'Dive'
+                  : jet
+                    ? 'Throttle'
+                    : freefall || parachuting
+                      ? 'Brake'
+                      : heli
+                        ? 'Fwd'
+                        : 'Dive'
               }
               action="pitchDown"
               className={styles.padUp}
@@ -663,7 +702,7 @@ export function FlightHUD() {
                     : driving
                       ? 'Brake'
                       : jet
-                        ? 'Nose↑'
+                        ? 'Flare'
                         : freefall || parachuting
                           ? 'Sink'
                           : heli
@@ -767,14 +806,14 @@ export function FlightHUD() {
             <>
               <ControlPad
                 label="+"
-                sub={driving ? 'Gas' : 'Speed'}
+                sub={driving ? 'Gas' : jet ? 'Throttle' : 'Speed'}
                 action="speedUp"
                 className={styles.padSpeed}
                 active={input.speedUp}
               />
               <ControlPad
                 label="−"
-                sub={driving ? 'Brake' : 'Slow'}
+                sub={driving ? 'Brake' : jet ? 'Cut' : 'Slow'}
                 action="speedDown"
                 className={styles.padSpeed}
                 active={input.speedDown}
@@ -784,9 +823,12 @@ export function FlightHUD() {
           {walking && (
             <ControlPad label="Sprint" sub="Shift" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
           )}
-          {(driving || canUnmount) && (
+          {jetCanEject && (
+            <ControlPad label="Eject" sub="Space" action="jump" className={styles.padAction} active={input.jump} />
+          )}
+          {(driving || canUnmount || jetCanExit) && (
             <ControlPad
-              label={driving ? 'Exit' : 'Unmount'}
+              label={driving ? 'Exit' : jet ? 'Exit' : 'Unmount'}
               sub="E"
               action="interact"
               className={styles.padLand}
