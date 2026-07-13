@@ -634,29 +634,40 @@ export function tickFlight(
   // Weight-shift lite: input applies torque; rates damp toward trim
   const pitchCmd = (input.pitchUp ? 1 : 0) - (input.pitchDown ? 1 : 0)
   const rollCmd = (input.bankLeft ? 1 : 0) - (input.bankRight ? 1 : 0)
-  const trimPitch = -0.04
-  pitchVel += (pitchCmd * PITCH_TORQUE - (next.pitch - trimPitch) * 1.4 - pitchVel * PITCH_DAMP) * dt
-  rollVel += (rollCmd * ROLL_TORQUE - next.roll * 1.1 - rollVel * ROLL_DAMP) * dt
-  pitchVel = Math.max(-2.2, Math.min(2.2, pitchVel))
-  rollVel = Math.max(-2.8, Math.min(2.8, rollVel))
+  // Slight nose-up trim so hands-off / gentle ↑ floats instead of diving
+  const trimPitch = input.pitchUp ? 0.12 : input.pitchDown ? -0.08 : 0.02
+  const pitchSpring = input.pitchUp ? 2.2 : 1.4
+  pitchVel +=
+    (pitchCmd * PITCH_TORQUE * 0.85 - (next.pitch - trimPitch) * pitchSpring - pitchVel * (PITCH_DAMP + 0.8)) *
+    dt
+  rollVel += (rollCmd * ROLL_TORQUE - next.roll * 1.35 - rollVel * (ROLL_DAMP + 0.4)) * dt
+  pitchVel = Math.max(-1.6, Math.min(1.6, pitchVel))
+  rollVel = Math.max(-2.2, Math.min(2.2, rollVel))
   next.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, next.pitch + pitchVel * dt))
   next.roll = Math.max(-MAX_ROLL, Math.min(MAX_ROLL, next.roll + rollVel * dt))
 
-  // Speed bar directly controls airspeed (arcade — playable). Pitch still steers climb/dive.
+  // Speed bar: hold a floatable cruise band when not accelerating.
+  // Nose-up must NOT bleed into stall — that's what made climb without speed unstable.
+  const FLOAT_SPEED = 10.5
   if (input.speedUp) {
     next.airspeed = Math.min(MAX_AIRSPEED, next.airspeed + 10 * dt)
   } else if (input.speedDown) {
     next.airspeed = Math.max(MIN_AIRSPEED, next.airspeed - 10 * dt)
+  } else if (input.pitchUp) {
+    // Cruise / float: settle near best-glide, stay well above stall
+    const target = Math.max(FLOAT_SPEED, CRUISE - 1.2)
+    next.airspeed += (target - next.airspeed) * Math.min(1, 1.6 * dt)
   } else {
+    const pitchBleed = Math.max(-2.5, Math.min(2.5, next.pitch * 4))
     const target = Math.min(
       MAX_AIRSPEED,
-      Math.max(MIN_AIRSPEED, CRUISE - next.pitch * 10),
+      Math.max(FLOAT_SPEED, CRUISE - pitchBleed),
     )
-    next.airspeed += (target - next.airspeed) * Math.min(1, 2.2 * dt)
+    next.airspeed += (target - next.airspeed) * Math.min(1, 1.5 * dt)
   }
 
   const wind = sampleAtmosphere(config, time, next.position)
-  next.yaw += next.roll * 1.05 * dt
+  next.yaw += next.roll * 0.85 * dt
 
   // AoA ≈ pitch vs flight path — flavors sink / deep-stall only (speed stays arcade)
   const pathPitch = Math.asin(
@@ -665,7 +676,7 @@ export function tickFlight(
   const aoa = next.pitch - pathPitch + 0.08
   const { cl, stallSeverity } = liftCoeff(aoa)
   const speedStall = next.airspeed < STALL
-  const aoaStall = stallSeverity > 0.55
+  const aoaStall = stallSeverity > 0.55 && !input.pitchUp
   next.stallWarning = speedStall || aoaStall
 
   const speed = next.airspeed
@@ -679,15 +690,23 @@ export function tickFlight(
   // Base sink ~1.35 m/s; better Cl → slightly less sink; thermals/ridge via smoothed lift
   const ldSink = BASE_SINK * (1.12 - Math.min(0.3, cl * 0.2))
   const ge = groundEffectFactor(next.altitude)
-  let vy = next.pitch * speed * 1.05 - ldSink * ge + smoothLift
-  if (input.pitchDown) vy -= 5 + Math.abs(next.pitch) * 8
-  // Soften pitch-up boost when already in strong lift (avoids overshoot wobble)
-  if (input.pitchUp) {
-    const liftSoft = smoothLift > 2 ? 0.45 : 1
-    vy += (3.2 + next.pitch * 4) * liftSoft
+  let vy = next.pitch * speed * 0.85 - ldSink * ge + smoothLift
+
+  if (input.pitchDown) {
+    vy -= 4.5 + Math.abs(next.pitch) * 6
+  } else if (input.pitchUp) {
+    // Gentle sustained climb / float — not a kick that overshoots then stalls
+    const thermalHelp = Math.max(0, smoothLift) * 0.35
+    vy += 1.4 + next.pitch * 1.8 + thermalHelp
+    // Cap climb so float feels stable instead of yo-yo
+    vy = Math.min(vy, 4.5 + Math.max(0, smoothLift) * 0.6)
+  } else {
+    // Hands-off cruise: near-level float with mild sink unless in lift
+    vy = lerp(vy, -0.55 + smoothLift * 0.9, 0.35)
   }
-  if (speedStall) vy -= 7
-  else if (aoaStall) vy -= 3 + stallSeverity * 3
+
+  if (speedStall && !input.pitchUp) vy -= 5
+  else if (aoaStall) vy -= 2 + stallSeverity * 2
 
   next.velocity.x = fx * speed + wind.x * 0.55
   next.velocity.y = vy
@@ -702,9 +721,9 @@ export function tickFlight(
     next.timeInLift += dt
   }
 
-  // Mild wing-drop only in deep AoA stall
-  if (aoaStall) {
-    next.roll += (Math.sin(time * 3.1) > 0 ? 1 : -1) * stallSeverity * 0.45 * dt
+  // Wing-drop only in deep unintended stall — not while holding float/climb
+  if (aoaStall && stallSeverity > 0.75) {
+    next.roll += (Math.sin(time * 2.2) > 0 ? 1 : -1) * stallSeverity * 0.2 * dt
     next.roll = Math.max(-MAX_ROLL, Math.min(MAX_ROLL, next.roll))
   }
 
