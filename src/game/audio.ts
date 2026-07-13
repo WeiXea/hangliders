@@ -189,6 +189,51 @@ export function playLandingSound(success: boolean) {
   }
 }
 
+/** Hard facade / terrain impact — boom + glass shatter sting. */
+export function playCrashImpact() {
+  const ac = getCtx()
+  if (ac.state === 'suspended') void ac.resume()
+
+  playWhoosh(0.22, 70, 0.55)
+
+  const boom = ac.createOscillator()
+  const bg = ac.createGain()
+  boom.type = 'sawtooth'
+  boom.frequency.setValueAtTime(55, ac.currentTime)
+  boom.frequency.exponentialRampToValueAtTime(28, ac.currentTime + 0.45)
+  bg.gain.setValueAtTime(0.18, ac.currentTime)
+  bg.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.55)
+  const low = ac.createBiquadFilter()
+  low.type = 'lowpass'
+  low.frequency.value = 280
+  boom.connect(low)
+  low.connect(bg)
+  bg.connect(ac.destination)
+  boom.start()
+  boom.stop(ac.currentTime + 0.6)
+
+  // Glass / metal clatter
+  for (let i = 0; i < 4; i++) {
+    const osc = ac.createOscillator()
+    const gain = ac.createGain()
+    const t0 = ac.currentTime + 0.04 + i * 0.05
+    osc.type = i % 2 === 0 ? 'triangle' : 'square'
+    osc.frequency.setValueAtTime(900 + i * 220, t0)
+    osc.frequency.exponentialRampToValueAtTime(180 + i * 40, t0 + 0.2)
+    gain.gain.setValueAtTime(0.001, t0)
+    gain.gain.exponentialRampToValueAtTime(0.07, t0 + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22)
+    const hp = ac.createBiquadFilter()
+    hp.type = 'highpass'
+    hp.frequency.value = 400
+    osc.connect(hp)
+    hp.connect(gain)
+    gain.connect(ac.destination)
+    osc.start(t0)
+    osc.stop(t0 + 0.25)
+  }
+}
+
 export function playRingSound() {
   const ac = getCtx()
   if (ac.state === 'suspended') void ac.resume()

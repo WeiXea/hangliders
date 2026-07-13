@@ -72,6 +72,7 @@ export function FlightHUD() {
   const tiltPermission = useGameStore((s) => s.tiltPermission)
   const setTiltEnabled = useGameStore((s) => s.setTiltEnabled)
   const endFlightFromWalk = useGameStore((s) => s.endFlightFromWalk)
+  const cityLaunchLabel = useGameStore((s) => s.cityLaunchLabel)
   const [tiltBusy, setTiltBusy] = useState(false)
   const [tutorialOn, setTutorialOn] = useState(() => !readTutorialDone())
   const [tutStep, setTutStep] = useState<TutorialStep>('speed')
@@ -403,13 +404,15 @@ export function FlightHUD() {
 
       {onGround && !tut && (
         <div className={styles.coach}>
-          {tiltEnabled
-            ? canLift
-              ? 'Speed ready — pull the iPad back to climb and lift off'
-              : 'Hold + to build speed, then pull back to take off'
-            : canLift
-              ? 'Speed ready — hold ↓ Climb to lift off'
-              : 'Hold + / Shift to build speed, then ↓ Climb to take off'}
+          {biome === 'city' && cityLaunchLabel && flight.phase === 'grounded'
+            ? `${cityLaunchLabel} — build speed, then dive off the roof`
+            : tiltEnabled
+              ? canLift
+                ? 'Speed ready — pull the iPad back to climb and lift off'
+                : 'Hold + to build speed, then pull back to take off'
+              : canLift
+                ? 'Speed ready — hold ↓ Climb to lift off'
+                : 'Hold + / Shift to build speed, then ↓ Climb to take off'}
         </div>
       )}
 

@@ -72,14 +72,21 @@ export function HangGlider() {
 
     const onGround =
       ph === 'grounded' || ph === 'running' || ph === 'landed' || ph === 'walking'
+    const crashed = ph === 'crashed'
     const airbornePilot = ph === 'freefall' || ph === 'parachuting'
     const swingRoll = ph === 'parachuting' ? -swing * 0.35 : 0
     // Physics pitch > 0 = climb / nose-up; Three.js +X rotation tips nose down when facing +Z
     const visualPitch = -sp
     bodyRef.current.rotation.set(
-      onGround ? 0 : airbornePilot ? Math.max(-0.4, visualPitch) : visualPitch,
-      0,
-      onGround ? 0 : -sr + swingRoll,
+      crashed
+        ? visualPitch - 0.35
+        : onGround
+          ? 0
+          : airbornePilot
+            ? Math.max(-0.4, visualPitch)
+            : visualPitch,
+      crashed ? 0.25 : 0,
+      crashed ? -sr : onGround ? 0 : -sr + swingRoll,
     )
 
     if (barRef.current) {

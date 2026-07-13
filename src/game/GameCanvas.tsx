@@ -34,12 +34,22 @@ function BiomeWorld() {
 export function GameCanvas() {
   const biome = useGameStore((s) => s.biome)
   const config = BIOME_CONFIGS[biome]
+  const flight = useGameStore((s) => s.flight)
+  const cityPad = useGameStore((s) => s.cityLaunchPadId)
+  const camX =
+    biome === 'city' && cityPad != null ? flight.position.x : config.launchPosition.x
+  const camY =
+    biome === 'city' && cityPad != null ? flight.position.y + 12 : 20
+  const camZ =
+    biome === 'city' && cityPad != null
+      ? flight.position.z - 18
+      : config.launchPosition.z - 15
 
   return (
     <Canvas
       shadows
       dpr={[1, 1.5]}
-      camera={{ position: [config.launchPosition.x, 20, config.launchPosition.z - 15], fov: 58, near: 0.1, far: 1800 }}
+      camera={{ position: [camX, camY, camZ], fov: 58, near: 0.1, far: 1800 }}
       gl={{
         antialias: true,
         alpha: false,

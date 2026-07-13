@@ -4,10 +4,12 @@ import * as THREE from 'three'
 import { useGameStore } from '../game/gameStore'
 import { BIOME_CONFIGS } from '../game/biomeConfigs'
 import { getThermals, thermalCenter } from '../game/atmosphere'
+import { playCrashImpact } from '../game/audio'
 
 const DUST_N = 48
 const VORTEX_N = 36
 const SHIMMER_N = 80
+const CRASH_N = 64
 
 /** Takeoff/landing dust, tip vortices, thermal shimmer — cheap Points FX. */
 export function FlightParticles() {
@@ -17,6 +19,7 @@ export function FlightParticles() {
       <WalkDust />
       <TipVortices />
       <ThermalShimmer />
+      <CrashBurst />
     </group>
   )
 }
@@ -291,5 +294,123 @@ function ThermalShimmer() {
         sizeAttenuation
       />
     </points>
+  )
+}
+
+/** Facade smash — sparks + debris when phase flips to crashed. */
+function CrashBurst() {
+  const points = useRef<THREE.Points>(null)
+  const debris = useRef<THREE.Group>(null)
+  const life = useRef(new Float32Array(CRASH_N))
+  const vel = useRef(new Float32Array(CRASH_N * 3))
+  const prevPhase = useRef('')
+  const fired = useRef(false)
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(CRASH_N * 3), 3))
+    return g
+  }, [])
+
+  useFrame((_, dt) => {
+    const { flight } = useGameStore.getState()
+    const pts = points.current
+    if (!pts) return
+    const pos = pts.geometry.attributes.position as THREE.BufferAttribute
+    const arr = pos.array as Float32Array
+    const L = life.current
+    const V = vel.current
+
+    if (flight.phase === 'crashed' && prevPhase.current !== 'crashed' && !fired.current) {
+      fired.current = true
+      playCrashImpact()
+      const origin = flight.position
+      for (let i = 0; i < CRASH_N; i++) {
+        L[i] = 0.7 + Math.random() * 1.1
+        arr[i * 3] = origin.x + (Math.random() - 0.5) * 1.2
+        arr[i * 3 + 1] = origin.y + (Math.random() - 0.5) * 1.4
+        arr[i * 3 + 2] = origin.z + (Math.random() - 0.5) * 1.2
+        V[i * 3] = (Math.random() - 0.5) * 14
+        V[i * 3 + 1] = 3 + Math.random() * 10
+        V[i * 3 + 2] = (Math.random() - 0.5) * 14
+      }
+      if (debris.current) {
+        debris.current.children.forEach((child, i) => {
+          child.position.set(
+            origin.x + (Math.random() - 0.5) * 0.8,
+            origin.y + (Math.random() - 0.5) * 0.6,
+            origin.z + (Math.random() - 0.5) * 0.8,
+          )
+          child.userData.vx = (Math.random() - 0.5) * 9
+          child.userData.vy = 2 + Math.random() * 7
+          child.userData.vz = (Math.random() - 0.5) * 9
+          child.userData.life = 1.2 + Math.random() * 0.8
+          child.visible = true
+          child.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3)
+          child.scale.setScalar(0.35 + (i % 5) * 0.12)
+        })
+      }
+    }
+
+    if (flight.phase !== 'crashed') {
+      fired.current = false
+    }
+    prevPhase.current = flight.phase
+
+    for (let i = 0; i < CRASH_N; i++) {
+      if (L[i] <= 0) {
+        arr[i * 3 + 1] = -999
+        continue
+      }
+      L[i] -= dt
+      arr[i * 3] += V[i * 3] * dt
+      arr[i * 3 + 1] += V[i * 3 + 1] * dt
+      arr[i * 3 + 2] += V[i * 3 + 2] * dt
+      V[i * 3 + 1] -= 18 * dt
+    }
+    pos.needsUpdate = true
+
+    if (debris.current) {
+      debris.current.children.forEach((child) => {
+        if (!child.visible) return
+        child.userData.life -= dt
+        if (child.userData.life <= 0) {
+          child.visible = false
+          return
+        }
+        child.position.x += child.userData.vx * dt
+        child.position.y += child.userData.vy * dt
+        child.position.z += child.userData.vz * dt
+        child.userData.vy -= 16 * dt
+        child.rotation.x += dt * 4
+        child.rotation.z += dt * 3
+      })
+    }
+  })
+
+  return (
+    <group>
+      <points ref={points} geometry={geo} frustumCulled={false}>
+        <pointsMaterial
+          color="#ffd60a"
+          size={0.35}
+          transparent
+          opacity={0.85}
+          depthWrite={false}
+          sizeAttenuation
+        />
+      </points>
+      <group ref={debris}>
+        {Array.from({ length: 14 }, (_, i) => (
+          <mesh key={i} visible={false} castShadow>
+            <boxGeometry args={[0.35, 0.12, 0.55]} />
+            <meshStandardMaterial
+              color={i % 3 === 0 ? '#868e96' : i % 3 === 1 ? '#c1272d' : '#495057'}
+              roughness={0.7}
+              metalness={0.35}
+            />
+          </mesh>
+        ))}
+      </group>
+    </group>
   )
 }

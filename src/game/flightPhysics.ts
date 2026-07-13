@@ -131,6 +131,11 @@ function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
       phase: 'crashed',
       airspeed: 0,
       velocity: { x: 0, y: 0, z: 0 },
+      // Wrecked attitude — crumpled against the facade
+      pitch: -0.55,
+      roll: next.roll >= 0 ? 1.15 : -1.15,
+      chuteDeployed: false,
+      chuteInflation: 0,
     }
   }
 
@@ -140,6 +145,8 @@ function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
       phase: 'crashed',
       airspeed: 0,
       velocity: { x: 0, y: 0, z: 0 },
+      pitch: -0.4,
+      roll: next.roll >= 0 ? 0.9 : -0.9,
     }
   }
 

@@ -22,7 +22,13 @@ import {
 import { buildChallengeRings } from './challengeCourse'
 import { buildXCTask, type XCTask } from './xcTask'
 import { playRingSound } from './audio'
-import { checkRingCollision } from './obstacles'
+import { checkRingCollision, GLIDER_REST_CLEARANCE } from './obstacles'
+import {
+  pickCityLaunchPad,
+  getBuildingById,
+  buildingRoofY,
+  buildingDepth,
+} from './cityBuildings'
 import {
   isTiltSupported,
   requestTiltPermission,
@@ -74,6 +80,9 @@ interface GameStore {
   peerConnected: boolean
   remoteFlight: FlightState | null
   remoteName: string
+  /** Active city rooftop pad id, or null outside city / unset */
+  cityLaunchPadId: number | null
+  cityLaunchLabel: string | null
 
   setScreen: (screen: Screen) => void
   setBiome: (biome: Biome) => void
@@ -170,6 +179,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   peerConnected: false,
   remoteFlight: null,
   remoteName: '',
+  cityLaunchPadId: null,
+  cityLaunchLabel: null,
 
   setScreen: (screen) => set({ screen }),
   setBiome: (biome) =>
@@ -246,9 +257,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { biome } = get()
     const config = BIOME_CONFIGS[biome]
     resetTandemRejoin()
+    let flight = createInitialFlight(config)
+    let cityLaunchPadId: number | null = null
+    let cityLaunchLabel: string | null = null
+    if (biome === 'city') {
+      const pad = pickCityLaunchPad()
+      const building = getBuildingById(pad.buildingId)
+      if (building) {
+        cityLaunchPadId = pad.id
+        cityLaunchLabel = pad.label
+        const roofY = buildingRoofY(building, config.getHeight)
+        // Start near the downwind edge so the run clears the facade
+        const edge = Math.min(building.width, buildingDepth(building)) * 0.32
+        flight = {
+          ...flight,
+          position: {
+            x: building.x + Math.sin(pad.yaw) * edge,
+            y: roofY + GLIDER_REST_CLEARANCE + 0.15,
+            z: building.z + Math.cos(pad.yaw) * edge,
+          },
+          yaw: pad.yaw,
+        }
+      }
+    }
     set({
       screen: 'flight',
-      flight: createInitialFlight(config),
+      flight,
+      cityLaunchPadId,
+      cityLaunchLabel,
       input: { ...INITIAL_INPUT },
       rings: initRings(biome),
       xcTask: get().mode === 'xc' ? buildXCTask(biome) : null,
@@ -405,6 +441,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       stats: null,
       simTime: 0,
       xcTask: null,
+      cityLaunchPadId: null,
+      cityLaunchLabel: null,
       roomCode: null,
       roomRole: 'solo',
       roomStatus: '',

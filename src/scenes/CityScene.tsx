@@ -1,6 +1,6 @@
 import { useMemo, useEffect, type ReactElement } from 'react'
 import * as THREE from 'three'
-import { useTexture } from '@react-three/drei'
+import { Text, useTexture } from '@react-three/drei'
 import type { BiomeConfig } from '../types/game'
 import {
   CITY_BUILDINGS,
@@ -11,11 +11,11 @@ import { useGameStore } from '../game/gameStore'
 import {
   DetailedTerrain,
   HorizonRing,
-  LaunchRamp,
   OceanSurface,
 } from './TerrainHelpers'
 import { SharedSky, SharedLighting } from './SharedSky'
 import { prepMap } from '../game/pbrMaps'
+import { CityLife } from './CityLife'
 
 interface CitySceneProps {
   config: BiomeConfig
@@ -68,7 +68,7 @@ function Building({
   concreteMap?: THREE.Texture
   concreteNor?: THREE.Texture
 }) {
-  const { width, height, color, windows, enterable, roofLandable } = building
+  const { width, height, color, windows, enterable, roofLandable, shop, shopColor } = building
   const depth = buildingDepth(building)
   const facade = useMemo(() => makeFacadeTexture(color, concreteMap), [color, concreteMap])
   const rows = Math.floor(height / 3)
@@ -211,6 +211,56 @@ function Building({
           </mesh>
         </group>
       )}
+
+      {shop && (
+        <group position={[0, 0, halfD + 0.08]}>
+          {/* Awning */}
+          <mesh castShadow position={[0, 3.05, 0.55]} rotation={[0.35, 0, 0]}>
+            <boxGeometry args={[Math.min(width * 0.92, 7.5), 0.08, 1.35]} />
+            <meshStandardMaterial
+              color={shopColor ?? '#c1272d'}
+              roughness={0.65}
+              emissive={shopColor ?? '#c1272d'}
+              emissiveIntensity={0.15}
+            />
+          </mesh>
+          <mesh position={[0, 3.55, 0.12]}>
+            <boxGeometry args={[Math.min(width * 0.88, 6.8), 0.85, 0.18]} />
+            <meshStandardMaterial
+              color="#111827"
+              roughness={0.55}
+              metalness={0.2}
+            />
+          </mesh>
+          <Text
+            position={[0, 3.55, 0.24]}
+            fontSize={0.42}
+            color="#f8f9fa"
+            anchorX="center"
+            anchorY="middle"
+            maxWidth={Math.min(width * 0.8, 6)}
+            outlineWidth={0.02}
+            outlineColor="#000"
+          >
+            {shop}
+          </Text>
+          {/* Display windows */}
+          {[-1.6, 1.6].map((ox) => (
+            <mesh key={ox} position={[ox, 1.55, 0.06]}>
+              <planeGeometry args={[1.5, 1.8]} />
+              <meshStandardMaterial
+                color="#90e0ef"
+                transparent
+                opacity={0.35}
+                roughness={0.1}
+                metalness={0.4}
+                emissive="#ffe066"
+                emissiveIntensity={0.12}
+              />
+            </mesh>
+          ))}
+        </group>
+      )}
     </group>
   )
 }
@@ -253,16 +303,43 @@ function StreetGrid() {
   const lines = useMemo(() => {
     const result: ReactElement[] = []
     for (let i = -240; i <= 420; i += 22) {
+      // Asphalt lanes
       result.push(
         <mesh key={`h${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[80, 0.08, i]}>
-          <planeGeometry args={[840, 2.2]} />
-          <meshStandardMaterial color="#343a40" roughness={0.88} />
+          <planeGeometry args={[840, 8.5]} />
+          <meshStandardMaterial color="#2b3035" roughness={0.92} />
         </mesh>,
       )
       result.push(
         <mesh key={`v${i}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[i, 0.08, 100]}>
-          <planeGeometry args={[840, 2.2]} />
-          <meshStandardMaterial color="#343a40" roughness={0.88} />
+          <planeGeometry args={[840, 8.5]} />
+          <meshStandardMaterial color="#2b3035" roughness={0.92} />
+        </mesh>,
+      )
+      // Center dashed stripe
+      result.push(
+        <mesh key={`hd${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[80, 0.1, i]}>
+          <planeGeometry args={[840, 0.18]} />
+          <meshStandardMaterial color="#ffd60a" roughness={0.7} />
+        </mesh>,
+      )
+      result.push(
+        <mesh key={`vd${i}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[i, 0.1, 100]}>
+          <planeGeometry args={[840, 0.18]} />
+          <meshStandardMaterial color="#ffd60a" roughness={0.7} />
+        </mesh>,
+      )
+      // Sidewalks
+      result.push(
+        <mesh key={`hs${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[80, 0.11, i + 5.8]}>
+          <planeGeometry args={[840, 2.4]} />
+          <meshStandardMaterial color="#adb5bd" roughness={0.95} />
+        </mesh>,
+      )
+      result.push(
+        <mesh key={`hs2${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[80, 0.11, i - 5.8]}>
+          <planeGeometry args={[840, 2.4]} />
+          <meshStandardMaterial color="#adb5bd" roughness={0.95} />
         </mesh>,
       )
     }
@@ -368,20 +445,26 @@ export function CityScene({ config }: CitySceneProps) {
       ))}
       <BuildingInterior config={config} />
       <SkylineSilhouette />
-      <LaunchRamp config={config} />
+      <CityLife />
       <ParkBench position={[22, config.getHeight(22, 48), 48]} yaw={0.3} />
       <ParkBench position={[48, config.getHeight(48, 88), 88]} yaw={-0.5} />
       <ParkBench position={[90, config.getHeight(90, 130), 130]} yaw={0.8} />
       <ParkBench position={[140, config.getHeight(140, 70), 70]} yaw={-0.2} />
+      <ParkBench position={[70, config.getHeight(70, 40), 40]} yaw={1.1} />
+      <ParkBench position={[190, config.getHeight(190, 120), 120]} yaw={-0.7} />
       <StreetLamp position={[18, config.getHeight(18, 40), 40]} />
       <StreetLamp position={[40, config.getHeight(40, 62), 62]} />
       <StreetLamp position={[72, config.getHeight(72, 95), 95]} />
       <StreetLamp position={[105, config.getHeight(105, 120), 120]} />
       <StreetLamp position={[160, config.getHeight(160, 150), 150]} />
       <StreetLamp position={[200, config.getHeight(200, 90), 90]} />
+      <StreetLamp position={[55, config.getHeight(55, 30), 30]} />
+      <StreetLamp position={[125, config.getHeight(125, 70), 70]} />
+      <StreetLamp position={[175, config.getHeight(175, 55), 55]} />
       <Billboard position={[35, config.getHeight(35, 75), 75]} />
       <Billboard position={[125, config.getHeight(125, 140), 140]} />
       <Billboard position={[180, config.getHeight(180, 110), 110]} />
+      <Billboard position={[60, config.getHeight(60, 160), 160]} />
       <OceanSurface
         y={-0.55}
         scale={[980, 160]}
