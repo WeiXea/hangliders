@@ -150,7 +150,7 @@ export interface BiomeConfig {
 export const JUMP_MIN_ALTITUDE = 15
 export const MOUNT_RANGE = 6
 /** Walk up to a city car / bus to board */
-export const VEHICLE_BOARD_RANGE = 6.5
+export const VEHICLE_BOARD_RANGE = 7.5
 /** Standing pilots can hug / high-five within this range */
 export const SOCIAL_RANGE = 5.5
 /** Must be this close to form a tandem pair */

@@ -510,7 +510,7 @@ export function FlightHUD() {
         !onRoof &&
         flight.landAction === 'none' && (
         <div className={styles.coach}>
-          Stand in a lane — traffic stops for you · hold Shift to sprint · E to drive a stopped car
+          Green-ring cars are parked — walk up and press E · or stand in a moving car&apos;s path to stop it
         </div>
       )}
 
@@ -540,11 +540,13 @@ export function FlightHUD() {
 
       {walking && nearVehicle && !nearMount && (
         <div className={styles.nearGround}>
-          {nearVehicle.speed < 1.2
-            ? nearVehicle.kind === 'bus'
-              ? 'Bus stopped — press E to drive'
-              : 'Vehicle stopped — press E to hop in'
-            : 'Vehicle nearby — step in front so it stops, then press E'}
+          {nearVehicle.parked
+            ? 'Parked car — press E to drive'
+            : nearVehicle.speed < 1.2
+              ? nearVehicle.kind === 'bus'
+                ? 'Bus stopped — press E to drive'
+                : 'Vehicle stopped — press E to hop in'
+              : 'In its path — wait for it to stop, then press E'}
         </div>
       )}
 

@@ -9,7 +9,12 @@ import {
   buildingRoofY,
   getBuildingById,
 } from '../game/cityBuildings'
-import { setTrafficSnapshots } from '../game/trafficRegistry'
+import {
+  setMovingTraffic,
+  PARKED_VEHICLES,
+  setParkedTraffic,
+  pedInVehiclePath,
+} from '../game/trafficRegistry'
 
 export type VehicleKind = 'car' | 'bus' | 'police' | 'fire' | 'taxi'
 
@@ -37,26 +42,34 @@ const LANES: Lane[] = [
   { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 8, kind: 'bus', offset: 25 },
 ]
 
-const LANE_HALF_WIDTH = 2.8
-const STOP_LOOKAHEAD = 14
+const LANE_HALF_WIDTH = 5.5
+const STOP_LOOKAHEAD = 18
 const FOLLOW_GAP = 9
 
 type TrafficSim = { along: number; speed: number }
 
-function laneAlong(lane: Lane, x: number, z: number) {
-  return lane.axis === 'x' ? x : z
+function laneWorld(lane: Lane, along: number) {
+  if (lane.axis === 'x') {
+    return {
+      x: along,
+      z: lane.fixed,
+      yaw: lane.dir > 0 ? Math.PI / 2 : -Math.PI / 2,
+    }
+  }
+  return {
+    x: lane.fixed,
+    z: along,
+    yaw: lane.dir > 0 ? 0 : Math.PI,
+  }
 }
 
 function aheadDistance(lane: Lane, fromAlong: number, toAlong: number) {
   const span = lane.max - lane.min
   let d = (toAlong - fromAlong) * lane.dir
   if (d < 0) d += span
+  // Ignore wrap-around "ahead" (almost full lap) — not a real obstacle
+  if (d > span * 0.5) return span
   return d
-}
-
-function inLaneCorridor(lane: Lane, x: number, z: number) {
-  const lateral = lane.axis === 'x' ? Math.abs(z - lane.fixed) : Math.abs(x - lane.fixed)
-  return lateral < LANE_HALF_WIDTH
 }
 
 function Wheel({ x, z, scale = 1 }: { x: number; z: number; scale?: number }) {
@@ -265,7 +278,7 @@ function TrafficLayer() {
     const dt = Math.min(0.05, lastT.current > 0 ? t - lastT.current : 1 / 60)
     lastT.current = t
 
-    const walkerInRoad =
+    const yieldToPed =
       flight.phase === 'walking' ||
       flight.phase === 'landed' ||
       flight.phase === 'grounded' ||
@@ -273,19 +286,29 @@ function TrafficLayer() {
     const pedX = flight.position.x
     const pedZ = flight.position.z
 
-    // Desired cruise speed per lane (brake for pedestrians / lead cars)
     const targets = LANES.map((lane, i) => {
       if (drivenId === i) return 0
       let want = lane.speed
+      const sim = sims.current[i]!
+      const world = laneWorld(lane, sim.along)
 
-      if (walkerInRoad && inLaneCorridor(lane, pedX, pedZ)) {
-        const pedAlong = laneAlong(lane, pedX, pedZ)
-        const ahead = aheadDistance(lane, sims.current[i]!.along, pedAlong)
-        if (ahead > 0.4 && ahead < STOP_LOOKAHEAD) {
-          // Soft stop: closer → slower, fully stop within ~4m
-          const factor = Math.max(0, (ahead - 3.2) / (STOP_LOOKAHEAD - 3.2))
-          want = Math.min(want, lane.speed * factor * factor)
-          if (ahead < 4.5) want = 0
+      if (yieldToPed) {
+        const hit = pedInVehiclePath(
+          world.x,
+          world.z,
+          world.yaw,
+          pedX,
+          pedZ,
+          STOP_LOOKAHEAD,
+          LANE_HALF_WIDTH,
+        )
+        if (hit) {
+          // Hard stop inside ~6m, taper before that
+          if (hit.ahead < 6.5) want = 0
+          else {
+            const taper = (hit.ahead - 6.5) / (STOP_LOOKAHEAD - 6.5)
+            want = Math.min(want, lane.speed * taper * taper)
+          }
         }
       }
 
@@ -295,12 +318,12 @@ function TrafficLayer() {
         if (other.axis !== lane.axis || other.fixed !== lane.fixed || other.dir !== lane.dir) {
           continue
         }
-        const gap = aheadDistance(lane, sims.current[i]!.along, sims.current[j]!.along)
+        const gap = aheadDistance(lane, sim.along, sims.current[j]!.along)
         if (gap > 0.5 && gap < FOLLOW_GAP) {
           const lead = sims.current[j]!.speed
           const factor = Math.max(0, (gap - 3.5) / (FOLLOW_GAP - 3.5))
           want = Math.min(want, lead * 0.85 + lead * 0.15 * factor)
-          if (gap < 4) want = Math.min(want, Math.max(0, lead - 1))
+          if (gap < 4.5) want = Math.min(want, Math.max(0, lead - 1))
         }
       }
 
@@ -316,6 +339,7 @@ function TrafficLayer() {
       speed: number
       color?: string
       taken: boolean
+      parked?: boolean
     }[] = []
 
     group.current.children.forEach((child, i) => {
@@ -339,35 +363,22 @@ function TrafficLayer() {
       }
 
       const want = targets[i] ?? lane.speed
-      const accel = want >= sim.speed ? 6.5 : 14
-      if (sim.speed < want) sim.speed = Math.min(want, sim.speed + accel * dt)
-      else sim.speed = Math.max(want, sim.speed - accel * dt)
-      if (sim.speed < 0.05) sim.speed = 0
+      // Brake hard when yielding
+      const rate = want < sim.speed - 0.2 ? 22 : want > sim.speed + 0.2 ? 5.5 : 8
+      if (sim.speed < want) sim.speed = Math.min(want, sim.speed + rate * dt)
+      else sim.speed = Math.max(want, sim.speed - rate * dt)
+      if (sim.speed < 0.08) sim.speed = 0
 
       const span = lane.max - lane.min
       sim.along += sim.speed * lane.dir * dt
       while (sim.along > lane.max) sim.along -= span
       while (sim.along < lane.min) sim.along += span
 
-      let x: number
-      let z: number
-      let yaw: number
-      if (lane.axis === 'x') {
-        x = sim.along
-        z = lane.fixed
-        yaw = lane.dir > 0 ? Math.PI / 2 : -Math.PI / 2
-      } else {
-        x = lane.fixed
-        z = sim.along
-        yaw = lane.dir > 0 ? 0 : Math.PI
-      }
-
+      const { x, z, yaw } = laneWorld(lane, sim.along)
       child.visible = true
       child.position.set(x, getHeight(x, z) + CITY_STREET_DECK, z)
       child.rotation.y = yaw
-      // Subtle brake squat when slowing
-      const squat = want < sim.speed - 0.5 ? 0.04 : 0
-      child.position.y -= squat
+      if (want < 0.5 && sim.speed < 1) child.position.y -= 0.03
 
       snaps.push({
         id: i,
@@ -381,7 +392,7 @@ function TrafficLayer() {
       })
     })
 
-    setTrafficSnapshots(snaps)
+    setMovingTraffic(snaps)
   })
 
   return (
@@ -389,6 +400,76 @@ function TrafficLayer() {
       {LANES.map((lane, i) => (
         <group key={i}>
           <VehicleMesh kind={lane.kind} color={lane.color} />
+        </group>
+      ))}
+    </group>
+  )
+}
+
+function ParkedCarsLayer() {
+  const group = useRef<THREE.Group>(null)
+  const getHeight = BIOME_CONFIGS.city.getHeight
+
+  useFrame(() => {
+    if (!group.current) return
+    const flight = useGameStore.getState().flight
+    const drivenId = flight.phase === 'driving' ? flight.vehicleId : -1
+
+    const snaps = PARKED_VEHICLES.map((spot, i) => {
+      const child = group.current!.children[i]
+      const isDriven = drivenId === spot.id
+
+      if (isDriven) {
+        if (child) child.visible = false
+        return {
+          id: spot.id,
+          kind: spot.kind,
+          x: flight.position.x,
+          z: flight.position.z,
+          yaw: flight.yaw,
+          speed: Math.abs(flight.airspeed),
+          color: spot.color,
+          taken: true,
+          parked: true as const,
+        }
+      }
+
+      if (child) {
+        child.visible = true
+        child.position.set(spot.x, getHeight(spot.x, spot.z) + CITY_STREET_DECK, spot.z)
+        child.rotation.y = spot.yaw
+      }
+
+      return {
+        id: spot.id,
+        kind: spot.kind,
+        x: spot.x,
+        z: spot.z,
+        yaw: spot.yaw,
+        speed: 0,
+        color: spot.color,
+        taken: false,
+        parked: true as const,
+      }
+    })
+
+    setParkedTraffic(snaps)
+  })
+
+  return (
+    <group ref={group}>
+      {PARKED_VEHICLES.map((p) => (
+        <group key={p.id}>
+          <VehicleMesh kind={p.kind} color={p.color} />
+          <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[2.4, 2.85, 28]} />
+            <meshStandardMaterial
+              color="#52b788"
+              emissive="#52b788"
+              emissiveIntensity={0.4}
+              roughness={0.55}
+            />
+          </mesh>
         </group>
       ))}
     </group>
@@ -648,6 +729,7 @@ export function CityLife() {
   return (
     <group>
       <TrafficLayer />
+      <ParkedCarsLayer />
       <PedestrianLayer />
       <RooftopPads />
       <TrafficLights />
