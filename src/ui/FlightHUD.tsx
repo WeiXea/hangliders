@@ -79,6 +79,7 @@ export function FlightHUD() {
   const [tiltBusy, setTiltBusy] = useState(false)
   const [tutorialOn, setTutorialOn] = useState(() => !readTutorialDone())
   const [tutStep, setTutStep] = useState<TutorialStep>('speed')
+  const [jetLandHelp, setJetLandHelp] = useState(true)
 
   useKeyboardControls()
   useTiltControls()
@@ -127,6 +128,10 @@ export function FlightHUD() {
     () => (tutorialOn ? tutorialCopy(tutStep) : null),
     [tutorialOn, tutStep],
   )
+
+  useEffect(() => {
+    if (flight.phase === 'jet') setJetLandHelp(true)
+  }, [flight.phase])
 
   const passedRings = rings.filter((r) => r.passed).length
   const vs = flight.velocity.y
@@ -574,40 +579,44 @@ export function FlightHUD() {
         </div>
       )}
 
-      {jet && flight.altitude < 0.4 && (
+      {jet && (
         <div className={styles.coach}>
-          {flight.airspeed < 3.5
-            ? 'On runway · ↑ hold throttle to ~150 km/h · then ↓ to take off · E to exit'
-            : `TAKEOFF · keep ↑ until ${Math.round(42 * 3.6)}+ km/h · hold ↓ to lift off`}
+          {flight.altitude < 0.4
+            ? flight.airspeed < 3.5
+              ? 'JET · ↑ throttle to ~150 km/h · ↓ take off · tap Land? for how to land · E exit'
+              : `TAKEOFF · keep ↑ until ${Math.round(42 * 3.6)}+ km/h · hold ↓ to lift off`
+            : 'JET · ↑ throttle · − slow · ↓ climb/flare · A/D turn · tap Land? anytime'}
         </div>
       )}
 
-      {jet && flight.altitude >= 50 && (
-        <div className={styles.coach}>
-          Cruise · ↑ throttle · − slow down · ↓ climb · A/D turn · M map
-        </div>
-      )}
-
-      {jet && flight.altitude >= 0.4 && flight.altitude < 50 && (
+      {jet && jetLandHelp && (
         <div className={styles.landCard} aria-live="polite">
-          <div className={styles.landTitle}>How to land</div>
+          <div className={styles.landHead}>
+            <span className={styles.landTitle}>How to land the jet</span>
+            <button
+              type="button"
+              className={styles.landClose}
+              onClick={() => setJetLandHelp(false)}
+              aria-label="Hide landing help"
+            >
+              ✕
+            </button>
+          </div>
           <ol className={styles.landSteps}>
             <li className={flight.airspeed * 3.6 <= 160 ? styles.landDone : undefined}>
-              1. Hold <b>−</b> until IAS is under <b>160 km/h</b>
-              <span className={styles.landNow}>
-                {' '}
-                (now {Math.round(flight.airspeed * 3.6)})
-              </span>
+              1. Hold <b>−</b> (Cut) until speed &lt; <b>160 km/h</b>
+              <span className={styles.landNow}> · now {Math.round(flight.airspeed * 3.6)}</span>
             </li>
-            <li>2. Point at the runway · keep the nose almost level</li>
-            <li className={flight.altitude < 20 ? styles.landActive : undefined}>
-              3. Below ~20 m hold <b>↓</b> (Flare) to soften touchdown
+            <li>2. Point at the runway · keep nose almost level</li>
+            <li className={flight.altitude < 20 && flight.altitude > 0.4 ? styles.landActive : undefined}>
+              3. Near the ground hold <b>↓</b> (Flare pad)
             </li>
-            <li>4. After wheels down keep − until nearly stopped</li>
+            <li>4. After touchdown keep holding <b>−</b> until almost stopped</li>
             <li className={jetCanExit ? styles.landActive : undefined}>
               5. Press <b>E</b> / Exit to get out
             </li>
           </ol>
+          <p className={styles.landHint}>↑ is throttle, not climb. ↓ is climb / flare.</p>
         </div>
       )}
 
@@ -853,6 +862,16 @@ export function FlightHUD() {
           )}
           {walking && (
             <ControlPad label="Sprint" sub="Shift" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
+          )}
+          {jet && (
+            <button
+              type="button"
+              className={`${styles.pad} ${styles.padLand}`}
+              onClick={() => setJetLandHelp((v) => !v)}
+            >
+              <span className={styles.padLabel}>Land?</span>
+              <span className={styles.padSub}>{jetLandHelp ? 'Hide' : 'Help'}</span>
+            </button>
           )}
           {jetCanEject && (
             <ControlPad label="Eject" sub="Space" action="jump" className={styles.padAction} active={input.jump} />

@@ -303,19 +303,29 @@
 
 .landCard {
   position: absolute;
-  top: 72px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 12;
-  width: min(340px, 92vw);
-  padding: 12px 14px 12px 16px;
+  top: max(108px, calc(env(safe-area-inset-top) + 96px));
+  right: 12px;
+  left: auto;
+  transform: none;
+  z-index: 22;
+  width: min(300px, calc(100vw - 24px));
+  padding: 12px 14px;
   border-radius: 14px;
-  background: rgba(8, 16, 28, 0.88);
-  border: 1px solid rgba(255, 209, 102, 0.45);
+  background: rgba(8, 16, 28, 0.94);
+  border: 2px solid #ffd60a;
   backdrop-filter: blur(12px);
   color: #f8f9fa;
-  pointer-events: none;
+  pointer-events: auto;
   text-align: left;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.landHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .landTitle {
@@ -325,7 +335,16 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #ffd60a;
-  margin-bottom: 8px;
+}
+
+.landClose {
+  border: none;
+  background: transparent;
+  color: #adb5bd;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  line-height: 1;
 }
 
 .landSteps {
@@ -336,11 +355,11 @@
   font-size: 13px;
   font-weight: 500;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .landSteps li {
-  margin: 0 0 4px;
+  margin: 0 0 5px;
 }
 
 .landSteps b {
@@ -360,6 +379,14 @@
 .landActive {
   color: #fff;
   font-weight: 700;
+}
+
+.landHint {
+  margin: 8px 0 0;
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  color: #adb5bd;
+  line-height: 1.35;
 }
 
 .travelBanner {
