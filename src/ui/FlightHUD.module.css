@@ -301,6 +301,67 @@
   backdrop-filter: blur(10px);
 }
 
+.landCard {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  width: min(340px, 92vw);
+  padding: 12px 14px 12px 16px;
+  border-radius: 14px;
+  background: rgba(8, 16, 28, 0.88);
+  border: 1px solid rgba(255, 209, 102, 0.45);
+  backdrop-filter: blur(12px);
+  color: #f8f9fa;
+  pointer-events: none;
+  text-align: left;
+}
+
+.landTitle {
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffd60a;
+  margin-bottom: 8px;
+}
+
+.landSteps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.landSteps li {
+  margin: 0 0 4px;
+}
+
+.landSteps b {
+  color: #ffd60a;
+  font-weight: 700;
+}
+
+.landNow {
+  color: #4cc9f0;
+  font-weight: 600;
+}
+
+.landDone {
+  color: rgba(82, 183, 136, 0.95);
+}
+
+.landActive {
+  color: #fff;
+  font-weight: 700;
+}
+
 .travelBanner {
   position: absolute;
   top: 118px;

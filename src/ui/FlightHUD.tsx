@@ -574,13 +574,40 @@ export function FlightHUD() {
         </div>
       )}
 
-      {jet && (
+      {jet && flight.altitude < 0.4 && (
         <div className={styles.coach}>
-          {flight.altitude < 0.4
-            ? `TAKEOFF · hold ↑ / + to ${Math.round(42 * 3.6)}+ km/h · then ↓ to rotate · A/D steer`
-            : flight.altitude < 40 && flight.velocity.y < -1
-              ? `LANDING · cut − to ~${Math.round(40 * 3.6)} km/h · shallow · ↓ flare near ground · roll out · E exit`
-              : `F-35 · ↑/+ throttle · ↓ climb/flare · − cut · A/D bank · M map · west→Beach · north→Mountains`}
+          {flight.airspeed < 3.5
+            ? 'On runway · ↑ hold throttle to ~150 km/h · then ↓ to take off · E to exit'
+            : `TAKEOFF · keep ↑ until ${Math.round(42 * 3.6)}+ km/h · hold ↓ to lift off`}
+        </div>
+      )}
+
+      {jet && flight.altitude >= 50 && (
+        <div className={styles.coach}>
+          Cruise · ↑ throttle · − slow down · ↓ climb · A/D turn · M map
+        </div>
+      )}
+
+      {jet && flight.altitude >= 0.4 && flight.altitude < 50 && (
+        <div className={styles.landCard} aria-live="polite">
+          <div className={styles.landTitle}>How to land</div>
+          <ol className={styles.landSteps}>
+            <li className={flight.airspeed * 3.6 <= 160 ? styles.landDone : undefined}>
+              1. Hold <b>−</b> until IAS is under <b>160 km/h</b>
+              <span className={styles.landNow}>
+                {' '}
+                (now {Math.round(flight.airspeed * 3.6)})
+              </span>
+            </li>
+            <li>2. Point at the runway · keep the nose almost level</li>
+            <li className={flight.altitude < 20 ? styles.landActive : undefined}>
+              3. Below ~20 m hold <b>↓</b> (Flare) to soften touchdown
+            </li>
+            <li>4. After wheels down keep − until nearly stopped</li>
+            <li className={jetCanExit ? styles.landActive : undefined}>
+              5. Press <b>E</b> / Exit to get out
+            </li>
+          </ol>
         </div>
       )}
 
@@ -594,15 +621,19 @@ export function FlightHUD() {
 
       {jet &&
         flight.altitude > 2 &&
-        flight.altitude < 35 &&
-        flight.airspeed > 20 &&
-        flight.velocity.y < -0.5 && (
+        flight.altitude < 25 &&
+        flight.airspeed > 15 && (
           <div className={styles.nearGround}>
-            Flare! Hold ↓ · keep under {Math.round(55 * 3.6)} km/h for a soft landing
+            FLARE NOW — hold ↓ · IAS {Math.round(flight.airspeed * 3.6)} km/h
+            {flight.airspeed * 3.6 > 200 ? ' · too fast, hold −' : ''}
           </div>
         )}
 
-      {jetCanEject && (
+      {jetCanExit && (
+        <div className={styles.nearGround}>Stopped — press E to exit the jet</div>
+      )}
+
+      {jetCanEject && flight.altitude >= 50 && (
         <div className={styles.nearGround}>Eject ready — Space / Jump</div>
       )}
 
