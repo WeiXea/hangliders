@@ -23,6 +23,8 @@ export type RocketMission = {
   stage1Separated: boolean
   /** Elevator car height while riding */
   elevatorY: number
+  /** Scripted mission altitude for HUD (meters) */
+  displayAltM: number
 }
 
 export type FlightPhase =

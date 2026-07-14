@@ -58,13 +58,13 @@ export function GameCanvas() {
         alpha: false,
         powerPreference: 'high-performance',
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.05,
+        toneMappingExposure: biome === 'moon' ? 0.85 : 1.05,
         stencil: false,
       }}
       performance={{ min: 0.5 }}
       style={{ width: '100%', height: '100%' }}
     >
-      <color attach="background" args={['#87b8e8']} />
+      <color attach="background" args={[biome === 'moon' ? '#000004' : '#87b8e8']} />
       <Suspense fallback={null}>
         <BiomeWorld />
         <HangGlider />

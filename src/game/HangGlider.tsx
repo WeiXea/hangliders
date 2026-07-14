@@ -178,11 +178,16 @@ export function HangGlider() {
         targetFov = 58
       }
     } else if (ph === 'rocket' || ph === 'rocketCapsule') {
-      const alt = flight.altitude
+      const alt = flight.rocketMission?.displayAltM ?? flight.altitude
+      const onMoon = useGameStore.getState().biome === 'moon'
       if (cameraMode === 'fpv') {
         eye.set(0, 2.2, 3.2)
         lookAt.set(0, 0.5, 30)
         targetFov = 75
+      } else if (onMoon && alt < 500) {
+        eye.set(0, 12, -28)
+        lookAt.set(0, 2, 12)
+        targetFov = 58
       } else if (alt > 5000) {
         eye.set(0, 18, -55)
         lookAt.set(0, -8, 40)

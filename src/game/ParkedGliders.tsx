@@ -77,7 +77,7 @@ function ParkedMarker({
       ) : (
         <GliderModel hidePilot staticModel />
       )}
-      <mesh position={[0, isRocket ? -2.2 : isJet ? -0.7 : isHeli ? -0.55 : -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[ringInner, ringOuter, 32]} />
         <meshStandardMaterial
           color={ringColor}

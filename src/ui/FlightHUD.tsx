@@ -25,6 +25,7 @@ import {
 import { xcProgressLabel, xcNavTarget, xcElapsedMs, formatXCTime, xcRelBearing } from '../game/xcTask'
 import { nearestEnterableDoor, sampleCitySupport, nearestElevatorBuilding } from '../game/cityBuildings'
 import { nearRocketHatch, nearRocketTowerBase, ROCKET_PAD } from '../game/rocketPad'
+import { rocketMissionEtaSec } from '../game/rocketPhysics'
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
 import { FriendFinder } from './FriendFinder'
@@ -152,6 +153,8 @@ export function FlightHUD() {
     flight.phase === 'rocketCapsule' ||
     rocketElevator
   const rocketMission = flight.rocketMission
+  const rocketAltM = rocketMission?.displayAltM ?? flight.altitude
+  const rocketEta = rocketMissionEtaSec(rocketMission)
   const driving = flight.phase === 'driving'
   const canUnmount = onGround && flight.airspeed < 3.2
   const jetCanExit = jet && flight.altitude < 0.4 && flight.airspeed < 3.5
@@ -310,11 +313,11 @@ export function FlightHUD() {
           <div className={styles.instrument}>
             <span className={styles.instrumentLabel}>Alt</span>
             <span className={styles.instrumentValue}>
-              {rocket && flight.altitude >= 1000
-                ? (flight.altitude / 1000).toFixed(1)
-                : Math.round(flight.altitude)}
+              {rocket && rocketAltM >= 1000
+                ? (rocketAltM / 1000).toFixed(1)
+                : Math.round(rocket ? rocketAltM : flight.altitude)}
             </span>
-            <span className={styles.instrumentUnit}>{rocket && flight.altitude >= 1000 ? 'km' : 'm'}</span>
+            <span className={styles.instrumentUnit}>{rocket && rocketAltM >= 1000 ? 'km' : 'm'}</span>
           </div>
           <div className={styles.divider} />
           <div className={styles.instrument}>
@@ -667,10 +670,14 @@ export function FlightHUD() {
             {step === 'meco'
               ? 'MECO — main engine cutoff · staging…'
               : step === 'coast'
-                ? 'Coasting — hold on for lunar transfer'
+                ? 'Coasting toward the Moon…'
                 : step === 'landingBurn'
                   ? 'Landing burn — retro firing'
-                  : `Stage: ${step} · alt ${flight.altitude >= 1000 ? `${(flight.altitude / 1000).toFixed(1)} km` : `${Math.round(flight.altitude)} m`}`}
+                  : step === 'ascent'
+                    ? 'Stage 1 burn — climbing through the atmosphere'
+                    : step === 'secondBurn'
+                      ? 'Stage 2 burn — pushing toward translunar coast'
+                      : `Stage: ${step}${rocketEta != null && rocketEta > 0 ? ` · ~${Math.ceil(rocketEta)}s to landing` : ''} · alt ${rocketAltM >= 1000 ? `${(rocketAltM / 1000).toFixed(1)} km` : `${Math.round(rocketAltM)} m`}`}
           </p>
         </div>
         )

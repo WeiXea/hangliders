@@ -22,6 +22,7 @@ import {
   resolvePropPush,
 } from './obstacles'
 import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos, nearestElevatorBuilding, elevatorStreetPos, elevatorRoofPos } from './cityBuildings'
+import { sampleRocketLaunchSupport } from './rocketPad'
 import {
   nearestTrafficVehicle,
   setTakenVehicleId,
@@ -190,6 +191,10 @@ function supportY(
 ): { y: number; onRoof: boolean } {
   if (config.id !== 'city') {
     return { y: config.getHeight(x, z), onRoof: false }
+  }
+  const launchY = sampleRocketLaunchSupport(x, z, config.getHeight)
+  if (launchY != null) {
+    return { y: launchY, onRoof: true }
   }
   const s = sampleCitySupport(x, z, config.getHeight)
   return { y: s.y, onRoof: s.onRoof }
@@ -431,6 +436,7 @@ export function tickFlight(
             t: 0,
             stage1Separated: false,
             elevatorY: next.position.y,
+            displayAltM: 0,
           },
         }
       } else {
@@ -619,7 +625,7 @@ export function tickFlight(
             landAction: 'none',
             interiorId: -1,
             stallWarning: false,
-            rocketMission: { step: 'ready', t: 0, stage1Separated: false, elevatorY: 0 },
+            rocketMission: { step: 'ready', t: 0, stage1Separated: false, elevatorY: 0, displayAltM: 0 },
           }
         } else {
           next = {
