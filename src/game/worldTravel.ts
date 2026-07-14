@@ -87,6 +87,7 @@ export const MAP_REGIONS: {
   { id: 'mountains', label: 'Mountains', x: 28, y: 6, w: 44, h: 28, color: '#6c757d' },
   { id: 'beach', label: 'Beach', x: 6, y: 38, w: 34, h: 40, color: '#4cc9f0' },
   { id: 'city', label: 'City', x: 48, y: 38, w: 46, h: 40, color: '#e9c46a' },
+  { id: 'moon', label: 'Moon', x: 72, y: 6, w: 26, h: 22, color: '#adb5bd' },
 ]
 
 export const MAP_POIS: {
@@ -97,7 +98,9 @@ export const MAP_POIS: {
   v: number
 }[] = [
   { biome: 'city', label: 'Airport', u: 18, v: 42 },
+  { biome: 'city', label: 'Starbase Pad', u: 8, v: 58 },
   { biome: 'city', label: 'Downtown', u: 55, v: 48 },
   { biome: 'beach', label: 'Launch', u: 40, v: 55 },
   { biome: 'mountains', label: 'Peaks', u: 50, v: 40 },
+  { biome: 'moon', label: 'Landing Site', u: 50, v: 52 },
 ]

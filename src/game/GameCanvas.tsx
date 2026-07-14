@@ -10,6 +10,7 @@ import { RemotePlayer } from './RemotePlayer'
 import { BeachScene } from '../scenes/BeachScene'
 import { MountainScene } from '../scenes/MountainScene'
 import { CityScene } from '../scenes/CityScene'
+import { MoonScene } from '../scenes/MoonScene'
 import { ChallengeRings, LandingZone } from '../scenes/ChallengeObjects'
 import { FlightPostFX } from '../scenes/SharedSky'
 import { ThermalMarkers } from '../scenes/ThermalMarkers'
@@ -26,6 +27,8 @@ function BiomeWorld() {
       return <MountainScene config={config} />
     case 'city':
       return <CityScene config={config} />
+    case 'moon':
+      return <MoonScene config={config} />
     default:
       return <BeachScene config={config} />
   }
@@ -49,7 +52,7 @@ export function GameCanvas() {
     <Canvas
       shadows
       dpr={[1, 1.25]}
-      camera={{ position: [camX, camY, camZ], fov: 58, near: 0.1, far: 1800 }}
+      camera={{ position: [camX, camY, camZ], fov: 58, near: 0.1, far: biome === 'moon' ? 6000 : 1800 }}
       gl={{
         antialias: true,
         alpha: false,

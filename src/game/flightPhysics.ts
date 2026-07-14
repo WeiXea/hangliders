@@ -16,6 +16,7 @@ import {
   GLIDER_REST_CLEARANCE,
   HELI_REST_CLEARANCE,
   JET_REST_CLEARANCE,
+  ROCKET_REST_CLEARANCE,
   hitCityBuildings,
   hitWorldProps,
   resolvePropPush,
@@ -32,6 +33,8 @@ import {
   leaveVehicleInWorld,
   getTrafficSnapshots,
 } from './trafficRegistry'
+import { nearRocketHatch, nearRocketTowerBase, ROCKET_PAD } from './rocketPad'
+import { tickRocketPhases } from './rocketPhysics'
 import { playCrashImpact, playWhoosh } from './audio'
 import { liftCoeff, groundEffectFactor } from './aero'
 import { sampleAtmosphere } from './atmosphere'
@@ -120,6 +123,7 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     craftType: 'glider',
     vehicleId: -1,
     vehicleKind: null,
+    rocketMission: null,
   }
 }
 
@@ -247,7 +251,7 @@ function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
   }
 }
 
-function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
+export function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
   setTakenVehicleId(-1)
   const support = supportY(config, next.position.x, next.position.z)
   return {
@@ -274,6 +278,7 @@ function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
     craftType: 'glider',
     vehicleId: -1,
     vehicleKind: null,
+    rocketMission: null,
   }
 }
 
@@ -335,6 +340,17 @@ export function tickFlight(
   next.altitude = Math.max(0, next.position.y - groundY)
 
   if (next.phase === 'landed' || next.phase === 'crashed') {
+    return { flight: next, parked }
+  }
+
+  if (
+    next.phase === 'rocketElevator' ||
+    next.phase === 'rocket' ||
+    next.phase === 'rocketCapsule'
+  ) {
+    const rocketOut = tickRocketPhases(next, input, { config, dt, parked })
+    parked = rocketOut.parked
+    next = rocketOut.skipCollide ? rocketOut.flight : collideWorld(rocketOut.flight, config)
     return { flight: next, parked }
   }
 
@@ -406,6 +422,18 @@ export function tickFlight(
 
     // Enter / leave buildings, ride elevators, board traffic
     if (input.interact && config.id === 'city') {
+      if (nearRocketTowerBase(next.position.x, next.position.z)) {
+        next = {
+          ...next,
+          phase: 'rocketElevator',
+          rocketMission: {
+            step: 'elevator',
+            t: 0,
+            stage1Separated: false,
+            elevatorY: next.position.y,
+          },
+        }
+      } else {
       const roofBuildingIds = [
         ...new Set(
           parked
@@ -468,6 +496,7 @@ export function tickFlight(
           next.landAction = 'none'
         }
       }
+      }
     }
 
     if (next.interiorId >= 0) {
@@ -500,13 +529,28 @@ export function tickFlight(
     next.distance += next.airspeed * dt
 
     if (input.interact && next.interiorId < 0) {
-      const target = findNearestGlider(
-        next.position.x,
-        next.position.z,
-        parked,
-        next.position.y,
-        (gx, gz) => supportY(config, gx, gz).y,
-      )
+      const hatchRocket =
+        config.id === 'city' &&
+        nearRocketHatch(
+          next.position.x,
+          next.position.y,
+          next.position.z,
+          config.getHeight(ROCKET_PAD.x, ROCKET_PAD.z),
+        )
+          ? parked.find(
+              (g) => g.available && g.craftType === 'rocket' && g.x === ROCKET_PAD.x,
+            )
+          : null
+
+      const target =
+        hatchRocket ??
+        findNearestGlider(
+          next.position.x,
+          next.position.z,
+          parked,
+          next.position.y,
+          (gx, gz) => supportY(config, gx, gz).y,
+        )
       if (target) {
         parked = parked.map((g) =>
           g.id === target.id ? { ...g, available: false } : g,
@@ -555,6 +599,27 @@ export function tickFlight(
             landAction: 'none',
             interiorId: -1,
             stallWarning: false,
+          }
+        } else if (craft === 'rocket') {
+          next = {
+            ...next,
+            phase: 'rocket',
+            craftType: 'rocket',
+            position: { x: target.x, y: gy + ROCKET_REST_CLEARANCE, z: target.z },
+            yaw: target.yaw,
+            pitch: 0,
+            roll: 0,
+            airspeed: 0,
+            velocity: { x: 0, y: 0, z: 0 },
+            altitude: ROCKET_REST_CLEARANCE,
+            mountedId: target.id,
+            chuteDeployed: false,
+            chuteInflation: 0,
+            chuteSwing: 0,
+            landAction: 'none',
+            interiorId: -1,
+            stallWarning: false,
+            rocketMission: { step: 'ready', t: 0, stage1Separated: false, elevatorY: 0 },
           }
         } else {
           next = {

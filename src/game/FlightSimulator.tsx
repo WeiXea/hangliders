@@ -7,7 +7,7 @@ import { tickNetSync } from './netSync'
 import { bearingTo, horizontalDist } from './multiplayerSocial'
 import { resolveTandem } from './tandem'
 import { applyPulses, clearPulses } from './actionPulses'
-import { tickVario, tickFootsteps, noteInteractPress, tickVehicleEngine } from './audio'
+import { tickVario, tickFootsteps, noteInteractPress, tickVehicleEngine, tickRocketAudio } from './audio'
 import { vehicleMaxSpeed } from './trafficRegistry'
 import { checkBiomeGate } from './worldTravel'
 import { thermalHint } from './atmosphere'
@@ -201,6 +201,7 @@ export function FlightSimulator() {
       flight.phase === 'driving' ? flight.vehicleKind : null,
       flight.vehicleKind ? vehicleMaxSpeed(flight.vehicleKind) : 15,
     )
+    tickRocketAudio(flight.phase, flight.rocketMission)
     noteInteractPress(frameInput.interact)
     // Hold one-shot pulses until a fixed step actually consumes them
     if (steps > 0) finishInput(frameInput)

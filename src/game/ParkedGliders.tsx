@@ -7,7 +7,8 @@ import { BIOME_CONFIGS } from './biomeConfigs'
 import { GliderModel } from './GliderModel'
 import { HelicopterModel } from './HelicopterModel'
 import { JetModel } from './JetModel'
-import { GLIDER_REST_CLEARANCE, HELI_REST_CLEARANCE, JET_REST_CLEARANCE } from './obstacles'
+import { GLIDER_REST_CLEARANCE, HELI_REST_CLEARANCE, JET_REST_CLEARANCE, ROCKET_REST_CLEARANCE } from './obstacles'
+import { RocketModel } from './RocketModel'
 import { MOUNT_RANGE } from '../types/game'
 import type { CraftType } from '../types/game'
 import {
@@ -21,6 +22,7 @@ import {
 function craftClearance(craftType?: CraftType) {
   if (craftType === 'helicopter') return HELI_REST_CLEARANCE
   if (craftType === 'jet') return JET_REST_CLEARANCE
+  if (craftType === 'rocket') return ROCKET_REST_CLEARANCE
   return GLIDER_REST_CLEARANCE
 }
 
@@ -49,28 +51,33 @@ function ParkedMarker({
   const y = support + clearance
   const isHeli = craftType === 'helicopter'
   const isJet = craftType === 'jet'
-  const ringInner = isJet ? 5.2 : isHeli ? 4.0 : 3.2
-  const ringOuter = isJet ? 5.9 : isHeli ? 4.5 : 3.6
+  const isRocket = craftType === 'rocket'
+  const ringInner = isRocket ? 6.2 : isJet ? 5.2 : isHeli ? 4.0 : 3.2
+  const ringOuter = isRocket ? 7.0 : isJet ? 5.9 : isHeli ? 4.5 : 3.6
   const ringColor = highlight
     ? '#52b788'
-    : isJet
-      ? '#ffd60a'
-      : isHeli
-        ? '#4cc9f0'
-        : buildingId != null
-          ? '#52b788'
-          : '#e9c46a'
+    : isRocket
+      ? '#ffffff'
+      : isJet
+        ? '#ffd60a'
+        : isHeli
+          ? '#4cc9f0'
+          : buildingId != null
+            ? '#52b788'
+            : '#e9c46a'
 
   return (
     <group position={[x, y, z]} rotation={[0, yaw, 0]}>
-      {isJet ? (
+      {isRocket ? (
+        <RocketModel staticModel />
+      ) : isJet ? (
         <JetModel staticModel />
       ) : isHeli ? (
         <HelicopterModel staticModel />
       ) : (
         <GliderModel hidePilot staticModel />
       )}
-      <mesh position={[0, isJet ? -0.7 : isHeli ? -0.55 : -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, isRocket ? -2.2 : isJet ? -0.7 : isHeli ? -0.55 : -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[ringInner, ringOuter, 32]} />
         <meshStandardMaterial
           color={ringColor}

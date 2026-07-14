@@ -13,6 +13,7 @@ export function buildChallengeRings(biome: Biome): ChallengeRing[] {
   })
 
   const fallback = config.challengeRings
+  if (fallback.length === 0) return []
   const count = Math.max(4, Math.min(5, Math.max(thermals.length, fallback.length)))
   const rings: ChallengeRing[] = []
 

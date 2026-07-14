@@ -41,6 +41,13 @@ function sampleColor(biome: Biome, h: number, slope: number, x: number, z: numbe
     if (slope > 0.4 && h > 18) c.lerp(new THREE.Color('#495057'), 0.55)
     if (h > 50) c.lerp(new THREE.Color('#ffffff'), Math.min(1, (h - 50) / 30))
     if (n > 0.5 && h < 35) c.lerp(new THREE.Color('#344e41'), 0.3)
+  } else if (biome === 'moon') {
+    if (h < 8) c.set('#6b6b6b')
+    else if (h < 18) c.set('#8a8a8a')
+    else c.set('#a8a8a8')
+    if (slope > 0.35) c.lerp(new THREE.Color('#4a4a4a'), 0.55)
+    if (n > 0.4) c.lerp(new THREE.Color('#9a9a9a'), 0.25)
+    if (n < -0.4) c.lerp(new THREE.Color('#5c5c5c'), 0.3)
   } else {
     // City: asphalt corridors + quieter plazas / parks (no bright lattice)
     const road =

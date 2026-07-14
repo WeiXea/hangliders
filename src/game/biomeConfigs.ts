@@ -72,6 +72,13 @@ function cityHeight(x: number, z: number): number {
   return Math.max(0, park + hill + riverBank + plaza)
 }
 
+function moonHeight(x: number, z: number): number {
+  const crater = Math.max(0, 1 - Math.hypot(x * 0.08, z * 0.08)) * -3
+  const ripples = Math.sin(x * 0.15) * Math.cos(z * 0.13) * 1.2
+  const regolith = Math.sin(x * 0.04 + z * 0.03) * 0.8
+  return Math.max(-2, crater + ripples + regolith)
+}
+
 export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
   beach: {
     id: 'beach',
@@ -178,9 +185,30 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
       { x: 120, z: 90, yaw: -0.2, buildingId: 12, craftType: 'helicopter' },
       // Skyline Municipal — F-35 on the apron
       { x: -135, z: 62, yaw: Math.PI / 2, craftType: 'jet' },
+      // Starbase pad — Falcon-class stack (board via tower elevator)
+      { x: -158, z: 28, yaw: Math.PI / 2, craftType: 'rocket' },
       // Street plaza spare gliders
       { x: 48, z: 48, yaw: 0.4 },
       { x: 130, z: 88, yaw: -0.5 },
     ],
+  },
+  moon: {
+    id: 'moon',
+    name: 'Lunar Surface',
+    tagline: 'One small step',
+    launchPosition: { x: 0, y: 0, z: 0 },
+    launchYaw: 0,
+    windStrength: 0,
+    thermalStrength: 0,
+    fogColor: '#000000',
+    fogNear: 5000,
+    fogFar: 8000,
+    skyTurbidity: 0,
+    skyRayleigh: 0.1,
+    sunPosition: [200, 80, 100],
+    getHeight: moonHeight,
+    challengeRings: [],
+    landingZone: { center: { x: 0, y: 0, z: 0 }, radius: 40 },
+    parkedGliders: [],
   },
 }

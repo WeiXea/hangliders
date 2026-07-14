@@ -1,8 +1,29 @@
-export type Biome = 'beach' | 'mountains' | 'city'
+export type Biome = 'beach' | 'mountains' | 'city' | 'moon'
 export type GameMode = 'free' | 'challenge' | 'xc'
 export type Screen = 'home' | 'flight' | 'result'
-export type CraftType = 'glider' | 'helicopter' | 'jet'
+export type CraftType = 'glider' | 'helicopter' | 'jet' | 'rocket'
 export type VehicleKind = 'car' | 'bus' | 'police' | 'fire' | 'taxi'
+
+export type RocketMissionStep =
+  | 'elevator'
+  | 'ready'
+  | 'countdown'
+  | 'liftoff'
+  | 'ascent'
+  | 'meco'
+  | 'secondBurn'
+  | 'coast'
+  | 'entry'
+  | 'landingBurn'
+  | 'landed'
+
+export type RocketMission = {
+  step: RocketMissionStep
+  t: number
+  stage1Separated: boolean
+  /** Elevator car height while riding */
+  elevatorY: number
+}
 
 export type FlightPhase =
   | 'grounded'
@@ -10,6 +31,9 @@ export type FlightPhase =
   | 'flying'
   | 'helicopter'
   | 'jet'
+  | 'rocketElevator'
+  | 'rocket'
+  | 'rocketCapsule'
   | 'driving'
   | 'freefall'
   | 'parachuting'
@@ -81,6 +105,8 @@ export interface FlightState {
   /** City traffic vehicle currently driven (-1 = none) */
   vehicleId: number
   vehicleKind: VehicleKind | null
+  /** Active rocket mission script (null outside rocket flow) */
+  rocketMission: RocketMission | null
 }
 
 export interface InputState {
@@ -186,6 +212,7 @@ export const INITIAL_FLIGHT: FlightState = {
   craftType: 'glider',
   vehicleId: -1,
   vehicleKind: null,
+  rocketMission: null,
 }
 
 export const INITIAL_INPUT: InputState = {

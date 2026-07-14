@@ -17,6 +17,7 @@ import { SharedSky, SharedLighting } from './SharedSky'
 import { prepMap } from '../game/pbrMaps'
 import { CityLife } from './CityLife'
 import { CityAirport } from './CityAirport'
+import { CityLaunchPad, RocketTower } from './CityLaunchPad'
 
 interface CitySceneProps {
   config: BiomeConfig
@@ -476,6 +477,9 @@ function Billboard({ position }: { position: [number, number, number] }) {
 }
 
 export function CityScene({ config }: CitySceneProps) {
+  const rocketElevY = useGameStore((s) =>
+    s.flight.phase === 'rocketElevator' ? s.flight.rocketMission?.elevatorY : undefined,
+  )
   const concrete = useTexture({
     map: '/textures/concrete_diff_1k.jpg',
     nor: '/textures/concrete_nor_1k.jpg',
@@ -505,6 +509,8 @@ export function CityScene({ config }: CitySceneProps) {
       <SkylineSilhouette />
       <CityLife />
       <CityAirport />
+      <CityLaunchPad />
+      <RocketTower elevatorY={rocketElevY} />
       <ParkBench position={[22, config.getHeight(22, 48), 48]} yaw={0.3} />
       <ParkBench position={[48, config.getHeight(48, 88), 88]} yaw={-0.5} />
       <ParkBench position={[90, config.getHeight(90, 130), 130]} yaw={0.8} />

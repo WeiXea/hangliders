@@ -171,7 +171,9 @@ export function useKeyboardControls() {
           phase === 'grounded' ||
           phase === 'running' ||
           phase === 'helicopter' ||
-          phase === 'jet'
+          phase === 'jet' ||
+          phase === 'rocket' ||
+          phase === 'rocketCapsule'
         ) {
           pulseAction('interact')
           setInput({ interact: true })
@@ -265,6 +267,9 @@ export function useKeyboardControls() {
         phase !== 'driving' &&
         phase !== 'helicopter' &&
         phase !== 'jet' &&
+        phase !== 'rocket' &&
+        phase !== 'rocketCapsule' &&
+        phase !== 'rocketElevator' &&
         phase !== 'freefall' &&
         phase !== 'parachuting'
       ) {
@@ -312,6 +317,9 @@ export function useKeyboardControls() {
           phase !== 'driving' &&
           phase !== 'helicopter' &&
           phase !== 'jet' &&
+          phase !== 'rocket' &&
+          phase !== 'rocketCapsule' &&
+          phase !== 'rocketElevator' &&
           phase !== 'freefall' &&
           phase !== 'parachuting'
         ) {
@@ -407,6 +415,9 @@ export function useTiltControls() {
         phase === 'driving' ||
         phase === 'helicopter' ||
         phase === 'jet' ||
+        phase === 'rocket' ||
+        phase === 'rocketCapsule' ||
+        phase === 'rocketElevator' ||
         phase === 'freefall' ||
         phase === 'parachuting'
       ) {

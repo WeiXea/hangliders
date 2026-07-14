@@ -24,6 +24,7 @@ import {
 } from '../game/tutorial'
 import { xcProgressLabel, xcNavTarget, xcElapsedMs, formatXCTime, xcRelBearing } from '../game/xcTask'
 import { nearestEnterableDoor, sampleCitySupport, nearestElevatorBuilding } from '../game/cityBuildings'
+import { nearRocketHatch, nearRocketTowerBase, ROCKET_PAD } from '../game/rocketPad'
 import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
 import { FriendFinder } from './FriendFinder'
@@ -145,9 +146,18 @@ export function FlightHUD() {
   const flying = flight.phase === 'flying'
   const heli = flight.phase === 'helicopter'
   const jet = flight.phase === 'jet'
+  const rocketElevator = flight.phase === 'rocketElevator'
+  const rocket =
+    flight.phase === 'rocket' ||
+    flight.phase === 'rocketCapsule' ||
+    rocketElevator
+  const rocketMission = flight.rocketMission
   const driving = flight.phase === 'driving'
   const canUnmount = onGround && flight.airspeed < 3.2
   const jetCanExit = jet && flight.altitude < 0.4 && flight.airspeed < 3.5
+  const rocketCanExit =
+    (flight.phase === 'rocket' || flight.phase === 'rocketCapsule') &&
+    rocketMission?.step === 'landed'
   const jetCanEject = jet && flight.altitude >= 12
   const travelBanner = useGameStore((s) => s.travelBanner)
   const clearTravelBanner = useGameStore((s) => s.clearTravelBanner)
@@ -223,6 +233,17 @@ export function FlightHUD() {
     walking &&
     biome === 'city' &&
     nearestTrafficVehicle(flight.position.x, flight.position.z, VEHICLE_BOARD_RANGE)
+  const padGroundY = config.getHeight(ROCKET_PAD.x, ROCKET_PAD.z)
+  const nearRocketTower =
+    walking &&
+    biome === 'city' &&
+    flight.interiorId < 0 &&
+    nearRocketTowerBase(flight.position.x, flight.position.z)
+  const nearRocketBoard =
+    walking &&
+    biome === 'city' &&
+    flight.interiorId < 0 &&
+    nearRocketHatch(flight.position.x, flight.position.y, flight.position.z, padGroundY)
   const nearElev =
     walking &&
     biome === 'city' &&
@@ -274,7 +295,7 @@ export function FlightHUD() {
   }
 
   const showSteerPads =
-    !tiltEnabled || walking || driving || freefall || parachuting || heli || jet
+    !tiltEnabled || walking || driving || freefall || parachuting || heli || jet || rocket
 
   return (
     <div className={styles.hud}>
@@ -288,8 +309,12 @@ export function FlightHUD() {
         <div className={styles.instruments}>
           <div className={styles.instrument}>
             <span className={styles.instrumentLabel}>Alt</span>
-            <span className={styles.instrumentValue}>{Math.round(flight.altitude)}</span>
-            <span className={styles.instrumentUnit}>m</span>
+            <span className={styles.instrumentValue}>
+              {rocket && flight.altitude >= 1000
+                ? (flight.altitude / 1000).toFixed(1)
+                : Math.round(flight.altitude)}
+            </span>
+            <span className={styles.instrumentUnit}>{rocket && flight.altitude >= 1000 ? 'km' : 'm'}</span>
           </div>
           <div className={styles.divider} />
           <div className={styles.instrument}>
@@ -589,6 +614,72 @@ export function FlightHUD() {
         </div>
       )}
 
+      {rocketElevator && (
+        <div className={styles.coach}>Starbase · riding elevator to the catwalk…</div>
+      )}
+
+      {walking && nearRocketTower && !nearMount && !nearVehicle && (
+        <div className={styles.nearGround}>Launch tower — press E to ride the elevator up</div>
+      )}
+
+      {walking && nearRocketBoard && !nearMount && (
+        <div className={styles.nearGround}>Capsule hatch — press E to board the rocket</div>
+      )}
+
+      {rocket && rocketMission && !rocketElevator && (() => {
+        const step = rocketMission.step
+        const pastBoard = step !== 'ready' && step !== 'countdown'
+        const pastCountdown = !['ready', 'countdown'].includes(step)
+        const pastLiftoff = ['liftoff', 'ascent', 'meco', 'secondBurn', 'coast', 'entry', 'landingBurn', 'landed'].includes(step)
+        const pastCoast = ['coast', 'entry', 'landingBurn', 'landed'].includes(step)
+        return (
+        <div className={styles.landCard} aria-live="polite">
+          <div className={styles.landHead}>
+            <span className={styles.landTitle}>
+              {biome === 'moon' ? 'Lunar mission' : 'Starbase launch'}
+            </span>
+          </div>
+          <ol className={styles.landSteps}>
+            <li className={pastBoard ? styles.landDone : undefined}>
+              1. Tower elevator → catwalk → hatch
+            </li>
+            <li className={step === 'countdown' || step === 'ready' ? styles.landActive : pastCountdown ? styles.landDone : undefined}>
+              2. Auto countdown
+              {step === 'countdown' && (
+                <span className={styles.landNow}>
+                  {' '}
+                  · T-{Math.max(0, Math.ceil(10 - rocketMission.t))}
+                </span>
+              )}
+            </li>
+            <li className={pastLiftoff ? styles.landDone : undefined}>
+              3. Liftoff & staging
+              {rocketMission.stage1Separated ? ' · stage 1 sep' : ''}
+            </li>
+            <li className={pastCoast ? styles.landDone : undefined}>
+              4. Coast to Moon
+            </li>
+            <li className={step === 'landed' ? styles.landActive : step === 'landingBurn' ? styles.landDone : undefined}>
+              5. Capsule landing · press E to walk on the Moon
+            </li>
+          </ol>
+          <p className={styles.landHint}>
+            {step === 'meco'
+              ? 'MECO — main engine cutoff · staging…'
+              : step === 'coast'
+                ? 'Coasting — hold on for lunar transfer'
+                : step === 'landingBurn'
+                  ? 'Landing burn — retro firing'
+                  : `Stage: ${step} · alt ${flight.altitude >= 1000 ? `${(flight.altitude / 1000).toFixed(1)} km` : `${Math.round(flight.altitude)} m`}`}
+          </p>
+        </div>
+        )
+      })()}
+
+      {rocketCanExit && (
+        <div className={styles.nearGround}>Landed on the Moon — press E to exit the capsule</div>
+      )}
+
       {jet && jetLandHelp && (
         <div className={styles.landCard} aria-live="polite">
           <div className={styles.landHead}>
@@ -876,9 +967,9 @@ export function FlightHUD() {
           {jetCanEject && (
             <ControlPad label="Eject" sub="Space" action="jump" className={styles.padAction} active={input.jump} />
           )}
-          {(driving || canUnmount || jetCanExit) && (
+          {(driving || canUnmount || jetCanExit || rocketCanExit) && (
             <ControlPad
-              label={driving ? 'Exit' : jet ? 'Exit' : 'Unmount'}
+              label={driving ? 'Exit' : jet || rocketCanExit ? 'Exit' : 'Unmount'}
               sub="E"
               action="interact"
               className={styles.padLand}

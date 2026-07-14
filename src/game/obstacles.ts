@@ -32,6 +32,9 @@ export const HELI_REST_CLEARANCE = 0.9
 /** F-35 gear / belly rest height above runway. */
 export const JET_REST_CLEARANCE = 1.15
 
+/** Falcon-class stack rest height on pad. */
+export const ROCKET_REST_CLEARANCE = 2.4
+
 /** Rock pillars — now collidable */
 export const MOUNTAIN_SCENERY: Obstacle[] = [
   { x: -140, z: 60, radius: 6, height: 38 },

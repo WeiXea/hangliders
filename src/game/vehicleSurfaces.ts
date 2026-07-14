@@ -195,6 +195,29 @@ export function getCarPaintTexture(hex: string, stripe?: 'taxi' | 'police' | nul
   return tex
 }
 
+let spacexLogoTex: THREE.CanvasTexture | null = null
+export function getSpaceXLogoTexture(): THREE.CanvasTexture {
+  if (spacexLogoTex) return spacexLogoTex
+  const c = document.createElement('canvas')
+  c.width = 512
+  c.height = 128
+  const g = c.getContext('2d')!
+  g.fillStyle = 'rgba(0,0,0,0)'
+  g.fillRect(0, 0, 512, 128)
+  g.fillStyle = '#ffffff'
+  g.font = 'bold 72px system-ui, sans-serif'
+  g.textAlign = 'center'
+  g.textBaseline = 'middle'
+  g.fillText('SpaceX', 256, 64)
+  g.strokeStyle = '#adb5bd'
+  g.lineWidth = 2
+  g.strokeText('SpaceX', 256, 64)
+  spacexLogoTex = new THREE.CanvasTexture(c)
+  spacexLogoTex.colorSpace = THREE.SRGBColorSpace
+  spacexLogoTex.anisotropy = 8
+  return spacexLogoTex
+}
+
 let tireTex: THREE.CanvasTexture | null = null
 export function getTireTexture(): THREE.CanvasTexture {
   if (tireTex) return tireTex

@@ -209,6 +209,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const config = BIOME_CONFIGS[biome]
     const ground = config.getHeight(spawn.x, spawn.z)
     const { flight } = get()
+    const keepRocket =
+      flight.phase === 'rocket' ||
+      flight.phase === 'rocketCapsule' ||
+      flight.phase === 'rocketElevator'
     set({
       biome,
       rings: initRings(biome),
@@ -226,8 +230,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
         yaw: spawn.yaw,
         altitude: spawn.alt,
-        pitch: Math.min(0.12, flight.pitch),
-        roll: flight.roll * 0.4,
+        pitch: keepRocket ? flight.pitch : Math.min(0.12, flight.pitch),
+        roll: keepRocket ? flight.roll : flight.roll * 0.4,
+        phase: keepRocket ? flight.phase : flight.phase,
+        rocketMission: flight.rocketMission,
       },
     })
   },

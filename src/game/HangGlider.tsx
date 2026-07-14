@@ -5,6 +5,7 @@ import { useGameStore } from './gameStore'
 import { GliderModel } from './GliderModel'
 import { HelicopterModel } from './HelicopterModel'
 import { JetModel } from './JetModel'
+import { RocketModel } from './RocketModel'
 import { AnimatedPilot, ParachuteCanopy, PILOT_EYE, PILOT_HIP } from './Pilot'
 import { getLookOffsets, setKeyLookTarget, tickLook } from './lookCamera'
 import { GliderContactShadow } from '../scenes/SharedSky'
@@ -76,13 +77,14 @@ export function HangGlider() {
     const airbornePilot = ph === 'freefall' || ph === 'parachuting'
     const heli = ph === 'helicopter'
     const jet = ph === 'jet'
+    const rocket = ph === 'rocket' || ph === 'rocketCapsule'
     const driving = ph === 'driving'
     const swingRoll = ph === 'parachuting' ? -swing * 0.35 : 0
     const visualPitch = -sp
     bodyRef.current.rotation.set(
       crashed
         ? visualPitch - 0.35
-        : heli || jet || driving
+        : heli || jet || rocket || driving
           ? visualPitch
           : onGround
             ? 0
@@ -90,7 +92,7 @@ export function HangGlider() {
               ? Math.max(-0.4, visualPitch)
               : visualPitch,
       crashed ? 0.25 : 0,
-      crashed ? -sr : heli || jet || driving ? -sr : onGround ? 0 : -sr + swingRoll,
+      crashed ? -sr : heli || jet || rocket || driving ? -sr : onGround ? 0 : -sr + swingRoll,
     )
 
     if (barRef.current) {
@@ -116,9 +118,9 @@ export function HangGlider() {
 
     worldQuat.current.setFromEuler(
       new THREE.Euler(
-        onGround && !heli && !jet && !driving ? 0 : visualPitch * 0.28,
+        onGround && !heli && !jet && !rocket && !driving ? 0 : visualPitch * 0.28,
         sy,
-        onGround && !heli && !jet && !driving ? 0 : -sr * 0.35 + swingRoll,
+        onGround && !heli && !jet && !rocket && !driving ? 0 : -sr * 0.35 + swingRoll,
         'YXZ',
       ),
     )
@@ -174,6 +176,21 @@ export function HangGlider() {
         eye.set(0, 8, -28)
         lookAt.set(0, -1, 18)
         targetFov = 58
+      }
+    } else if (ph === 'rocket' || ph === 'rocketCapsule') {
+      const alt = flight.altitude
+      if (cameraMode === 'fpv') {
+        eye.set(0, 2.2, 3.2)
+        lookAt.set(0, 0.5, 30)
+        targetFov = 75
+      } else if (alt > 5000) {
+        eye.set(0, 18, -55)
+        lookAt.set(0, -8, 40)
+        targetFov = 52
+      } else {
+        eye.set(0, 35, -65)
+        lookAt.set(0, 12, 25)
+        targetFov = 50
       }
     } else if (ph === 'driving') {
       if (cameraMode === 'fpv') {
@@ -254,8 +271,22 @@ export function HangGlider() {
     tandemRole === 'passenger'
   const showHeli = phase === 'helicopter'
   const showJet = phase === 'jet'
+  const showRocket = phase === 'rocket' || phase === 'rocketCapsule'
   const showDrive = phase === 'driving'
-  const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
+  const rocketMission = useGameStore((s) => s.flight.rocketMission)
+  const rocketThrust =
+    rocketMission &&
+    (rocketMission.step === 'liftoff' ||
+      rocketMission.step === 'ascent' ||
+      rocketMission.step === 'secondBurn' ||
+      rocketMission.step === 'landingBurn')
+      ? 1
+      : 0
+  const offGlider =
+    phase === 'walking' ||
+    phase === 'freefall' ||
+    phase === 'parachuting' ||
+    phase === 'rocketElevator'
   const showChute = phase === 'parachuting' || (phase === 'freefall' && chuteDeployed)
   const showTandemPassenger = peerConnected && tandemRole === 'pilot' && showWing
   const vehicleKind = useGameStore((s) => s.flight.vehicleKind)
@@ -282,6 +313,14 @@ export function HangGlider() {
         {showJet && (
           <group>
             <JetModel afterburner={Math.max(0.15, jetBurn)} gearDown={jetGearDown} />
+          </group>
+        )}
+        {showRocket && (
+          <group>
+            <RocketModel
+              thrust={rocketThrust}
+              stage1Separated={rocketMission?.stage1Separated ?? false}
+            />
           </group>
         )}
         {showHeli && (

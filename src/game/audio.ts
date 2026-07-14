@@ -465,3 +465,102 @@ export function stopVario() {
   }
 }
 
+/* --- Rocket mission audio --- */
+let rocketThrustGain: GainNode | null = null
+let rocketThrustOsc: OscillatorNode | null = null
+let lastRocketCountdown = -1
+let lastRocketStep = ''
+
+function ensureRocketThrust() {
+  const ac = getCtx()
+  if (rocketThrustOsc && rocketThrustGain) return
+  rocketThrustOsc = ac.createOscillator()
+  rocketThrustGain = ac.createGain()
+  const filter = ac.createBiquadFilter()
+  filter.type = 'lowpass'
+  filter.frequency.value = 280
+  rocketThrustOsc.type = 'sawtooth'
+  rocketThrustOsc.frequency.value = 42
+  rocketThrustGain.gain.value = 0.0001
+  rocketThrustOsc.connect(filter)
+  filter.connect(rocketThrustGain)
+  rocketThrustGain.connect(ac.destination)
+  rocketThrustOsc.start()
+}
+
+function playCountdownBeep() {
+  const ac = getCtx()
+  if (ac.state === 'suspended') void ac.resume()
+  const osc = ac.createOscillator()
+  const gain = ac.createGain()
+  osc.type = 'square'
+  osc.frequency.value = 880
+  gain.gain.setValueAtTime(0.08, ac.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.12)
+  osc.connect(gain)
+  gain.connect(ac.destination)
+  osc.start()
+  osc.stop(ac.currentTime + 0.14)
+}
+
+export function stopRocketAudio() {
+  if (rocketThrustGain && ctx) {
+    try {
+      rocketThrustGain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.05)
+    } catch {
+      /* */
+    }
+  }
+  lastRocketCountdown = -1
+}
+
+/** Countdown beeps, thrust bed, staging clunk, landing thud. */
+export function tickRocketAudio(
+  phase: string,
+  mission: { step: string; t: number } | null,
+) {
+  if (phase !== 'rocket' && phase !== 'rocketCapsule') {
+    stopRocketAudio()
+    lastRocketStep = ''
+    return
+  }
+  if (!mission) return
+
+  if (mission.step === 'countdown') {
+    const sec = Math.max(0, Math.ceil(10 - mission.t))
+    if (sec <= 10 && sec !== lastRocketCountdown) {
+      lastRocketCountdown = sec
+      if (sec === 0) playWhoosh(0.22, 320, 0.55)
+      else playCountdownBeep()
+    }
+  } else {
+    lastRocketCountdown = -1
+  }
+
+  if (mission.step !== lastRocketStep) {
+    if (mission.step === 'secondBurn') playWhoosh(0.14, 120, 0.35)
+    if (mission.step === 'landed') playLandingSound(true)
+    lastRocketStep = mission.step
+  }
+
+  const thrusting =
+    mission.step === 'liftoff' ||
+    mission.step === 'ascent' ||
+    mission.step === 'secondBurn' ||
+    mission.step === 'landingBurn'
+  if (thrusting) {
+    ensureRocketThrust()
+    const ac = getCtx()
+    if (ac.state === 'suspended') void ac.resume()
+    if (rocketThrustGain && rocketThrustOsc) {
+      const power =
+        mission.step === 'landingBurn' ? 0.45 : mission.step === 'secondBurn' ? 0.75 : 1
+      const now = ac.currentTime
+      rocketThrustOsc.frequency.setTargetAtTime(38 + power * 28, now, 0.08)
+      rocketThrustGain.gain.setTargetAtTime(0.04 + power * 0.07, now, 0.06)
+    }
+  } else {
+    stopRocketAudio()
+  }
+}
+
