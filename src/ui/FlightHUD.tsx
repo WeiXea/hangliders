@@ -23,7 +23,13 @@ import {
   type TutorialStep,
 } from '../game/tutorial'
 import { xcProgressLabel, xcNavTarget, xcElapsedMs, formatXCTime, xcRelBearing } from '../game/xcTask'
-import { nearestEnterableDoor, sampleCitySupport, nearestElevatorBuilding } from '../game/cityBuildings'
+import { nearestEnterableDoor, sampleCitySupport, nearestElevatorBuilding, getBuildingById } from '../game/cityBuildings'
+import {
+  nearestGarageEntry,
+  nearestSecretAlleyDoor,
+  nearestSurfaceTunnelEntrance,
+  TUNNEL_SEGMENTS,
+} from '../game/cityUnderground'
 import { nearRocketHatch, nearRocketTowerBase, ROCKET_PAD } from '../game/rocketPad'
 import { rocketMissionEtaSec } from '../game/rocketPhysics'
 import { GameCanvas } from '../game/GameCanvas'
@@ -266,6 +272,27 @@ export function FlightHUD() {
     flight.interiorId < 0 &&
     sampleCitySupport(flight.position.x, flight.position.z, config.getHeight).onRoof
   const inside = walking && flight.interiorId >= 0
+  const insideBuilding = inside ? getBuildingById(flight.interiorId) : null
+  const inTunnel = walking && biome === 'city' && flight.tunnelSegment >= 0
+  const inGarage = walking && biome === 'city' && flight.garageId >= 0
+  const tunnelSeg = inTunnel ? TUNNEL_SEGMENTS.find((s) => s.id === flight.tunnelSegment) : null
+  const nearTunnelGrate =
+    walking &&
+    biome === 'city' &&
+    flight.tunnelSegment < 0 &&
+    flight.interiorId < 0 &&
+    nearestSurfaceTunnelEntrance(flight.position.x, flight.position.z, config.getHeight)
+  const nearSecret =
+    walking &&
+    biome === 'city' &&
+    flight.tunnelSegment < 0 &&
+    nearestSecretAlleyDoor(flight.position.x, flight.position.z, config.getHeight)
+  const nearGarage =
+    walking &&
+    biome === 'city' &&
+    flight.garageId < 0 &&
+    flight.interiorId < 0 &&
+    nearestGarageEntry(flight.position.x, flight.position.z, config.getHeight)
 
   const thermalCue = (() => {
     if (!flying || !nearTh || flight.stallWarning) return null
@@ -765,11 +792,38 @@ export function FlightHUD() {
       )}
 
       {nearDoor && !nearMount && !nearVehicle && !nearElev && (
-        <div className={styles.nearGround}>Green door mat — press E / Mount to enter</div>
+        <div className={styles.nearGround}>
+          {nearDoor.shop ? `Enter ${nearDoor.shop} — press E` : 'Green door mat — press E to enter'}
+        </div>
+      )}
+
+      {nearTunnelGrate && !nearMount && !nearVehicle && (
+        <div className={styles.nearGround}>Street grate — press E to enter the underground tunnel</div>
+      )}
+
+      {nearSecret && !nearMount && !nearVehicle && (
+        <div className={styles.nearGround}>Hidden alley door — press E for secret passage</div>
+      )}
+
+      {nearGarage && !nearMount && !nearVehicle && (
+        <div className={styles.nearGround}>{nearGarage.label} — press E to walk inside</div>
+      )}
+
+      {inTunnel && (
+        <div className={styles.coach}>
+          {tunnelSeg?.label ?? 'Underground tunnel'} — walk the corridors · E at grates to surface
+          {tunnelSeg?.buildingLink != null ? ' · E at linked rooms for basement access' : ''}
+        </div>
+      )}
+
+      {inGarage && (
+        <div className={styles.coach}>Inside garage — press E at the bay door to exit to the street</div>
       )}
 
       {inside && (
-        <div className={styles.coach}>Inside — press E near the doorway to leave</div>
+        <div className={styles.coach}>
+          {insideBuilding?.shop ? `Inside ${insideBuilding.shop}` : 'Inside'} — press E at the door to leave
+        </div>
       )}
 
       {onRoof && !nearDoor && !nearMount && !nearElev && flight.landAction === 'none' && (

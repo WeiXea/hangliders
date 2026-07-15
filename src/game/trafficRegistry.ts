@@ -309,22 +309,31 @@ export function resolveDriveCollisions(
       const relN = (pvx - ovx) * nx + (pvz - ovz) * nz
 
       // Only smash speed on a real hit — soft overlaps just push apart
-      if (relN < -1.15) {
+      if (relN < -0.85) {
         const closing = -relN
         impact = Math.max(impact, closing)
-        const keep = Math.max(0, 1 - closing * 0.08)
+        const massRatio = vehicleRadius(v.kind) / selfR
+        const crush = Math.min(1, closing / 14)
+        const keep = Math.max(0, 1 - crush * (0.12 + massRatio * 0.06))
         speed *= keep
-        if (closing > 6) speed *= 0.45
+        if (closing > 4) speed -= Math.sign(speed) * closing * 0.08
+        if (closing > 8) speed *= 0.35
+        if (closing > 12) speed *= 0.2
         const side = -Math.sin(yaw) * nz + Math.cos(yaw) * nx
-        yaw += Math.max(-0.35, Math.min(0.35, side * closing * 0.03))
+        yaw += Math.max(-0.55, Math.min(0.55, side * closing * 0.045))
+        // Momentum transfer — heavier / faster vehicle shoves you
+        if (Math.abs(speedIn) > 0.5) {
+          x -= nx * overlap * 0.35
+          z -= nz * overlap * 0.35
+        }
 
         if (!v.taken) {
-          const shove = closing * 0.3 + overlap * 0.4
+          const shove = closing * 0.42 + overlap * 0.55
           queueNpcVehicleHit(v.id, {
             dx: -nx * shove,
             dz: -nz * shove,
             impulse: closing,
-            stun: Math.min(2.2, 0.35 + closing * 0.12),
+            stun: Math.min(2.8, 0.4 + closing * 0.14),
           })
         }
       }
@@ -360,4 +369,40 @@ export function pedInVehiclePath(
   if (ahead < 0.6 || ahead > lookahead) return null
   if (lateral > halfWidth) return null
   return { ahead, lateral }
+}
+
+/** Walking player hit by traffic — knockback from nearest moving vehicle. */
+export function checkVehicleStrikeOnPed(px: number, pz: number): {
+  vx: number
+  vz: number
+  lift: number
+  hard: boolean
+} | null {
+  let best: { vx: number; vz: number; lift: number; hard: boolean; d: number } | null = null
+  for (const v of vehicles) {
+    if (v.taken) continue
+    const minDist = vehicleRadius(v.kind) + 0.6
+    const dx = px - v.x
+    const dz = pz - v.z
+    const dist = Math.hypot(dx, dz)
+    if (dist >= minDist) continue
+    const speed = Math.abs(v.speed)
+    if (speed < 1.8 && dist > minDist * 0.55) continue
+    const nx = dist > 1e-4 ? dx / dist : 1
+    const nz = dist > 1e-4 ? dz / dist : 0
+    const fx = Math.sin(v.yaw)
+    const fz = Math.cos(v.yaw)
+    const pvx = fx * v.speed
+    const pvz = fz * v.speed
+    const impulse = Math.max(2.5, speed * 2.1)
+    const hit = {
+      vx: nx * impulse + pvx * 0.4,
+      vz: nz * impulse + pvz * 0.4,
+      lift: Math.min(5, speed * 0.18),
+      hard: speed > 5.5,
+      d: dist,
+    }
+    if (!best || hit.d < best.d) best = hit
+  }
+  return best ? { vx: best.vx, vz: best.vz, lift: best.lift, hard: best.hard } : null
 }

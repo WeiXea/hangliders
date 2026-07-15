@@ -1,5 +1,7 @@
 /** Shared city building defs — visuals and collision must stay in sync. */
 
+import { onSidewalk } from './cityUnderground'
+
 /** Raised street deck above downtown terrain (roads, walkers, traffic). */
 export const CITY_STREET_DECK = 0.12
 
@@ -59,6 +61,25 @@ export const CITY_BUILDINGS: CityBuilding[] = [
   { id: 29, x: 40, width: 11, z: 180, height: 29, color: '#3d4f5f', windows: win([false, true, false, true]), roofLandable: true, enterable: false },
   { id: 30, x: 220, width: 10, z: 60, height: 20, color: '#5a6a7a', windows: win([true, false, true, true]), roofLandable: true, enterable: true, shop: 'FIRE CO.', shopColor: '#d62828' },
   { id: 31, x: 95, width: 8, z: 20, height: 17, color: '#a0aec0', windows: win([true, true, false, false]), roofLandable: true, enterable: true, shop: 'TAILOR', shopColor: '#9b5de5' },
+  // Infill rows — tighter street frontage
+  { id: 32, x: 20, width: 8, z: 44, height: 16, color: '#5a6570', windows: win([true, false, true, false]), roofLandable: true, enterable: true, shop: 'NEWS STAND', shopColor: '#457b9d' },
+  { id: 33, x: 38, width: 7, z: 44, height: 19, color: '#4a5568', windows: win([false, true, true, true]), roofLandable: true, enterable: false },
+  { id: 34, x: 58, width: 9, z: 44, height: 21, color: '#718096', windows: win([true, true, false, true]), roofLandable: true, enterable: false },
+  { id: 35, x: 78, width: 8, z: 44, height: 15, color: '#6c757d', windows: win([true, false, true, true]), roofLandable: true, enterable: true, shop: 'DELI', shopColor: '#e76f51' },
+  { id: 36, x: 98, width: 10, z: 44, height: 24, color: '#3d4f5f', windows: win([false, true, false, true]), roofLandable: true, enterable: false },
+  { id: 37, x: 118, width: 8, z: 44, height: 18, color: '#868e96', windows: win([true, true, true, false]), roofLandable: true, enterable: true, shop: 'OPTIC', shopColor: '#4cc9f0' },
+  { id: 38, x: 138, width: 9, z: 44, height: 22, color: '#495057', windows: win([true, false, true, true]), roofLandable: true, enterable: false },
+  { id: 39, x: 158, width: 8, z: 44, height: 17, color: '#adb5bd', windows: win([false, true, true, false]), roofLandable: true, enterable: true, shop: 'LAUNDRY', shopColor: '#90e0ef' },
+  { id: 40, x: 22, width: 7, z: 66, height: 14, color: '#6c757d', windows: win([true, true, false, false]), roofLandable: true, enterable: true, shop: 'RECORDS', shopColor: '#7b2cbf' },
+  { id: 41, x: 42, width: 8, z: 66, height: 20, color: '#495057', windows: win([false, false, true, true]), roofLandable: true, enterable: false },
+  { id: 42, x: 62, width: 9, z: 66, height: 23, color: '#343a40', windows: win([true, true, true, true]), roofLandable: true, enterable: false },
+  { id: 43, x: 82, width: 8, z: 66, height: 16, color: '#868e96', windows: win([true, false, true, false]), roofLandable: true, enterable: true, shop: 'PET SHOP', shopColor: '#52b788' },
+  { id: 44, x: 102, width: 10, z: 66, height: 25, color: '#2d3748', windows: win([false, true, true, true]), roofLandable: true, enterable: false },
+  { id: 45, x: 122, width: 8, z: 66, height: 18, color: '#718096', windows: win([true, true, false, true]), roofLandable: true, enterable: true, shop: 'ARCADE', shopColor: '#ff006e' },
+  { id: 46, x: 142, width: 9, z: 66, height: 21, color: '#4a5568', windows: win([true, false, false, true]), roofLandable: true, enterable: false },
+  { id: 47, x: 162, width: 8, z: 66, height: 15, color: '#a0aec0', windows: win([false, true, true, false]), roofLandable: true, enterable: true, shop: 'THRIFT', shopColor: '#f4a261' },
+  { id: 48, x: 182, width: 9, z: 66, height: 19, color: '#5a6570', windows: win([true, true, true, false]), roofLandable: true, enterable: false },
+  { id: 49, x: 202, width: 8, z: 66, height: 16, color: '#6c757d', windows: win([true, false, true, true]), roofLandable: true, enterable: true, shop: 'VINYL', shopColor: '#e63946' },
 ]
 
 /** Rooftop launch pads — random pick on each city start. */
@@ -108,7 +129,7 @@ export function sampleCitySupport(
   getHeight: (x: number, z: number) => number,
 ): { y: number; buildingId: number; onRoof: boolean } {
   const terrain = getHeight(x, z)
-  let best = terrain + CITY_STREET_DECK
+  let best = terrain + CITY_STREET_DECK + (onSidewalk(x, z) ? 0.04 : 0)
   let buildingId = -1
   for (const b of CITY_BUILDINGS) {
     if (!b.roofLandable) continue

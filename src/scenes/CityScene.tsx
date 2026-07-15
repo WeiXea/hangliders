@@ -18,6 +18,16 @@ import { prepMap } from '../game/pbrMaps'
 import { CityLife } from './CityLife'
 import { CityAirport } from './CityAirport'
 import { CityLaunchPad, RocketTower } from './CityLaunchPad'
+import {
+  CITY_GARAGES,
+  TUNNEL_SEGMENTS,
+  undergroundFloorY,
+} from '../game/cityUnderground'
+import {
+  GarageInteriorView,
+  ThemedBuildingInterior,
+  TunnelInteriorView,
+} from './cityInteriors'
 
 interface CitySceneProps {
   config: BiomeConfig
@@ -271,33 +281,102 @@ function BuildingInterior({ config }: { config: BiomeConfig }) {
   const interiorId = useGameStore((s) => s.flight.interiorId)
   const b = CITY_BUILDINGS.find((x) => x.id === interiorId)
   if (!b || !b.enterable) return null
-  const gy = config.getHeight(b.x, b.z)
-  const depth = buildingDepth(b)
-  const roomH = 3.2
-  const inset = 0.2
+  return <ThemedBuildingInterior building={b} groundY={config.getHeight(b.x, b.z)} />
+}
 
+function CitySubSurface({ config }: { config: BiomeConfig }) {
+  const tunnelSegment = useGameStore((s) => s.flight.tunnelSegment)
+  const garageId = useGameStore((s) => s.flight.garageId)
+  if (tunnelSegment >= 0) {
+    const seg = TUNNEL_SEGMENTS.find((s) => s.id === tunnelSegment)
+    if (!seg) return null
+    const floorY = undergroundFloorY(config.getHeight, seg.x, seg.z)
+    return (
+      <>
+        <color attach="background" args={['#0a0c10']} />
+        <fog attach="fog" args={['#0a0c10', 6, 42]} />
+        <ambientLight intensity={0.08} />
+        <TunnelInteriorView
+          segmentLabel={seg.label}
+          x={seg.x}
+          z={seg.z}
+          floorY={floorY}
+          secret={seg.secret}
+        />
+      </>
+    )
+  }
+  if (garageId >= 0) {
+    const g = CITY_GARAGES.find((gar) => gar.id === garageId)
+    if (!g) return null
+    return (
+      <>
+        <color attach="background" args={['#111418']} />
+        <fog attach="fog" args={['#111418', 8, 36]} />
+        <GarageInteriorView
+          label={g.label}
+          x={g.x}
+          z={g.z}
+          groundY={config.getHeight(g.x, g.z) + 0.12 - 0.35}
+        />
+      </>
+    )
+  }
+  return null
+}
+
+function CityGarages({ getHeight }: { getHeight: (x: number, z: number) => number }) {
   return (
-    <group position={[b.x, gy + 0.12, b.z]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0, 0]}>
-        <planeGeometry args={[b.width - inset * 2, depth - inset * 2]} />
-        <meshStandardMaterial color="#d6ccc2" roughness={0.92} />
-      </mesh>
-      <mesh position={[0, roomH, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[b.width - inset * 2, depth - inset * 2]} />
-        <meshStandardMaterial color="#e9ecef" roughness={0.95} />
-      </mesh>
-      {/* Simple furniture */}
-      <mesh castShadow position={[-b.width * 0.22, 0.45, -depth * 0.15]}>
-        <boxGeometry args={[1.8, 0.9, 0.7]} />
-        <meshStandardMaterial color="#6b4423" roughness={0.8} />
-      </mesh>
-      <mesh castShadow position={[b.width * 0.2, 0.55, depth * 0.1]}>
-        <boxGeometry args={[1.2, 1.1, 0.5]} />
-        <meshStandardMaterial color="#495057" roughness={0.7} />
-      </mesh>
-      <pointLight position={[0, roomH - 0.4, 0]} intensity={1.4} color="#ffe8c8" distance={12} />
-      <ambientLight intensity={0.35} />
-    </group>
+    <>
+      {CITY_GARAGES.map((g) => {
+        const gy = getHeight(g.x, g.z) + 0.12
+        return (
+          <group key={g.id} position={[g.x, gy, g.z]} rotation={[0, g.yaw, 0]}>
+            <mesh castShadow position={[0, g.depth * 0.25, 0]}>
+              <boxGeometry args={[g.width, g.depth * 0.5, g.depth]} />
+              <meshStandardMaterial color="#495057" roughness={0.82} metalness={0.15} />
+            </mesh>
+            <mesh castShadow position={[0, g.depth * 0.52, g.depth * 0.5 - 0.15]}>
+              <boxGeometry args={[g.width * 0.92, g.depth * 0.05, 0.2]} />
+              <meshStandardMaterial color="#212529" roughness={0.55} metalness={0.45} />
+            </mesh>
+            <Text position={[0, g.depth * 0.55, g.depth * 0.55]} fontSize={0.42} color="#ffd60a" anchorX="center">
+              {g.label}
+            </Text>
+            {/* Interior bay glow */}
+            <pointLight position={[0, 2.2, 0]} intensity={0.6} color="#fff3bf" distance={8} />
+          </group>
+        )
+      })}
+    </>
+  )
+}
+
+function CityTunnelMarkers({ getHeight }: { getHeight: (x: number, z: number) => number }) {
+  return (
+    <>
+      {TUNNEL_SEGMENTS.filter((s) => s.surfaceExit).map((seg) => {
+        const gy = getHeight(seg.x, seg.z) + 0.12
+        return (
+          <group key={`grate-${seg.id}`} position={[seg.x, gy, seg.z]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+              <ringGeometry args={[1.1, 1.45, 16]} />
+              <meshStandardMaterial color="#495057" metalness={0.65} roughness={0.35} />
+            </mesh>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}>
+              <ringGeometry args={[0.2, 1.05, 8]} />
+              <meshStandardMaterial color="#212529" metalness={0.7} roughness={0.4} wireframe />
+            </mesh>
+          </group>
+        )
+      })}
+      {TUNNEL_SEGMENTS.filter((s) => s.secret).map((seg) => (
+        <mesh key={`secret-${seg.id}`} position={[seg.x, undergroundFloorY(getHeight, seg.x, seg.z) + 0.05, seg.z]}>
+          <boxGeometry args={[0.4, 0.08, 0.4]} />
+          <meshStandardMaterial color="#ffd60a" emissive="#ffd60a" emissiveIntensity={0.35} />
+        </mesh>
+      ))}
+    </>
   )
 }
 
@@ -310,6 +389,7 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
     const zMax = 205
     const step = 22
     const roadW = 11
+    const swW = 2.6
     const curbH = 0.16
     const asphaltH = 0.12
     const xs: number[] = []
@@ -349,6 +429,16 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
             <meshStandardMaterial color="#6c757d" roughness={0.88} />
           </mesh>,
         )
+        result.push(
+          <mesh
+            key={`sw-h-${z}-${side}`}
+            position={[midX, base + asphaltH + 0.02, z + side * (roadW * 0.5 + swW * 0.5 + 0.55)]}
+            receiveShadow
+          >
+            <boxGeometry args={[roadLenX, 0.08, swW]} />
+            <meshStandardMaterial color="#b0b5ba" roughness={0.78} />
+          </mesh>,
+        )
       }
     }
 
@@ -376,6 +466,16 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
           >
             <boxGeometry args={[0.35, curbH, roadLenZ]} />
             <meshStandardMaterial color="#6c757d" roughness={0.88} />
+          </mesh>,
+        )
+        result.push(
+          <mesh
+            key={`sw-v-${x}-${side}`}
+            position={[x + side * (roadW * 0.5 + swW * 0.5 + 0.55), base + asphaltH + 0.02, midZ]}
+            receiveShadow
+          >
+            <boxGeometry args={[swW, 0.08, roadLenZ]} />
+            <meshStandardMaterial color="#b0b5ba" roughness={0.78} />
           </mesh>,
         )
       }
@@ -480,6 +580,10 @@ export function CityScene({ config }: CitySceneProps) {
   const rocketElevY = useGameStore((s) =>
     s.flight.phase === 'rocketElevator' ? s.flight.rocketMission?.elevatorY : undefined,
   )
+  const interiorId = useGameStore((s) => s.flight.interiorId)
+  const tunnelSegment = useGameStore((s) => s.flight.tunnelSegment)
+  const garageId = useGameStore((s) => s.flight.garageId)
+  const underground = tunnelSegment >= 0 || garageId >= 0
   const concrete = useTexture({
     map: '/textures/concrete_diff_1k.jpg',
     nor: '/textures/concrete_nor_1k.jpg',
@@ -491,26 +595,38 @@ export function CityScene({ config }: CitySceneProps) {
 
   return (
     <>
-      <SharedSky config={config} />
-      <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="city" size={1280} segments={128} />
-      <HorizonRing color="#6c757d" y={0} />
-      <CityStreets getHeight={config.getHeight} />
-      {CITY_BUILDINGS.map((b) => (
-        <Building
-          key={b.id}
-          building={b}
-          groundY={config.getHeight(b.x, b.z)}
-          concreteMap={concrete.map}
-          concreteNor={concrete.nor}
-        />
-      ))}
-      <BuildingInterior config={config} />
-      <SkylineSilhouette />
-      <CityLife />
-      <CityAirport />
-      <CityLaunchPad />
-      <RocketTower elevatorY={rocketElevY} />
+      {!underground && <SharedSky config={config} />}
+      {!underground && <SharedLighting config={config} />}
+      {underground ? (
+        <CitySubSurface config={config} />
+      ) : (
+        <>
+          <DetailedTerrain config={config} biome="city" size={1280} segments={128} />
+          <HorizonRing color="#6c757d" y={0} />
+          <CityStreets getHeight={config.getHeight} />
+          <CityGarages getHeight={config.getHeight} />
+          <CityTunnelMarkers getHeight={config.getHeight} />
+          {CITY_BUILDINGS.map((b) =>
+            interiorId === b.id ? null : (
+              <Building
+                key={b.id}
+                building={b}
+                groundY={config.getHeight(b.x, b.z)}
+                concreteMap={concrete.map}
+                concreteNor={concrete.nor}
+              />
+            ),
+          )}
+          <BuildingInterior config={config} />
+          <SkylineSilhouette />
+          <CityLife />
+          <CityAirport />
+          <CityLaunchPad />
+          <RocketTower elevatorY={rocketElevY} />
+        </>
+      )}
+      {!underground && (
+        <>
       <ParkBench position={[22, config.getHeight(22, 48), 48]} yaw={0.3} />
       <ParkBench position={[48, config.getHeight(48, 88), 88]} yaw={-0.5} />
       <ParkBench position={[90, config.getHeight(90, 130), 130]} yaw={0.8} />
@@ -530,6 +646,9 @@ export function CityScene({ config }: CitySceneProps) {
       <Billboard position={[125, config.getHeight(125, 140), 140]} />
       <Billboard position={[180, config.getHeight(180, 110), 110]} />
       <Billboard position={[60, config.getHeight(60, 160), 160]} />
+        </>
+      )}
+      {!underground && (
       <OceanSurface
         y={-0.55}
         scale={[980, 160]}
@@ -538,6 +657,7 @@ export function CityScene({ config }: CitySceneProps) {
         position={[40, 0, -60]}
         followAxis="none"
       />
+      )}
     </>
   )
 }

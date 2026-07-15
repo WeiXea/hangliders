@@ -102,6 +102,10 @@ export interface FlightState {
   tandemWant: boolean
   /** City: inside enterable building id, or -1 */
   interiorId: number
+  /** City: underground tunnel (-1 = surface) */
+  tunnelSegment: number
+  /** City: inside garage id (-1 = none) */
+  garageId: number
   /** Active craft while mounted (glider default) */
   craftType: CraftType
   /** City traffic vehicle currently driven (-1 = none) */
@@ -211,6 +215,8 @@ export const INITIAL_FLIGHT: FlightState = {
   tandemRole: 'none',
   tandemWant: false,
   interiorId: -1,
+  tunnelSegment: -1,
+  garageId: -1,
   craftType: 'glider',
   vehicleId: -1,
   vehicleKind: null,

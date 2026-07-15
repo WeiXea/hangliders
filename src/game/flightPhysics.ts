@@ -21,8 +21,17 @@ import {
   hitWorldProps,
   resolvePropPush,
 } from './obstacles'
-import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos, nearestElevatorBuilding, elevatorStreetPos, elevatorRoofPos } from './cityBuildings'
+import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos, nearestElevatorBuilding, elevatorStreetPos, elevatorRoofPos, CITY_STREET_DECK } from './cityBuildings'
 import { sampleRocketLaunchSupport } from './rocketPad'
+import {
+  clampInTunnel,
+  nearestGarageEntry,
+  nearestSecretAlleyDoor,
+  nearestSurfaceTunnelEntrance,
+  undergroundFloorY,
+  TUNNEL_SEGMENTS,
+  CITY_GARAGES,
+} from './cityUnderground'
 import {
   nearestTrafficVehicle,
   setTakenVehicleId,
@@ -33,6 +42,7 @@ import {
   resolveDriveCollisions,
   leaveVehicleInWorld,
   getTrafficSnapshots,
+  checkVehicleStrikeOnPed,
 } from './trafficRegistry'
 import { nearRocketHatch, nearRocketTowerBase, ROCKET_PAD } from './rocketPad'
 import { tickRocketPhases } from './rocketPhysics'
@@ -121,6 +131,8 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     tandemRole: 'none',
     tandemWant: false,
     interiorId: -1,
+    tunnelSegment: -1,
+    garageId: -1,
     craftType: 'glider',
     vehicleId: -1,
     vehicleKind: null,
@@ -250,6 +262,8 @@ function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
     tandemWant: false,
     stallWarning: false,
     interiorId: -1,
+    tunnelSegment: -1,
+    garageId: -1,
     craftType: 'glider',
     vehicleId: -1,
     vehicleKind: null,
@@ -280,6 +294,8 @@ export function beginWalking(next: FlightState, config: BiomeConfig): FlightStat
     tandemWant: false,
     stallWarning: false,
     interiorId: -1,
+    tunnelSegment: -1,
+    garageId: -1,
     craftType: 'glider',
     vehicleId: -1,
     vehicleKind: null,
@@ -466,14 +482,93 @@ export function tickFlight(
         next.position.z,
         VEHICLE_BOARD_RANGE,
       )
+      const tunnelEnt = nearestSurfaceTunnelEntrance(
+        next.position.x,
+        next.position.z,
+        config.getHeight,
+      )
+      const secretDoor = nearestSecretAlleyDoor(
+        next.position.x,
+        next.position.z,
+        config.getHeight,
+      )
+      const garageEnt = nearestGarageEntry(next.position.x, next.position.z, config.getHeight)
+      const curTunnel = TUNNEL_SEGMENTS.find((s) => s.id === next.tunnelSegment)
 
-      if (elev && !nearGlider && !nearVeh) {
+      if (next.tunnelSegment >= 0 && curTunnel?.surfaceExit) {
+        next.tunnelSegment = -1
+        next.interiorId = -1
+        next.garageId = -1
+        next.position.x = curTunnel.x
+        next.position.z = curTunnel.z + 2
+        next.position.y = config.getHeight(curTunnel.x, curTunnel.z) + CITY_STREET_DECK + WALK_FEET
+      } else if (next.garageId >= 0) {
+        const g = CITY_GARAGES.find((gar) => gar.id === next.garageId)
+        if (g) {
+          next.garageId = -1
+          const mouthZ = g.z + (g.depth * 0.5 + 1.5) * Math.cos(g.yaw)
+          const mouthX = g.x + (g.depth * 0.5 + 1.5) * Math.sin(g.yaw)
+          next.position.x = mouthX
+          next.position.z = mouthZ
+          next.position.y = config.getHeight(g.x, g.z) + CITY_STREET_DECK + WALK_FEET
+        }
+      } else if (next.interiorId >= 0) {
+        const b = getBuildingById(next.interiorId)
+        if (b) {
+          const linked = TUNNEL_SEGMENTS.find((s) => s.buildingLink === b.id)
+          if (linked && secretDoor?.segment.id === linked.id) {
+            next.interiorId = -1
+            next.tunnelSegment = linked.id
+            next.position.x = linked.x
+            next.position.z = linked.z
+            next.position.y = undergroundFloorY(config.getHeight, linked.x, linked.z) + WALK_FEET
+          } else {
+            const door = doorWorldPos(b, config.getHeight)
+            next.interiorId = -1
+            next.position.x = door.x
+            next.position.z = door.z + 1.2
+            next.position.y = config.getHeight(door.x, door.z) + WALK_FEET
+          }
+        }
+      } else if (tunnelEnt && !nearGlider && !nearVeh) {
+        next.tunnelSegment = tunnelEnt.id
+        next.interiorId = -1
+        next.garageId = -1
+        next.position.x = tunnelEnt.x
+        next.position.z = tunnelEnt.z
+        next.position.y = undergroundFloorY(config.getHeight, tunnelEnt.x, tunnelEnt.z) + WALK_FEET
+      } else if (secretDoor && !nearGlider && !nearVeh) {
+        next.tunnelSegment = secretDoor.segment.id
+        next.interiorId = -1
+        next.garageId = -1
+        next.position.x = secretDoor.segment.x
+        next.position.z = secretDoor.segment.z
+        next.position.y = undergroundFloorY(config.getHeight, secretDoor.segment.x, secretDoor.segment.z) + WALK_FEET
+      } else if (garageEnt && !nearGlider && !nearVeh && !elev) {
+        next.garageId = garageEnt.id
+        next.tunnelSegment = -1
+        next.interiorId = -1
+        next.position.x = garageEnt.x
+        next.position.z = garageEnt.z
+        next.position.y = config.getHeight(garageEnt.x, garageEnt.z) + CITY_STREET_DECK - 0.35 + WALK_FEET
+      } else if (next.tunnelSegment >= 0 && curTunnel?.buildingLink != null) {
+        const b = getBuildingById(curTunnel.buildingLink)
+        if (b) {
+          next.interiorId = b.id
+          next.tunnelSegment = -1
+          next.position.x = b.x
+          next.position.z = b.z
+          next.position.y = config.getHeight(b.x, b.z) + 0.15 + WALK_FEET
+        }
+      } else if (elev && !nearGlider && !nearVeh) {
         if (elev.toRoof) {
           const roof = elevatorRoofPos(elev.building, config.getHeight)
           next.position.x = roof.x
           next.position.z = roof.z
           next.position.y = roof.y + WALK_FEET
           next.interiorId = -1
+          next.tunnelSegment = -1
+          next.garageId = -1
           next.landAction = 'none'
         } else {
           const street = elevatorStreetPos(elev.building, config.getHeight)
@@ -481,21 +576,16 @@ export function tickFlight(
           next.position.z = street.z + 0.6
           next.position.y = street.y + WALK_FEET
           next.interiorId = -1
+          next.tunnelSegment = -1
+          next.garageId = -1
           next.landAction = 'none'
-        }
-      } else if (next.interiorId >= 0) {
-        const b = getBuildingById(next.interiorId)
-        if (b) {
-          const door = doorWorldPos(b, config.getHeight)
-          next.interiorId = -1
-          next.position.x = door.x
-          next.position.z = door.z + 1.2
-          next.position.y = config.getHeight(door.x, door.z) + WALK_FEET
         }
       } else {
         const doorB = nearestEnterableDoor(next.position.x, next.position.z, config.getHeight)
         if (doorB && !nearGlider && !elev && !nearVeh) {
           next.interiorId = doorB.id
+          next.tunnelSegment = -1
+          next.garageId = -1
           next.position.x = doorB.x
           next.position.z = doorB.z
           next.position.y = config.getHeight(doorB.x, doorB.z) + 0.15 + WALK_FEET
@@ -505,7 +595,36 @@ export function tickFlight(
       }
     }
 
-    if (next.interiorId >= 0) {
+    if (config.id === 'city' && next.tunnelSegment < 0 && next.garageId < 0 && next.interiorId < 0) {
+      const strike = checkVehicleStrikeOnPed(next.position.x, next.position.z)
+      if (strike) {
+        next.velocity.x += strike.vx
+        next.velocity.z += strike.vz
+        next.velocity.y = Math.max(next.velocity.y, strike.lift)
+        if (strike.hard) {
+          const now = performance.now()
+          if (now - lastCarCrashAt > 420) {
+            lastCarCrashAt = now
+            playCrashImpact()
+          }
+        }
+      }
+    }
+
+    if (next.tunnelSegment >= 0 && config.id === 'city') {
+      const clamped = clampInTunnel(next.position.x, next.position.z)
+      next.position.x = clamped.x
+      next.position.z = clamped.z
+      if (clamped.seg) next.tunnelSegment = clamped.seg.id
+      groundY = undergroundFloorY(config.getHeight, next.position.x, next.position.z)
+    } else if (next.garageId >= 0 && config.id === 'city') {
+      const g = CITY_GARAGES.find((gar) => gar.id === next.garageId)
+      if (g) {
+        next.position.x = Math.max(g.x - g.width * 0.4, Math.min(g.x + g.width * 0.4, next.position.x))
+        next.position.z = Math.max(g.z - g.depth * 0.4, Math.min(g.z + g.depth * 0.4, next.position.z))
+        groundY = config.getHeight(g.x, g.z) + CITY_STREET_DECK - 0.35
+      }
+    } else if (next.interiorId >= 0) {
       const b = getBuildingById(next.interiorId)
       if (b) {
         const clamped = clampInsideBuilding(next.position.x, next.position.z, b)
@@ -755,17 +874,19 @@ export function tickFlight(
         next.velocity.x = Math.sin(next.yaw) * next.airspeed
         next.velocity.z = Math.cos(next.yaw) * next.airspeed
 
-        if (hit.impact > 2.5) {
+        if (hit.impact > 1.8) {
           const now = performance.now()
           if (now - lastCarCrashAt > 380) {
             lastCarCrashAt = now
-            if (hit.impact > 7) playCrashImpact()
-            else playWhoosh(0.12, 90, Math.min(0.5, hit.impact * 0.05))
+            if (hit.impact > 6) playCrashImpact()
+            else playWhoosh(0.12 + hit.impact * 0.02, 70 + hit.impact * 8, Math.min(0.65, hit.impact * 0.06))
           }
-          next.pitch += Math.min(0.22, hit.impact * 0.018)
-          next.roll += (Math.random() > 0.5 ? 1 : -1) * Math.min(0.28, hit.impact * 0.02)
-          if (hit.impact > 10) {
-            next.airspeed *= 0.15
+          next.pitch += Math.min(0.28, hit.impact * 0.022)
+          next.roll += (Math.random() > 0.5 ? 1 : -1) * Math.min(0.38, hit.impact * 0.028)
+          if (hit.impact > 9) {
+            next.airspeed *= 0.08
+          } else if (hit.impact > 5) {
+            next.airspeed *= 0.35
           }
         }
       }
