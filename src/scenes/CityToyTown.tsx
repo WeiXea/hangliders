@@ -1,7 +1,7 @@
-import { useMemo, useRef, useLayoutEffect, type ReactElement } from 'react'
+import { Suspense, useMemo, useRef, useLayoutEffect, type ReactElement } from 'react'
 import * as THREE from 'three'
 import { CITY_BUILDINGS, buildingDepth } from '../game/cityBuildings'
-import { VehicleMesh } from '../game/VehicleModels'
+import { KenneyVehicleMesh as VehicleMesh } from '../game/KenneyVehicle'
 import type { useCityUrbanMaps } from '../game/cityUrbanMats'
 
 type UrbanMaps = ReturnType<typeof useCityUrbanMaps>
@@ -136,8 +136,10 @@ function ParkingLot({
               <boxGeometry args={[0.08, 0.02, d * 0.85]} />
               <meshStandardMaterial color="#e8eaed" roughness={0.8} />
             </mesh>
-            <group position={[ox + w / stalls / 2 - 0.35, 0.08, 0]} rotation={[0, Math.PI / 2, 0]} scale={0.9}>
-              <VehicleMesh kind="car" color={colors[i % colors.length]} />
+            <group position={[ox + w / stalls / 2 - 0.35, 0.08, 0]} rotation={[0, Math.PI / 2, 0]} scale={0.95}>
+              <Suspense fallback={null}>
+                <VehicleMesh kind="car" color={colors[i % colors.length]} />
+              </Suspense>
             </group>
           </group>
         )
@@ -187,14 +189,6 @@ function TrafficLight({ x, z, y, yaw = 0 }: { x: number; z: number; y: number; y
   )
 }
 
-function TrashBin({ x, z, y, color = '#2a9d8f' }: { x: number; z: number; y: number; color?: string }) {
-  return (
-    <mesh position={[x, y + 0.35, z]}>
-      <cylinderGeometry args={[0.22, 0.26, 0.7, 6]} />
-      <meshStandardMaterial color={color} roughness={0.75} flatShading />
-    </mesh>
-  )
-}
 
 function CrateStack({ x, z, y }: { x: number; z: number; y: number }) {
   return (
@@ -293,13 +287,16 @@ function InstancedTreeTrunks({
 
 /**
  * Urban street dressing: grass, instanced trees, parking, street props.
+ * `lite` — grass + warehouses only (KenneyCity supplies buildings/roads/props).
  */
 export function CityToyTown({
   getHeight,
   urban,
+  lite = false,
 }: {
   getHeight: (x: number, z: number) => number
   urban: UrbanMaps
+  lite?: boolean
 }) {
   const trees = useMemo(() => {
     const pts: { x: number; z: number; s: number }[] = []
@@ -379,40 +376,34 @@ export function CityToyTown({
         </mesh>
       ))}
 
-      <InstancedTreeTrunks points={trees} getHeight={getHeight} />
-      <InstancedTreeCanopies points={trees} getHeight={getHeight} />
+      {!lite && (
+        <>
+          <InstancedTreeTrunks points={trees} getHeight={getHeight} />
+          <InstancedTreeCanopies points={trees} getHeight={getHeight} />
+          {turbines}
+          {panels}
+          <BasketballCourt x={-35} z={130} y={getHeight(-35, 130) + 0.05} />
+          <BusStop x={30} z={14} y={getHeight(30, 14)} yaw={0} />
+          <BusStop x={70} z={58} y={getHeight(70, 58)} yaw={Math.PI / 2} />
+          <ParkingLot x={18} z={68} y={getHeight(18, 68)} w={14} d={8} stalls={4} />
+          <ParkingLot x={140} z={100} y={getHeight(140, 100)} w={16} d={8} stalls={5} yaw={0.1} />
+          <Hydrant x={26} z={38} y={getHeight(26, 38)} />
+          <Hydrant x={60} z={72} y={getHeight(60, 72)} />
+          <TrafficLight x={38} z={38} y={getHeight(38, 38)} yaw={0} />
+          <TrafficLight x={60} z={60} y={getHeight(60, 60)} yaw={Math.PI / 2} />
+          <ChargingCanopy x={195} z={160} y={getHeight(195, 160)} />
+        </>
+      )}
 
-      {turbines}
-      {panels}
-      <BasketballCourt x={-35} z={130} y={getHeight(-35, 130) + 0.05} />
-      <BusStop x={30} z={14} y={getHeight(30, 14)} yaw={0} />
-      <BusStop x={70} z={58} y={getHeight(70, 58)} yaw={Math.PI / 2} />
-      <BusStop x={120} z={80} y={getHeight(120, 80)} yaw={0} />
-      <BusStop x={50} z={124} y={getHeight(50, 124)} yaw={Math.PI / 2} />
+      {lite && (
+        <>
+          {turbines}
+          {panels}
+          <BasketballCourt x={-35} z={130} y={getHeight(-35, 130) + 0.05} />
+          <ParkingLot x={18} z={68} y={getHeight(18, 68)} w={14} d={8} stalls={3} />
+        </>
+      )}
 
-      <ParkingLot x={18} z={68} y={getHeight(18, 68)} w={14} d={8} stalls={4} />
-      <ParkingLot x={140} z={100} y={getHeight(140, 100)} w={16} d={8} stalls={5} yaw={0.1} />
-      <ParkingLot x={88} z={148} y={getHeight(88, 148)} w={12} d={7} stalls={3} />
-
-      <Hydrant x={26} z={38} y={getHeight(26, 38)} />
-      <Hydrant x={60} z={72} y={getHeight(60, 72)} />
-      <Hydrant x={100} z={58} y={getHeight(100, 58)} />
-      <Hydrant x={48} z={118} y={getHeight(48, 118)} />
-      <Hydrant x={160} z={88} y={getHeight(160, 88)} />
-
-      <TrashBin x={28} z={50} y={getHeight(28, 50)} />
-      <TrashBin x={72} z={90} y={getHeight(72, 90)} color="#e63946" />
-      <TrashBin x={112} z={70} y={getHeight(112, 70)} color="#457b9d" />
-
-      <TrafficLight x={38} z={38} y={getHeight(38, 38)} yaw={0} />
-      <TrafficLight x={60} z={60} y={getHeight(60, 60)} yaw={Math.PI / 2} />
-      <TrafficLight x={104} z={60} y={getHeight(104, 60)} yaw={Math.PI} />
-      <TrafficLight x={38} z={104} y={getHeight(38, 104)} yaw={-Math.PI / 2} />
-      <TrafficLight x={104} z={104} y={getHeight(104, 104)} yaw={0.4} />
-
-      <ChargingCanopy x={195} z={160} y={getHeight(195, 160)} />
-
-      {/* Industrial warehouses */}
       <group position={[210, getHeight(210, 40), 40]}>
         <mesh castShadow receiveShadow position={[0, 2.2, 0]}>
           <boxGeometry args={[18, 4.4, 12]} />
@@ -425,16 +416,6 @@ export function CityToyTown({
       </group>
       <CrateStack x={198} z={48} y={getHeight(198, 48)} />
       <CrateStack x={222} z={36} y={getHeight(222, 36)} />
-      <group position={[210, getHeight(210, 70), 70]}>
-        <mesh castShadow receiveShadow position={[0, 2.0, 0]}>
-          <boxGeometry args={[14, 4, 10]} />
-          <meshStandardMaterial color="#5c636b" roughness={0.85} metalness={0.15} />
-        </mesh>
-        <mesh castShadow position={[0, 4.4, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[5.2, 5.2, 14, 16, 1, false, 0, Math.PI]} />
-          <meshStandardMaterial color="#3d5a6c" roughness={0.55} metalness={0.35} side={THREE.DoubleSide} />
-        </mesh>
-      </group>
     </group>
   )
 }

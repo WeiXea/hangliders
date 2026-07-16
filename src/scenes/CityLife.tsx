@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { Suspense, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from '../game/gameStore'
@@ -18,10 +18,13 @@ import {
   getLiveParkedVehicles,
   isLaneClaimed,
 } from '../game/trafficRegistry'
-import { VehicleMesh, type VehicleKind } from '../game/VehicleModels'
+import type { VehicleKind } from '../game/VehicleModels'
+import { KenneyVehicleMesh as VehicleMesh, preloadKenneyVehicles } from '../game/KenneyVehicle'
 
 export type { VehicleKind }
 export { VehicleMesh }
+
+preloadKenneyVehicles()
 
 type Lane = {
   axis: 'x' | 'z'
@@ -338,7 +341,9 @@ function TrafficLayer() {
     <group ref={group}>
       {LANES.map((lane, i) => (
         <group key={i}>
-          <VehicleMesh kind={lane.kind} color={lane.color} />
+          <Suspense fallback={null}>
+            <VehicleMesh kind={lane.kind} color={lane.color} />
+          </Suspense>
         </group>
       ))}
     </group>
@@ -415,7 +420,9 @@ function ParkedCarsLayer() {
     <group ref={group}>
       {parkedList.map((p) => (
         <group key={p.id}>
-          <VehicleMesh kind={p.kind} color={p.color} />
+          <Suspense fallback={null}>
+            <VehicleMesh kind={p.kind} color={p.color} />
+          </Suspense>
           <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[2.4, 2.85, 28]} />
             <meshStandardMaterial
