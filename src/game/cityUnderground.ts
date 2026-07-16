@@ -288,21 +288,6 @@ export function clampInTunnel(x: number, z: number) {
   }
 }
 
-export function onSidewalk(x: number, z: number): boolean {
-  const step = 22
-  const roadW = 11
-  const sw = 2.8
-  const modX = ((x % step) + step) % step
-  const modZ = ((z % step) + step) % step
-  const nearRoadX = modX < step * 0.5 ? modX : step - modX
-  const nearRoadZ = modZ < step * 0.5 ? modZ : step - modZ
-  const distToRoadCenterX = Math.abs(nearRoadX - step * 0.5)
-  const distToRoadCenterZ = Math.abs(nearRoadZ - step * 0.5)
-  const onHorizontalRoad = distToRoadCenterZ <= roadW * 0.5 + sw + 0.4 && distToRoadCenterZ > roadW * 0.5 + 0.15
-  const onVerticalRoad = distToRoadCenterX <= roadW * 0.5 + sw + 0.4 && distToRoadCenterX > roadW * 0.5 + 0.15
-  return onHorizontalRoad || onVerticalRoad
-}
-
 export function inGarageInterior(x: number, z: number, garageId: number): boolean {
   const g = CITY_GARAGES.find((gar) => gar.id === garageId)
   if (!g) return false

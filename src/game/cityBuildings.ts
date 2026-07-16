@@ -1,7 +1,5 @@
 /** Shared city building defs — visuals and collision must stay in sync. */
 
-import { onSidewalk } from './cityUnderground'
-
 /** Raised street deck above downtown terrain (roads, walkers, traffic). */
 export const CITY_STREET_DECK = 0.12
 
@@ -83,6 +81,21 @@ export function pickCityLaunchPad(): CityLaunchPad {
 
 export function buildingDepth(b: CityBuilding): number {
   return b.width * 0.85
+}
+
+export function onSidewalk(x: number, z: number): boolean {
+  const step = 22
+  const roadW = 11
+  const sw = 2.8
+  const modX = ((x % step) + step) % step
+  const modZ = ((z % step) + step) % step
+  const nearRoadX = modX < step * 0.5 ? modX : step - modX
+  const nearRoadZ = modZ < step * 0.5 ? modZ : step - modZ
+  const distToRoadCenterX = Math.abs(nearRoadX - step * 0.5)
+  const distToRoadCenterZ = Math.abs(nearRoadZ - step * 0.5)
+  const onHorizontalRoad = distToRoadCenterZ <= roadW * 0.5 + sw + 0.4 && distToRoadCenterZ > roadW * 0.5 + 0.15
+  const onVerticalRoad = distToRoadCenterX <= roadW * 0.5 + sw + 0.4 && distToRoadCenterX > roadW * 0.5 + 0.15
+  return onHorizontalRoad || onVerticalRoad
 }
 
 export function buildingRoofY(
