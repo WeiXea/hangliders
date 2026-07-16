@@ -12,7 +12,7 @@ import type {
   TiltCalibration,
   TiltPermission,
 } from '../types/game'
-import { INITIAL_FLIGHT, INITIAL_INPUT } from '../types/game'
+import { INITIAL_FLIGHT, INITIAL_INPUT, WALK_FEET } from '../types/game'
 import { BIOME_CONFIGS } from './biomeConfigs'
 import {
   createInitialFlight,
@@ -27,6 +27,7 @@ import {
   pickCityLaunchPad,
   getBuildingById,
   buildingRoofY,
+  CITY_STREET_DECK,
 } from './cityBuildings'
 import {
   isTiltSupported,
@@ -301,29 +302,46 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   startFlight: () => {
-    const { biome } = get()
+    const { biome, mode } = get()
     const config = BIOME_CONFIGS[biome]
     resetTandemRejoin()
     let flight = createInitialFlight(config)
     let cityLaunchPadId: number | null = null
     let cityLaunchLabel: string | null = null
+    let travelBanner: string | null = null
     if (biome === 'city') {
-      const pad = pickCityLaunchPad()
-      const building = getBuildingById(pad.buildingId)
-      if (building) {
-        cityLaunchPadId = pad.id
-        cityLaunchLabel = pad.label
-        const roofY = buildingRoofY(building, config.getHeight)
-        // Center of the pad — ground-roll sticks to rooftop support
+      if (mode === 'free') {
+        const x = config.launchPosition.x
+        const z = config.launchPosition.z
+        const streetY = config.getHeight(x, z) + CITY_STREET_DECK + WALK_FEET
         flight = {
           ...flight,
-          position: {
-            x: building.x,
-            y: roofY + GLIDER_REST_CLEARANCE,
-            z: building.z,
-          },
-          yaw: pad.yaw,
+          phase: 'walking',
+          position: { x, y: streetY, z },
+          yaw: config.launchYaw,
           altitude: 0,
+          airspeed: 0,
+          velocity: { x: 0, y: 0, z: 0 },
+        }
+        travelBanner =
+          'Urban Skyline — walk east toward downtown · cyan = metro · yellow = garage · purple = secrets'
+      } else {
+        const pad = pickCityLaunchPad()
+        const building = getBuildingById(pad.buildingId)
+        if (building) {
+          cityLaunchPadId = pad.id
+          cityLaunchLabel = pad.label
+          const roofY = buildingRoofY(building, config.getHeight)
+          flight = {
+            ...flight,
+            position: {
+              x: building.x,
+              y: roofY + GLIDER_REST_CLEARANCE,
+              z: building.z,
+            },
+            yaw: pad.yaw,
+            altitude: 0,
+          }
         }
       }
     }
@@ -332,6 +350,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       flight,
       cityLaunchPadId,
       cityLaunchLabel,
+      travelBanner,
       input: { ...INITIAL_INPUT },
       rings: initRings(biome),
       xcTask: get().mode === 'xc' ? buildXCTask(biome) : null,

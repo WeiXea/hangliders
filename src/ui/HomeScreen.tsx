@@ -291,6 +291,12 @@ export function HomeScreen() {
             <button type="button" className={styles.flyBtn} onClick={prepareFlight} disabled={netBusy}>
               Fly solo
             </button>
+            {biome === 'city' && (
+              <p className={styles.cityExploreHint}>
+                City has metros, garages, secret tunnels, and shop interiors — only in <b>Urban Skyline</b>.
+                Free Flight starts you on the street; Challenge/XC launch from a rooftop.
+              </p>
+            )}
           </>
         )}
 

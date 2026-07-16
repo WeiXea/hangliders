@@ -177,6 +177,21 @@
   transform: scale(0.97);
 }
 
+.cityExploreHint {
+  margin: 12px 0 0;
+  max-width: 340px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+}
+
+.cityExploreHint b {
+  color: #ffd60a;
+  font-weight: 600;
+}
+
 .controlsHint {
   margin: 14px 0 0;
   font-family: 'Outfit', sans-serif;

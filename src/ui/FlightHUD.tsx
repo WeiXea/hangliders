@@ -369,6 +369,13 @@ export function FlightHUD() {
       <header className={styles.topBar}>
         <div className={styles.instruments}>
           <div className={styles.instrument}>
+            <span className={styles.instrumentLabel}>Zone</span>
+            <span className={styles.instrumentValue} style={{ fontSize: 11 }}>
+              {config.name}
+            </span>
+          </div>
+          <div className={styles.divider} />
+          <div className={styles.instrument}>
             <span className={styles.instrumentLabel}>Alt</span>
             <span className={styles.instrumentValue}>
               {rocket && rocketAltM >= 1000
