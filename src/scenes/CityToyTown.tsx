@@ -1,7 +1,10 @@
 import { useMemo, useRef, useLayoutEffect, type ReactElement } from 'react'
 import * as THREE from 'three'
 import { CITY_BUILDINGS, buildingDepth } from '../game/cityBuildings'
-import { ToyVehicleMesh } from '../game/ToyVehicleModels'
+import { VehicleMesh } from '../game/VehicleModels'
+import type { useCityUrbanMaps } from '../game/cityUrbanMats'
+
+type UrbanMaps = ReturnType<typeof useCityUrbanMaps>
 
 function WindTurbine({ x, z, y }: { x: number; z: number; y: number }) {
   return (
@@ -101,27 +104,6 @@ function BusStop({ x, z, y, yaw = 0 }: { x: number; z: number; y: number; yaw?: 
   )
 }
 
-function GrassPad({
-  x,
-  z,
-  y,
-  w,
-  d,
-}: {
-  x: number
-  z: number
-  y: number
-  w: number
-  d: number
-}) {
-  return (
-    <mesh receiveShadow position={[x, y, z]}>
-      <boxGeometry args={[w + 2.4, 0.1, d + 2.4]} />
-      <meshStandardMaterial color="#74c69d" roughness={1} flatShading />
-    </mesh>
-  )
-}
-
 function ParkingLot({
   x,
   z,
@@ -144,7 +126,7 @@ function ParkingLot({
     <group position={[x, y, z]} rotation={[0, yaw, 0]}>
       <mesh receiveShadow position={[0, 0.04, 0]}>
         <boxGeometry args={[w, 0.1, d]} />
-        <meshStandardMaterial color="#495057" roughness={0.95} flatShading />
+        <meshStandardMaterial color="#3d4248" roughness={0.95} metalness={0.05} />
       </mesh>
       {Array.from({ length: stalls }).map((_, i) => {
         const ox = -w * 0.5 + 1.4 + i * (w / stalls)
@@ -152,10 +134,10 @@ function ParkingLot({
           <group key={i}>
             <mesh position={[ox, 0.1, 0]}>
               <boxGeometry args={[0.08, 0.02, d * 0.85]} />
-              <meshStandardMaterial color="#f8f9fa" roughness={0.8} flatShading />
+              <meshStandardMaterial color="#e8eaed" roughness={0.8} />
             </mesh>
-            <group position={[ox + w / stalls / 2 - 0.35, 0.08, 0]} rotation={[0, Math.PI / 2, 0]} scale={0.85}>
-              <ToyVehicleMesh kind="car" color={colors[i % colors.length]} />
+            <group position={[ox + w / stalls / 2 - 0.35, 0.08, 0]} rotation={[0, Math.PI / 2, 0]} scale={0.9}>
+              <VehicleMesh kind="car" color={colors[i % colors.length]} />
             </group>
           </group>
         )
@@ -274,9 +256,9 @@ function InstancedTreeCanopies({
     mesh.current.instanceMatrix.needsUpdate = true
   }, [points, getHeight, dummy])
   return (
-    <instancedMesh ref={mesh} args={[undefined, undefined, points.length]} frustumCulled={false}>
-      <icosahedronGeometry args={[0.95, 0]} />
-      <meshStandardMaterial color="#52b788" roughness={0.95} flatShading />
+    <instancedMesh ref={mesh} args={[undefined, undefined, points.length]} castShadow frustumCulled={false}>
+      <sphereGeometry args={[0.95, 7, 6]} />
+      <meshStandardMaterial color="#3d6b3a" roughness={0.92} />
     </instancedMesh>
   )
 }
@@ -302,17 +284,23 @@ function InstancedTreeTrunks({
     mesh.current.instanceMatrix.needsUpdate = true
   }, [points, getHeight, dummy])
   return (
-    <instancedMesh ref={mesh} args={[undefined, undefined, points.length]} frustumCulled={false}>
-      <cylinderGeometry args={[0.12, 0.18, 1.1, 5]} />
-      <meshStandardMaterial color="#6b4423" roughness={1} flatShading />
+    <instancedMesh ref={mesh} args={[undefined, undefined, points.length]} castShadow frustumCulled={false}>
+      <cylinderGeometry args={[0.12, 0.18, 1.1, 6]} />
+      <meshStandardMaterial color="#4a3220" roughness={0.95} />
     </instancedMesh>
   )
 }
 
 /**
- * Sketchfab-style toy-town dressing: grass, instanced trees, parking, street props.
+ * Urban street dressing: grass, instanced trees, parking, street props.
  */
-export function CityToyTown({ getHeight }: { getHeight: (x: number, z: number) => number }) {
+export function CityToyTown({
+  getHeight,
+  urban,
+}: {
+  getHeight: (x: number, z: number) => number
+  urban: UrbanMaps
+}) {
   const trees = useMemo(() => {
     const pts: { x: number; z: number; s: number }[] = []
     // Dense perimeter groves
@@ -370,11 +358,25 @@ export function CityToyTown({ getHeight }: { getHeight: (x: number, z: number) =
     <group>
       <mesh receiveShadow position={[90, getHeight(90, 90) - 0.02, 90]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[320, 260]} />
-        <meshStandardMaterial color="#8fd19e" roughness={1} flatShading />
+        <meshStandardMaterial
+          color={urban.lawnTint}
+          map={urban.lawn.map}
+          normalMap={urban.lawn.normalMap}
+          roughnessMap={urban.lawn.roughnessMap}
+          roughness={0.95}
+        />
       </mesh>
 
       {grassPads.map((p) => (
-        <GrassPad key={`g-${p.id}`} x={p.x} z={p.z} y={p.y} w={p.w} d={p.d} />
+        <mesh key={`g-${p.id}`} receiveShadow position={[p.x, p.y, p.z]}>
+          <boxGeometry args={[p.w + 2.4, 0.1, p.d + 2.4]} />
+          <meshStandardMaterial
+            color="#4f7a42"
+            map={urban.lawn.map}
+            normalMap={urban.lawn.normalMap}
+            roughness={0.95}
+          />
+        </mesh>
       ))}
 
       <InstancedTreeTrunks points={trees} getHeight={getHeight} />
@@ -410,27 +412,27 @@ export function CityToyTown({ getHeight }: { getHeight: (x: number, z: number) =
 
       <ChargingCanopy x={195} z={160} y={getHeight(195, 160)} />
 
-      {/* Curved blue warehouse roofs + crate clutter */}
+      {/* Industrial warehouses */}
       <group position={[210, getHeight(210, 40), 40]}>
-        <mesh castShadow position={[0, 2.2, 0]}>
+        <mesh castShadow receiveShadow position={[0, 2.2, 0]}>
           <boxGeometry args={[18, 4.4, 12]} />
-          <meshStandardMaterial color="#f1faee" roughness={0.85} flatShading />
+          <meshStandardMaterial color="#6b7178" roughness={0.85} metalness={0.15} />
         </mesh>
         <mesh castShadow position={[0, 4.8, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[6.2, 6.2, 18, 12, 1, false, 0, Math.PI]} />
-          <meshStandardMaterial color="#4cc9f0" roughness={0.7} flatShading side={THREE.DoubleSide} />
+          <cylinderGeometry args={[6.2, 6.2, 18, 16, 1, false, 0, Math.PI]} />
+          <meshStandardMaterial color="#3d5a6c" roughness={0.55} metalness={0.35} side={THREE.DoubleSide} />
         </mesh>
       </group>
       <CrateStack x={198} z={48} y={getHeight(198, 48)} />
       <CrateStack x={222} z={36} y={getHeight(222, 36)} />
       <group position={[210, getHeight(210, 70), 70]}>
-        <mesh castShadow position={[0, 2.0, 0]}>
+        <mesh castShadow receiveShadow position={[0, 2.0, 0]}>
           <boxGeometry args={[14, 4, 10]} />
-          <meshStandardMaterial color="#e9ecef" roughness={0.85} flatShading />
+          <meshStandardMaterial color="#5c636b" roughness={0.85} metalness={0.15} />
         </mesh>
         <mesh castShadow position={[0, 4.4, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[5.2, 5.2, 14, 12, 1, false, 0, Math.PI]} />
-          <meshStandardMaterial color="#4cc9f0" roughness={0.7} flatShading side={THREE.DoubleSide} />
+          <cylinderGeometry args={[5.2, 5.2, 14, 16, 1, false, 0, Math.PI]} />
+          <meshStandardMaterial color="#3d5a6c" roughness={0.55} metalness={0.35} side={THREE.DoubleSide} />
         </mesh>
       </group>
     </group>

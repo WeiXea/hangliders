@@ -22,7 +22,7 @@ export function SharedSky({ config }: { config: BiomeConfig }) {
       />
       <Environment
         files={biomeHdriPath(config.id)}
-        environmentIntensity={0.88}
+        environmentIntensity={config.id === 'city' ? 1.15 : 0.88}
         background={false}
       />
       <CloudLayers config={config} />
@@ -76,23 +76,23 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
   return (
     <>
       {/* SoftShadows removed — caused shimmer / “landscape changing” on large flats */}
-      <ambientLight intensity={city ? 0.55 : 0.24} color={city ? '#ffffff' : '#ffd6a5'} />
+      <ambientLight intensity={city ? 0.22 : 0.24} color={city ? '#b8c4d4' : '#ffd6a5'} />
       <directionalLight
         position={[sx, sy, sz]}
-        intensity={city ? 2.1 : 2.45}
-        color={city ? '#fff6e0' : '#ffe0b8'}
+        intensity={city ? 2.55 : 2.45}
+        color={city ? '#fff1d6' : '#ffe0b8'}
         castShadow
-        shadow-mapSize={city ? [512, 512] : [1024, 1024]}
-        shadow-camera-far={city ? 420 : 650}
-        shadow-camera-left={city ? -160 : -240}
-        shadow-camera-right={city ? 160 : 240}
-        shadow-camera-top={city ? 160 : 240}
-        shadow-camera-bottom={city ? -160 : -240}
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-far={city ? 380 : 650}
+        shadow-camera-left={city ? -140 : -240}
+        shadow-camera-right={city ? 140 : 240}
+        shadow-camera-top={city ? 140 : 240}
+        shadow-camera-bottom={city ? -140 : -240}
         shadow-bias={-0.0002}
-        shadow-normalBias={0.04}
+        shadow-normalBias={0.035}
       />
-      <directionalLight position={[-70, 55, -40]} intensity={city ? 0.55 : 0.38} color="#9ec9e8" />
-      <hemisphereLight args={[city ? '#cfe8ff' : '#ffc97a', city ? '#74c69d' : '#4a6741', city ? 0.7 : 0.55]} />
+      <directionalLight position={[-70, 55, -40]} intensity={city ? 0.35 : 0.38} color="#9ec9e8" />
+      <hemisphereLight args={[city ? '#9eb6d4' : '#ffc97a', city ? '#3d4a38' : '#4a6741', city ? 0.45 : 0.55]} />
       <mesh position={[sx * 0.4, sy * 0.4, sz * 0.4]}>
         <sphereGeometry args={[18, 16, 16]} />
         <meshBasicMaterial color="#ffe8c8" transparent opacity={0.14} depthWrite={false} />

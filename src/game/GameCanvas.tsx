@@ -58,7 +58,7 @@ export function GameCanvas() {
         alpha: false,
         powerPreference: 'high-performance',
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: biome === 'moon' ? 0.85 : 1.05,
+        toneMappingExposure: biome === 'moon' ? 0.85 : biome === 'city' ? 1.12 : 1.05,
         stencil: false,
       }}
       performance={{ min: 0.5 }}

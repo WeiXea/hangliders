@@ -18,12 +18,10 @@ import {
   getLiveParkedVehicles,
   isLaneClaimed,
 } from '../game/trafficRegistry'
-import type { VehicleKind } from '../game/VehicleModels'
-import { ToyVehicleMesh } from '../game/ToyVehicleModels'
+import { VehicleMesh, type VehicleKind } from '../game/VehicleModels'
 
 export type { VehicleKind }
-/** Player / remote / traffic — boxy toy cars (cheap + matches city look). */
-export { ToyVehicleMesh as VehicleMesh }
+export { VehicleMesh }
 
 type Lane = {
   axis: 'x' | 'z'
@@ -340,7 +338,7 @@ function TrafficLayer() {
     <group ref={group}>
       {LANES.map((lane, i) => (
         <group key={i}>
-          <ToyVehicleMesh kind={lane.kind} color={lane.color} />
+          <VehicleMesh kind={lane.kind} color={lane.color} />
         </group>
       ))}
     </group>
@@ -417,7 +415,7 @@ function ParkedCarsLayer() {
     <group ref={group}>
       {parkedList.map((p) => (
         <group key={p.id}>
-          <ToyVehicleMesh kind={p.kind} color={p.color} />
+          <VehicleMesh kind={p.kind} color={p.color} />
           <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[2.4, 2.85, 28]} />
             <meshStandardMaterial

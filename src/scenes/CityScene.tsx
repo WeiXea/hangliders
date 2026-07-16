@@ -6,6 +6,7 @@ import {
   buildingDepth,
   type CityBuilding,
 } from '../game/cityBuildings'
+import { useCityUrbanMaps } from '../game/cityUrbanMats'
 import { useGameStore } from '../game/gameStore'
 import {
   DetailedTerrain,
@@ -32,13 +33,17 @@ interface CitySceneProps {
   config: BiomeConfig
 }
 
-/** Flat-shaded toy-town building — Sketchfab low-poly city look. */
+type UrbanMaps = ReturnType<typeof useCityUrbanMaps>
+
+/** Urban building — concrete PBR shell, glass windows, shop fascia. */
 function Building({
   building,
   groundY,
+  urban,
 }: {
   building: CityBuilding
   groundY: number
+  urban: UrbanMaps
 }) {
   const { width, height, color, windows, enterable, roofLandable, shop, shopColor } = building
   const depth = buildingDepth(building)
@@ -47,65 +52,52 @@ function Building({
   const doorW = 1.9
   const doorH = 2.4
   const halfD = depth / 2
-  const roofColor = shopColor ?? '#6c757d'
   const isHospital = shop === 'HOSPITAL'
-  // Short blocks get gabled roofs like the Sketchfab residential/shop houses
-  const usePitch = height <= 12 && !isHospital
+  const winCols = Math.min(cols, 5)
 
   return (
     <group position={[building.x, groundY, building.z]}>
       <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
         <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial color={color} roughness={0.92} metalness={0} flatShading />
+        <meshStandardMaterial
+          color={color}
+          map={urban.facade.map}
+          normalMap={urban.facade.normalMap}
+          roughnessMap={urban.facade.roughnessMap}
+          normalScale={urban.normalScale}
+          roughness={0.88}
+          metalness={0.08}
+        />
       </mesh>
 
-      {usePitch ? (
-        <>
-          <mesh
-            castShadow
-            position={[0, height + 1.1, 0]}
-            rotation={[0, 0, Math.PI / 4]}
-          >
-            <boxGeometry args={[Math.hypot(width, width) * 0.52, 0.22, depth * 1.08]} />
-            <meshStandardMaterial color={shopColor ?? '#4a5568'} roughness={0.85} flatShading />
-          </mesh>
-          <mesh
-            castShadow
-            position={[0, height + 1.1, 0]}
-            rotation={[0, 0, -Math.PI / 4]}
-          >
-            <boxGeometry args={[Math.hypot(width, width) * 0.52, 0.22, depth * 1.08]} />
-            <meshStandardMaterial color={shopColor ?? '#5c6778'} roughness={0.85} flatShading />
-          </mesh>
-          <mesh position={[width * 0.28, height + 1.9, 0]}>
-            <boxGeometry args={[0.35, 1.1, 0.35]} />
-            <meshStandardMaterial color="#ced4da" roughness={0.8} flatShading />
-          </mesh>
-        </>
-      ) : (
-        <mesh castShadow receiveShadow position={[0, height + 0.12, 0]}>
-          <boxGeometry args={[width * 1.02, 0.28, depth * 1.02]} />
-          <meshStandardMaterial color={isHospital ? '#4cc9f0' : roofColor} roughness={0.85} flatShading />
-        </mesh>
-      )}
+      {/* Parapet roof */}
+      <mesh castShadow receiveShadow position={[0, height + 0.18, 0]}>
+        <boxGeometry args={[width * 1.04, 0.36, depth * 1.04]} />
+        <meshStandardMaterial color="#3d4248" roughness={0.9} metalness={0.12} />
+      </mesh>
 
-      {roofLandable && !usePitch && (
+      {roofLandable && (
         <>
-          <mesh position={[0, height + 0.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[width * 0.9, depth * 0.9]} />
-            <meshStandardMaterial color="#adb5bd" roughness={0.9} flatShading />
+          <mesh position={[0, height + 0.4, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+            <planeGeometry args={[width * 0.88, depth * 0.88]} />
+            <meshStandardMaterial
+              color="#5a6169"
+              map={urban.asphalt.map}
+              roughness={0.92}
+              metalness={0.05}
+            />
           </mesh>
-          <mesh castShadow position={[width * 0.2, height + 0.65, -depth * 0.15]}>
-            <boxGeometry args={[1.2, 0.7, 1]} />
-            <meshStandardMaterial color="#868e96" roughness={0.75} flatShading />
+          <mesh castShadow position={[width * 0.22, height + 0.85, -depth * 0.18]}>
+            <boxGeometry args={[1.35, 0.85, 1.1]} />
+            <meshStandardMaterial color="#6c757d" roughness={0.75} metalness={0.2} />
           </mesh>
           {isHospital && (
-            <group position={[0, height + 0.35, 0]}>
+            <group position={[0, height + 0.45, 0]}>
               <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <circleGeometry args={[1.6, 20]} />
-                <meshStandardMaterial color="#4cc9f0" roughness={0.7} flatShading />
+                <circleGeometry args={[1.7, 28]} />
+                <meshStandardMaterial color="#1d8a99" roughness={0.55} metalness={0.15} />
               </mesh>
-              <Text position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.7} color="#f8f9fa" anchorX="center" anchorY="middle">
+              <Text position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.75} color="#f8f9fa" anchorX="center" anchorY="middle">
                 H
               </Text>
             </group>
@@ -113,21 +105,24 @@ function Building({
         </>
       )}
 
-      {/* Fewer window panes on tall faces — still reads as a grid */}
       {Array.from({ length: rows }).map((_, row) =>
-        Array.from({ length: Math.min(cols, 4) }).map((_, col) => {
+        Array.from({ length: winCols }).map((_, col) => {
           const lit = windows[(row * cols + col) % windows.length]
-          const wx = (col - Math.min(cols, 4) / 2 + 0.5) * (width / Math.min(cols, 4))
+          const wx = (col - winCols / 2 + 0.5) * (width / winCols)
           if (enterable && row === 0 && Math.abs(wx) < doorW * 0.55) return null
           return (
-            <mesh key={`${row}-${col}`} position={[wx, row * 3.1 + 1.6, halfD + 0.03]}>
-              <boxGeometry args={[Math.min(1.35, width / Math.min(cols, 4) - 0.35), 1.5, 0.08]} />
-              <meshStandardMaterial
-                color={lit ? '#90e0ef' : '#495057'}
-                emissive={lit ? '#74c0fc' : '#000000'}
-                emissiveIntensity={lit ? 0.35 : 0}
-                roughness={0.35}
-                flatShading
+            <mesh key={`${row}-${col}`} position={[wx, row * 3.1 + 1.6, halfD + 0.04]} castShadow>
+              <boxGeometry args={[Math.min(1.4, width / winCols - 0.3), 1.55, 0.1]} />
+              <meshPhysicalMaterial
+                color={lit ? '#8ecae6' : '#1a2330'}
+                emissive={lit ? '#4cc9f0' : '#0a1018'}
+                emissiveIntensity={lit ? 0.25 : 0.05}
+                metalness={0.55}
+                roughness={0.12}
+                clearcoat={0.6}
+                clearcoatRoughness={0.2}
+                transparent
+                opacity={0.92}
               />
             </mesh>
           )
@@ -135,57 +130,42 @@ function Building({
       )}
 
       {shop && (
-        <mesh position={[0, doorH + 0.55, halfD + 0.35]}>
-          <boxGeometry args={[width * 0.92, 0.55, 0.7]} />
-          <meshStandardMaterial color={shopColor ?? '#e63946'} roughness={0.7} flatShading />
+        <mesh position={[0, doorH + 0.35, halfD + 0.28]} castShadow>
+          <boxGeometry args={[width * 0.96, 0.7, 0.55]} />
+          <meshStandardMaterial color={shopColor ?? '#b91c1c'} roughness={0.55} metalness={0.15} />
         </mesh>
       )}
-      {shop &&
-        Array.from({ length: 5 }).map((_, i) => (
-          <mesh key={`awn-${i}`} position={[-width * 0.35 + i * (width * 0.175), doorH + 0.55, halfD + 0.72]}>
-            <boxGeometry args={[width * 0.14, 0.12, 0.08]} />
-            <meshStandardMaterial color={i % 2 === 0 ? '#f8f9fa' : shopColor ?? '#e63946'} roughness={0.75} flatShading />
-          </mesh>
-        ))}
 
       {enterable && (
         <group position={[0, 0, halfD + 0.02]}>
-          <mesh position={[0, doorH / 2, 0]}>
-            <boxGeometry args={[doorW, doorH, 0.12]} />
-            <meshStandardMaterial color="#343a40" roughness={0.7} flatShading />
+          <mesh position={[0, doorH / 2, 0]} castShadow>
+            <boxGeometry args={[doorW, doorH, 0.14]} />
+            <meshStandardMaterial color="#1c1f24" roughness={0.55} metalness={0.25} />
           </mesh>
-          <mesh position={[0, 0.03, 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[doorW * 1.4, 1.3]} />
-            <meshStandardMaterial color="#52b788" emissive="#52b788" emissiveIntensity={0.4} roughness={1} />
+          <mesh position={[0, 0.03, 0.55]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[doorW * 1.35, 1.2]} />
+            <meshStandardMaterial color="#2d6a4f" emissive="#2d6a4f" emissiveIntensity={0.25} roughness={0.85} />
           </mesh>
-          <Text position={[0, 0.1, 0.68]} fontSize={0.3} color="#d8f3dc" anchorX="center">
+          <Text position={[0, 0.1, 0.62]} fontSize={0.28} color="#d8f3dc" anchorX="center">
             E
           </Text>
         </group>
       )}
 
       {shop && (
-        <group position={[0, 0, halfD + 0.06]}>
-          <mesh castShadow position={[0, 3.0, 0.5]} rotation={[0.4, 0, 0]}>
-            <boxGeometry args={[Math.min(width * 0.95, 8), 0.1, 1.4]} />
-            <meshStandardMaterial
-              color={shopColor ?? '#e63946'}
-              roughness={0.7}
-              flatShading
-            />
-          </mesh>
-          <mesh position={[0, 3.55, 0.1]}>
-            <boxGeometry args={[Math.min(width * 0.9, 7), 0.95, 0.2]} />
-            <meshStandardMaterial color={shopColor ?? '#e63946'} roughness={0.65} flatShading />
+        <group position={[0, 0, halfD + 0.08]}>
+          <mesh castShadow position={[0, 3.45, 0.12]}>
+            <boxGeometry args={[Math.min(width * 0.92, 7.2), 0.9, 0.22]} />
+            <meshStandardMaterial color={shopColor ?? '#b91c1c'} roughness={0.5} metalness={0.2} />
           </mesh>
           <Text
-            position={[0, 3.55, 0.24]}
-            fontSize={0.4}
+            position={[0, 3.45, 0.26]}
+            fontSize={0.38}
             color="#ffffff"
             anchorX="center"
             anchorY="middle"
             maxWidth={Math.min(width * 0.8, 6)}
-            outlineWidth={0.025}
+            outlineWidth={0.02}
             outlineColor="#000"
           >
             {shop}
@@ -253,7 +233,13 @@ function CitySubSurface({ config }: { config: BiomeConfig }) {
   return null
 }
 
-function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => number }) {
+function CityStreets({
+  getHeight,
+  urban,
+}: {
+  getHeight: (x: number, z: number) => number
+  urban: UrbanMaps
+}) {
   const parts = useMemo(() => {
     const result: ReactElement[] = []
     const xMin = -55
@@ -273,23 +259,28 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
     const roadLenZ = zMax - zMin
     const midX = (xMin + xMax) / 2
     const midZ = (zMin + zMax) / 2
-    const asphalt = '#2b2d31'
-    const sidewalk = '#e9ecef'
-    const paint = '#f8f9fa'
+    const paint = '#e8eaed'
 
     for (const z of zs) {
       const base = getHeight(midX, z)
       result.push(
         <mesh key={`road-h-${z}`} position={[midX, base + asphaltH * 0.5, z]} receiveShadow>
           <boxGeometry args={[roadLenX, asphaltH, roadW]} />
-          <meshStandardMaterial color={asphalt} roughness={0.95} flatShading />
+          <meshStandardMaterial
+            color={urban.asphaltTint}
+            map={urban.asphalt.map}
+            normalMap={urban.asphalt.normalMap}
+            roughnessMap={urban.asphalt.roughnessMap}
+            normalScale={urban.normalScale}
+            roughness={0.94}
+            metalness={0.04}
+          />
         </mesh>,
       )
-      // One continuous center stripe per road (cheap; still reads as paint from street level)
       result.push(
         <mesh key={`line-h-${z}`} position={[midX, base + asphaltH + 0.02, z]}>
-          <boxGeometry args={[roadLenX * 0.96, 0.03, 0.2]} />
-          <meshStandardMaterial color={paint} roughness={0.8} flatShading />
+          <boxGeometry args={[roadLenX * 0.96, 0.03, 0.16]} />
+          <meshStandardMaterial color={paint} roughness={0.75} />
         </mesh>,
       )
       for (const side of [-1, 1] as const) {
@@ -300,7 +291,14 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
             receiveShadow
           >
             <boxGeometry args={[roadLenX, 0.1, swW]} />
-            <meshStandardMaterial color={sidewalk} roughness={0.9} flatShading />
+            <meshStandardMaterial
+              color={urban.sidewalkTint}
+              map={urban.sidewalk.map}
+              normalMap={urban.sidewalk.normalMap}
+              roughnessMap={urban.sidewalk.roughnessMap}
+              roughness={0.9}
+              metalness={0.05}
+            />
           </mesh>,
         )
       }
@@ -311,13 +309,21 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
       result.push(
         <mesh key={`road-v-${x}`} position={[x, base + asphaltH * 0.5, midZ]} receiveShadow>
           <boxGeometry args={[roadW, asphaltH, roadLenZ]} />
-          <meshStandardMaterial color={asphalt} roughness={0.95} flatShading />
+          <meshStandardMaterial
+            color={urban.asphaltTint}
+            map={urban.asphalt.map}
+            normalMap={urban.asphalt.normalMap}
+            roughnessMap={urban.asphalt.roughnessMap}
+            normalScale={urban.normalScale}
+            roughness={0.94}
+            metalness={0.04}
+          />
         </mesh>,
       )
       result.push(
         <mesh key={`line-v-${x}`} position={[x, base + asphaltH + 0.02, midZ]}>
-          <boxGeometry args={[0.2, 0.03, roadLenZ * 0.96]} />
-          <meshStandardMaterial color={paint} roughness={0.8} flatShading />
+          <boxGeometry args={[0.16, 0.03, roadLenZ * 0.96]} />
+          <meshStandardMaterial color={paint} roughness={0.75} />
         </mesh>,
       )
       for (const side of [-1, 1] as const) {
@@ -328,13 +334,19 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
             receiveShadow
           >
             <boxGeometry args={[swW, 0.1, roadLenZ]} />
-            <meshStandardMaterial color={sidewalk} roughness={0.9} flatShading />
+            <meshStandardMaterial
+              color={urban.sidewalkTint}
+              map={urban.sidewalk.map}
+              normalMap={urban.sidewalk.normalMap}
+              roughnessMap={urban.sidewalk.roughnessMap}
+              roughness={0.9}
+              metalness={0.05}
+            />
           </mesh>,
         )
       }
     }
 
-    // Zebra crosswalks at key intersections only (4 approaches × 5 stripes)
     const hubs = [
       [0, 44],
       [44, 44],
@@ -352,32 +364,32 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
         result.push(
           <mesh key={`xw-n-${x}-${z}-${k}`} position={[x + o, base, z + 5.1]}>
             <boxGeometry args={[0.55, 0.025, 2.0]} />
-            <meshStandardMaterial color={paint} roughness={0.85} flatShading />
+            <meshStandardMaterial color={paint} roughness={0.8} />
           </mesh>,
         )
         result.push(
           <mesh key={`xw-s-${x}-${z}-${k}`} position={[x + o, base, z - 5.1]}>
             <boxGeometry args={[0.55, 0.025, 2.0]} />
-            <meshStandardMaterial color={paint} roughness={0.85} flatShading />
+            <meshStandardMaterial color={paint} roughness={0.8} />
           </mesh>,
         )
         result.push(
           <mesh key={`xw-e-${x}-${z}-${k}`} position={[x + 5.1, base, z + o]}>
             <boxGeometry args={[2.0, 0.025, 0.55]} />
-            <meshStandardMaterial color={paint} roughness={0.85} flatShading />
+            <meshStandardMaterial color={paint} roughness={0.8} />
           </mesh>,
         )
         result.push(
           <mesh key={`xw-w-${x}-${z}-${k}`} position={[x - 5.1, base, z + o]}>
             <boxGeometry args={[2.0, 0.025, 0.55]} />
-            <meshStandardMaterial color={paint} roughness={0.85} flatShading />
+            <meshStandardMaterial color={paint} roughness={0.8} />
           </mesh>,
         )
       }
     }
 
     return result
-  }, [getHeight])
+  }, [getHeight, urban])
 
   return <group>{parts}</group>
 }
@@ -423,6 +435,7 @@ function StreetLamp({ position }: { position: [number, number, number] }) {
 }
 
 export function CityScene({ config }: CitySceneProps) {
+  const urban = useCityUrbanMaps()
   const rocketElevY = useGameStore((s) =>
     s.flight.phase === 'rocketElevator' ? s.flight.rocketMission?.elevatorY : undefined,
   )
@@ -440,13 +453,13 @@ export function CityScene({ config }: CitySceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="city" size={1280} segments={48} />
-      <HorizonRing color="#8ecae6" y={0} />
-      <CityToyTown getHeight={config.getHeight} />
-      <CityStreets getHeight={config.getHeight} />
+      <DetailedTerrain config={config} biome="city" size={1280} segments={64} />
+      <HorizonRing color="#6b8cae" y={0} />
+      <CityToyTown getHeight={config.getHeight} urban={urban} />
+      <CityStreets getHeight={config.getHeight} urban={urban} />
       <CityFeatureMarkers getHeight={config.getHeight} />
       {CITY_BUILDINGS.map((b) => (
-        <Building key={b.id} building={b} groundY={config.getHeight(b.x, b.z)} />
+        <Building key={b.id} building={b} groundY={config.getHeight(b.x, b.z)} urban={urban} />
       ))}
       <CityLife />
       <CityAirport />
