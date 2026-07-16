@@ -21,13 +21,12 @@ import { CityLaunchPad, RocketTower } from './CityLaunchPad'
 import {
   CITY_GARAGES,
   TUNNEL_SEGMENTS,
-  undergroundFloorY,
 } from '../game/cityUnderground'
 import { CityFeatureMarkers } from './CityFeatureMarkers'
 import {
   GarageInteriorView,
   ThemedBuildingInterior,
-  TunnelInteriorView,
+  TunnelNetworkView,
 } from './cityInteriors'
 
 interface CitySceneProps {
@@ -291,21 +290,20 @@ function BuildingInterior({ config }: { config: BiomeConfig }) {
 function CitySubSurface({ config }: { config: BiomeConfig }) {
   const tunnelSegment = useGameStore((s) => s.flight.tunnelSegment)
   const garageId = useGameStore((s) => s.flight.garageId)
+  const px = useGameStore((s) => s.flight.position.x)
+  const pz = useGameStore((s) => s.flight.position.z)
   if (tunnelSegment >= 0) {
     const seg = TUNNEL_SEGMENTS.find((s) => s.id === tunnelSegment)
     if (!seg) return null
-    const floorY = undergroundFloorY(config.getHeight, seg.x, seg.z)
     return (
       <>
-        <color attach="background" args={['#0a0c10']} />
-        <fog attach="fog" args={['#0a0c10', 6, 42]} />
-        <ambientLight intensity={0.08} />
-        <TunnelInteriorView
-          segmentLabel={seg.label}
-          x={seg.x}
-          z={seg.z}
-          floorY={floorY}
-          secret={seg.secret}
+        <color attach="background" args={['#0b0e12']} />
+        <fog attach="fog" args={['#0b0e12', 12, 70]} />
+        <TunnelNetworkView
+          playerX={px}
+          playerZ={pz}
+          getHeight={config.getHeight}
+          currentLabel={seg.label}
         />
       </>
     )
@@ -316,11 +314,12 @@ function CitySubSurface({ config }: { config: BiomeConfig }) {
     return (
       <>
         <color attach="background" args={['#111418']} />
-        <fog attach="fog" args={['#111418', 8, 36]} />
+        <fog attach="fog" args={['#111418', 10, 40]} />
         <GarageInteriorView
           label={g.label}
           x={g.x}
           z={g.z}
+          yaw={g.yaw}
           groundY={config.getHeight(g.x, g.z) + 0.12 - 0.35}
         />
       </>

@@ -29,6 +29,8 @@ import {
   nearestGarageEntry,
   nearestSecretAlleyDoor,
   nearestSurfaceTunnelEntrance,
+  resolveGaragePush,
+  secretTunnelEntryPos,
   undergroundFloorY,
   TUNNEL_SEGMENTS,
   CITY_GARAGES,
@@ -515,35 +517,43 @@ export function tickFlight(
       } else if (next.interiorId >= 0) {
         const b = getBuildingById(next.interiorId)
         if (b) {
+          const door = doorWorldPos(b, config.getHeight)
+          const nearFront = Math.hypot(next.position.x - door.x, next.position.z - door.z) < 2.8
           const linked = TUNNEL_SEGMENTS.find((s) => s.buildingLink === b.id)
-          if (linked && secretDoor?.segment.id === linked.id) {
+          if (!nearFront && linked) {
             next.interiorId = -1
             next.tunnelSegment = linked.id
             next.position.x = linked.x
             next.position.z = linked.z
             next.position.y = undergroundFloorY(config.getHeight, linked.x, linked.z) + WALK_FEET
           } else {
-            const door = doorWorldPos(b, config.getHeight)
             next.interiorId = -1
             next.position.x = door.x
             next.position.z = door.z + 1.2
             next.position.y = config.getHeight(door.x, door.z) + WALK_FEET
           }
         }
-      } else if (tunnelEnt && !nearGlider && !nearVeh) {
+      } else if (
+        tunnelEnt &&
+        !nearVeh &&
+        (!nearGlider ||
+          Math.hypot(tunnelEnt.x - next.position.x, tunnelEnt.z - next.position.z) <=
+            Math.hypot(nearGlider.x - next.position.x, nearGlider.z - next.position.z))
+      ) {
         next.tunnelSegment = tunnelEnt.id
         next.interiorId = -1
         next.garageId = -1
         next.position.x = tunnelEnt.x
         next.position.z = tunnelEnt.z
         next.position.y = undergroundFloorY(config.getHeight, tunnelEnt.x, tunnelEnt.z) + WALK_FEET
-      } else if (secretDoor && !nearGlider && !nearVeh) {
-        next.tunnelSegment = secretDoor.segment.id
+      } else if (secretDoor && !nearVeh) {
+        const entry = secretTunnelEntryPos(secretDoor.passage, config.getHeight)
+        next.tunnelSegment = entry?.segment.id ?? secretDoor.segment.id
         next.interiorId = -1
         next.garageId = -1
-        next.position.x = secretDoor.segment.x
-        next.position.z = secretDoor.segment.z
-        next.position.y = undergroundFloorY(config.getHeight, secretDoor.segment.x, secretDoor.segment.z) + WALK_FEET
+        next.position.x = entry?.x ?? secretDoor.door.x
+        next.position.z = entry?.z ?? secretDoor.door.z
+        next.position.y = (entry?.y ?? undergroundFloorY(config.getHeight, secretDoor.door.x, secretDoor.door.z)) + WALK_FEET
       } else if (garageEnt && !nearGlider && !nearVeh && !elev) {
         const mouth = garageEntryPos(garageEnt)
         next.garageId = garageEnt.id
@@ -617,7 +627,7 @@ export function tickFlight(
     }
 
     if (next.tunnelSegment >= 0 && config.id === 'city') {
-      const clamped = clampInTunnel(next.position.x, next.position.z)
+      const clamped = clampInTunnel(next.position.x, next.position.z, next.tunnelSegment)
       next.position.x = clamped.x
       next.position.z = clamped.z
       if (clamped.seg) next.tunnelSegment = clamped.seg.id
@@ -642,6 +652,9 @@ export function tickFlight(
         const pushed = resolveBuildingPush(next.position, config.getHeight, 0.35, next.interiorId)
         next.position.x = pushed.x
         next.position.z = pushed.z
+        const garagePush = resolveGaragePush(next.position.x, next.position.z)
+        next.position.x = garagePush.x
+        next.position.z = garagePush.z
       }
       const props = resolvePropPush(config.id, next.position, config.getHeight, 0.42)
       next.position.x = props.x

@@ -2,8 +2,8 @@ import * as THREE from 'three'
 import { Text } from '@react-three/drei'
 import type { CityBuilding } from '../game/cityBuildings'
 import { buildingDepth } from '../game/cityBuildings'
-import type { InteriorTheme } from '../game/cityUnderground'
-import { interiorThemeForShop } from '../game/cityUnderground'
+import type { InteriorTheme, TunnelSegment } from '../game/cityUnderground'
+import { interiorThemeForShop, nearbyTunnelSegments, undergroundFloorY } from '../game/cityUnderground'
 
 const ROOM_H = 3.2
 
@@ -191,6 +191,88 @@ function ThemeProps({ theme, width, depth }: { theme: InteriorTheme; width: numb
           <pointLight position={[0, 2.4, 0]} intensity={1.5} color="#ffe066" distance={9} />
         </>
       )
+    case 'grocery':
+      return (
+        <>
+          {[-1.2, 0, 1.2].map((ox) => (
+            <mesh key={ox} castShadow position={[ox, 1.1, -depth * 0.18]}>
+              <boxGeometry args={[1.5, 2.2, 0.4]} />
+              <meshStandardMaterial color="#f1f3f5" roughness={0.55} />
+            </mesh>
+          ))}
+          <mesh castShadow position={[0, 0.45, 0.6]}>
+            <boxGeometry args={[2.2, 0.9, 0.7]} />
+            <meshStandardMaterial color="#457b9d" roughness={0.6} />
+          </mesh>
+          <pointLight position={[0, 2.6, 0]} intensity={1.35} color="#f8f9fa" distance={10} />
+        </>
+      )
+    case 'barber':
+      return (
+        <>
+          <mesh castShadow position={[0, 0.7, 0]}>
+            <cylinderGeometry args={[0.45, 0.5, 1.4, 12]} />
+            <meshStandardMaterial color="#dee2e6" metalness={0.35} roughness={0.4} />
+          </mesh>
+          <mesh position={[width * 0.25, 1.5, -depth * 0.2]}>
+            <cylinderGeometry args={[0.12, 0.12, 1.6, 10]} />
+            <meshStandardMaterial color="#e76f51" emissive="#e76f51" emissiveIntensity={0.4} />
+          </mesh>
+          <pointLight position={[0, 2.5, 0]} intensity={1.2} color="#ffe8c8" distance={9} />
+        </>
+      )
+    case 'pizza':
+      return (
+        <>
+          <mesh castShadow position={[0, 0.7, -depth * 0.1]}>
+            <boxGeometry args={[2.6, 1.4, 1.2]} />
+            <meshStandardMaterial color="#343a40" roughness={0.7} />
+          </mesh>
+          <mesh position={[0, 1.55, -depth * 0.1]}>
+            <cylinderGeometry args={[0.7, 0.7, 0.12, 16]} />
+            <meshStandardMaterial color="#e9c46a" roughness={0.55} />
+          </mesh>
+          <pointLight position={[0, 2.6, 0]} intensity={1.4} color="#ffb703" distance={9} />
+        </>
+      )
+    case 'bookstore':
+      return (
+        <>
+          {[-1.4, -0.4, 0.6, 1.6].map((ox) => (
+            <mesh key={ox} castShadow position={[ox, 1.2, -depth * 0.22]}>
+              <boxGeometry args={[0.85, 2.4, 0.35]} />
+              <meshStandardMaterial color="#2a9d8f" roughness={0.7} />
+            </mesh>
+          ))}
+          <pointLight position={[0, 2.5, 0]} intensity={1.15} color="#ffe8c8" distance={9} />
+        </>
+      )
+    case 'gym':
+      return (
+        <>
+          <mesh castShadow position={[-1, 0.35, 0]}>
+            <boxGeometry args={[2.2, 0.7, 0.9]} />
+            <meshStandardMaterial color="#212529" metalness={0.4} roughness={0.45} />
+          </mesh>
+          <mesh castShadow position={[1.2, 0.55, 0.3]}>
+            <cylinderGeometry args={[0.15, 0.15, 1.1, 8]} />
+            <meshStandardMaterial color="#adb5bd" metalness={0.7} roughness={0.3} />
+          </mesh>
+          <pointLight position={[0, 2.6, 0]} intensity={1.3} color="#00b4d8" distance={10} />
+        </>
+      )
+    case 'flowers':
+      return (
+        <>
+          {[-1, 0, 1].map((ox, i) => (
+            <mesh key={ox} castShadow position={[ox, 0.7, 0.2]}>
+              <cylinderGeometry args={[0.25, 0.3, 0.9, 10]} />
+              <meshStandardMaterial color={['#f72585', '#ff9f1c', '#52b788'][i]} roughness={0.55} />
+            </mesh>
+          ))}
+          <pointLight position={[0, 2.4, 0]} intensity={1.35} color="#fff0f5" distance={9} />
+        </>
+      )
     default:
       return (
         <>
@@ -265,72 +347,192 @@ export function GarageInteriorView({
   x,
   z,
   groundY,
+  yaw = 0,
 }: {
   label: string
   x: number
   z: number
   groundY: number
+  yaw?: number
 }) {
   return (
-    <group position={[x, groundY, z]}>
-      <ambientLight intensity={0.35} />
-      <pointLight position={[0, 3.5, 0]} intensity={1.2} color="#fff3bf" distance={14} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0, 0]}>
-        <planeGeometry args={[10, 8]} />
-        <meshStandardMaterial color="#495057" roughness={0.88} />
+    <group position={[x, groundY, z]} rotation={[0, yaw, 0]}>
+      <ambientLight intensity={0.4} />
+      <pointLight position={[0, 3.8, 0]} intensity={1.4} color="#fff3bf" distance={16} />
+      <pointLight position={[3, 2.5, 2]} intensity={0.5} color="#ffd60a" distance={10} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[14, 11]} />
+        <meshStandardMaterial color="#3d4146" roughness={0.9} />
       </mesh>
-      <mesh position={[0, 3.2, -3.8]}>
-        <boxGeometry args={[10, 3.2, 0.2]} />
-        <meshStandardMaterial color="#343a40" roughness={0.8} />
+      {/* Painted bay lines */}
+      {[-3.2, 0, 3.2].map((ox) => (
+        <mesh key={ox} rotation={[-Math.PI / 2, 0, 0]} position={[ox, 0.02, 0.4]}>
+          <planeGeometry args={[2.4, 5.5]} />
+          <meshStandardMaterial color="#495057" roughness={0.95} />
+        </mesh>
+      ))}
+      <mesh position={[0, 2.4, -5.2]}>
+        <boxGeometry args={[14, 4.8, 0.25]} />
+        <meshStandardMaterial color="#2b2f33" roughness={0.82} />
       </mesh>
-      <Text position={[0, 2.8, -3.5]} fontSize={0.45} color="#ffd60a" anchorX="center">
-        {label}
+      <mesh position={[-6.8, 2.4, 0]}>
+        <boxGeometry args={[0.25, 4.8, 11]} />
+        <meshStandardMaterial color="#2b2f33" roughness={0.82} />
+      </mesh>
+      <mesh position={[6.8, 2.4, 0]}>
+        <boxGeometry args={[0.25, 4.8, 11]} />
+        <meshStandardMaterial color="#2b2f33" roughness={0.82} />
+      </mesh>
+      <mesh position={[0, 4.7, 0]}>
+        <boxGeometry args={[14, 0.2, 11]} />
+        <meshStandardMaterial color="#212529" roughness={0.9} />
+      </mesh>
+      <Text position={[0, 3.6, -4.9]} fontSize={0.5} color="#ffd60a" anchorX="center" outlineWidth={0.03} outlineColor="#000">
+        {label.toUpperCase()}
       </Text>
-      {/* Lift platform */}
-      <mesh castShadow position={[0, 0.15, 0]}>
-        <boxGeometry args={[3.5, 0.3, 5]} />
-        <meshStandardMaterial color="#6c757d" metalness={0.5} roughness={0.4} />
+      <Text position={[0, 2.9, -4.9]} fontSize={0.28} color="#adb5bd" anchorX="center">
+        Press E at the bay to exit
+      </Text>
+      <mesh castShadow position={[0, 0.12, 0.2]}>
+        <boxGeometry args={[3.8, 0.24, 6]} />
+        <meshStandardMaterial color="#6c757d" metalness={0.55} roughness={0.38} />
+      </mesh>
+      {/* Tool chest */}
+      <mesh castShadow position={[-5.2, 0.55, -3.5]}>
+        <boxGeometry args={[1.4, 1.1, 0.7]} />
+        <meshStandardMaterial color="#e63946" roughness={0.55} metalness={0.25} />
       </mesh>
     </group>
   )
 }
 
-export function TunnelInteriorView({
-  segmentLabel,
-  x,
-  z,
+function CorridorMesh({
+  seg,
   floorY,
-  secret,
 }: {
-  segmentLabel?: string
-  x: number
-  z: number
+  seg: TunnelSegment
   floorY: number
-  secret?: boolean
 }) {
+  const w = seg.halfW * 2
+  const d = seg.halfD * 2
+  const h = 3.4
+  const wallT = 0.22
+  const alongZ = seg.halfD >= seg.halfW
+  const accent = seg.surfaceExit ? '#4cc9f0' : seg.secret ? '#9b5de5' : '#6c757d'
   return (
-    <group position={[x, floorY, z]}>
-      <ambientLight intensity={0.12} color="#334455" />
-      <pointLight position={[0, 2.8, 0]} intensity={0.9} color={secret ? '#ffd60a' : '#74c0fc'} distance={16} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[40, 40]} />
-        <meshStandardMaterial color="#2b2d31" roughness={0.95} />
+    <group position={[seg.x, floorY, seg.z]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0.01, 0]}>
+        <planeGeometry args={[w, d]} />
+        <meshStandardMaterial color="#1f2226" roughness={0.96} />
       </mesh>
-      {/* Tunnel tube */}
-      <mesh position={[0, 1.8, 0]}>
-        <cylinderGeometry args={[3, 3, 40, 16, 1, true]} />
-        <meshStandardMaterial color="#495057" roughness={0.85} metalness={0.2} side={THREE.BackSide} />
+      {/* Center walk stripe */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+        <planeGeometry args={alongZ ? [0.35, d * 0.92] : [w * 0.92, 0.35]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.18} roughness={0.7} />
       </mesh>
-      {/* Pipe runs */}
-      {[0, 1, 2].map((i) => (
-        <mesh key={i} position={[0, 2.6 - i * 0.35, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.12, 0.12, 38, 8]} />
-          <meshStandardMaterial color="#868e96" metalness={0.55} roughness={0.35} />
+      {/* Side walls */}
+      {alongZ ? (
+        <>
+          <mesh position={[-w / 2 + wallT / 2, h / 2, 0]}>
+            <boxGeometry args={[wallT, h, d]} />
+            <meshStandardMaterial color="#343a40" roughness={0.88} />
+          </mesh>
+          <mesh position={[w / 2 - wallT / 2, h / 2, 0]}>
+            <boxGeometry args={[wallT, h, d]} />
+            <meshStandardMaterial color="#343a40" roughness={0.88} />
+          </mesh>
+        </>
+      ) : (
+        <>
+          <mesh position={[0, h / 2, -d / 2 + wallT / 2]}>
+            <boxGeometry args={[w, h, wallT]} />
+            <meshStandardMaterial color="#343a40" roughness={0.88} />
+          </mesh>
+          <mesh position={[0, h / 2, d / 2 - wallT / 2]}>
+            <boxGeometry args={[w, h, wallT]} />
+            <meshStandardMaterial color="#343a40" roughness={0.88} />
+          </mesh>
+        </>
+      )}
+      <mesh position={[0, h, 0]}>
+        <boxGeometry args={[w, 0.16, d]} />
+        <meshStandardMaterial color="#15181c" roughness={0.92} />
+      </mesh>
+      {/* Ceiling lights */}
+      {([-0.35, 0.35] as const).map((t) => {
+        const lx = alongZ ? t * (w * 0.35) : 0
+        const lz = alongZ ? 0 : t * (d * 0.35)
+        return (
+          <group key={t}>
+            <mesh position={[lx, h - 0.12, lz]}>
+              <boxGeometry args={alongZ ? [0.35, 0.08, Math.min(d * 0.7, 12)] : [Math.min(w * 0.7, 12), 0.08, 0.35]} />
+              <meshStandardMaterial color="#f8f9fa" emissive="#ffe8a3" emissiveIntensity={0.55} />
+            </mesh>
+            <pointLight position={[lx, h - 0.4, lz]} intensity={0.55} color="#fff3bf" distance={14} />
+          </group>
+        )
+      })}
+      {seg.label && (seg.surfaceExit || seg.buildingLink != null || seg.secret) && (
+        <Text
+          position={[0, 2.4, 0]}
+          fontSize={0.34}
+          color={accent}
+          anchorX="center"
+          outlineWidth={0.03}
+          outlineColor="#000"
+          maxWidth={Math.min(w, d) * 1.4}
+        >
+          {seg.label}
+        </Text>
+      )}
+      {seg.surfaceExit && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
+          <ringGeometry args={[1.6, 2.05, 28]} />
+          <meshStandardMaterial color="#52b788" emissive="#52b788" emissiveIntensity={0.45} side={THREE.DoubleSide} />
         </mesh>
+      )}
+      {seg.buildingLink != null && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
+          <ringGeometry args={[1.1, 1.4, 24]} />
+          <meshStandardMaterial color="#ffd60a" emissive="#ffd60a" emissiveIntensity={0.35} side={THREE.DoubleSide} />
+        </mesh>
+      )}
+    </group>
+  )
+}
+
+export function TunnelNetworkView({
+  playerX,
+  playerZ,
+  getHeight,
+  currentLabel,
+}: {
+  playerX: number
+  playerZ: number
+  getHeight: (x: number, z: number) => number
+  currentLabel?: string
+}) {
+  const segs = nearbyTunnelSegments(playerX, playerZ, 60)
+  const playerFloor = undergroundFloorY(getHeight, playerX, playerZ)
+  return (
+    <group>
+      <ambientLight intensity={0.16} color="#445566" />
+      <hemisphereLight args={['#6c8aa8', '#0a0c10', 0.35]} />
+      {segs.map((seg) => (
+        <CorridorMesh
+          key={seg.id}
+          seg={seg}
+          floorY={undergroundFloorY(getHeight, seg.x, seg.z)}
+        />
       ))}
-      {segmentLabel && (
-        <Text position={[0, 2.2, 0]} fontSize={0.32} color={secret ? '#ffd60a' : '#adb5bd'} anchorX="center">
-          {segmentLabel}
+      {currentLabel && (
+        <Text
+          position={[playerX, playerFloor + 2.85, playerZ]}
+          fontSize={0.28}
+          color="#adb5bd"
+          anchorX="center"
+        >
+          {currentLabel}
         </Text>
       )}
     </group>

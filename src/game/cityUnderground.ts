@@ -73,18 +73,38 @@ export type TunnelSegment = {
   label?: string
 }
 
-/** Underground corridors under the 22 m street grid. */
+/**
+ * Continuous underground grid under the 22 m streets.
+ * NS spines (tall halfD) + EW spines (wide halfW) overlap at junctions so you can walk the whole network.
+ */
 export const TUNNEL_SEGMENTS: TunnelSegment[] = [
-  { id: 0, x: 44, z: 44, halfW: 3.5, halfD: 15, surfaceExit: true, label: 'Main Square Metro' },
-  { id: 1, x: 44, z: 44, halfW: 15, halfD: 3.5, surfaceExit: true, label: 'Main Square Metro' },
-  { id: 2, x: 55, z: 88, halfW: 3.5, halfD: 20, buildingLink: 11, label: 'Bank Vault Tunnel' },
-  { id: 3, x: 0, z: 88, halfW: 30, halfD: 3.5, secret: true, label: 'Alley Catacombs' },
-  { id: 4, x: -5, z: 100, halfW: 3.5, halfD: 14, buildingLink: 28, secret: true, label: 'Precinct Underpass' },
-  { id: 5, x: 132, z: 44, halfW: 3.5, halfD: 18, buildingLink: 13, label: 'Tech Hub Conduit' },
-  { id: 6, x: 132, z: 44, halfW: 18, halfD: 3.5, label: 'East Utility Main' },
-  { id: 7, x: 132, z: 132, halfW: 3.5, halfD: 24, surfaceExit: true, label: 'Harbor Metro' },
-  { id: 8, x: 88, z: 132, halfW: 24, halfD: 3.5, secret: true, label: 'Smuggler Run' },
-  { id: 9, x: 26, z: 132, halfW: 3.5, halfD: 16, buildingLink: 26, secret: true, label: 'Bakery Cellar Link' },
+  // —— Main Square hub ——
+  { id: 0, x: 44, z: 44, halfW: 4, halfD: 4, surfaceExit: true, label: 'Main Square Station' },
+  { id: 1, x: 44, z: 66, halfW: 3.2, halfD: 28, label: 'North Avenue Tunnel' },
+  { id: 2, x: 44, z: 22, halfW: 3.2, halfD: 18, label: 'South Avenue Tunnel' },
+  { id: 3, x: 22, z: 44, halfW: 22, halfD: 3.2, label: 'West Cross Passage' },
+  { id: 4, x: 88, z: 44, halfW: 46, halfD: 3.2, label: 'East Cross Passage' },
+
+  // —— Midtown (bank / police / cafe links) ——
+  { id: 5, x: 44, z: 88, halfW: 3.2, halfD: 8, label: 'Midtown Junction' },
+  { id: 6, x: 20, z: 88, halfW: 30, halfD: 3.2, secret: true, label: 'Midtown Catacombs' },
+  { id: 7, x: 55, z: 88, halfW: 8, halfD: 10, buildingLink: 11, label: 'Bank Basement Link' },
+  { id: 8, x: -8, z: 94, halfW: 4.5, halfD: 14, buildingLink: 28, secret: true, label: 'Precinct Underpass' },
+  { id: 9, x: 5, z: 26, halfW: 4, halfD: 8, buildingLink: 0, secret: true, label: 'Cafe Cellar' },
+  { id: 19, x: 24, z: 26, halfW: 22, halfD: 3.2, secret: true, label: 'Cafe Approach' },
+
+  // —— East / Tech Hub ——
+  { id: 10, x: 132, z: 44, halfW: 3.2, halfD: 8, label: 'Tech Junction' },
+  { id: 11, x: 132, z: 22, halfW: 3.2, halfD: 18, label: 'Tech South Spur' },
+  { id: 12, x: 132, z: 66, halfW: 3.2, halfD: 22, label: 'Harbor Approach' },
+  { id: 13, x: 140, z: 50, halfW: 10, halfD: 3.2, buildingLink: 13, label: 'Tech Hub Link' },
+
+  // —— Harbor ——
+  { id: 14, x: 132, z: 132, halfW: 4, halfD: 4, surfaceExit: true, label: 'Harbor Station' },
+  { id: 15, x: 88, z: 132, halfW: 28, halfD: 3.2, secret: true, label: 'Harbor Run' },
+  { id: 16, x: 132, z: 110, halfW: 3.2, halfD: 18, label: 'Harbor North Approach' },
+  { id: 17, x: 154, z: 154, halfW: 3.2, halfD: 20, buildingLink: 26, secret: true, label: 'Bakery Cellar' },
+  { id: 18, x: 143, z: 132, halfW: 14, halfD: 3.2, secret: true, label: 'Bakery Approach' },
 ]
 
 export type SecretPassage = {
@@ -93,12 +113,13 @@ export type SecretPassage = {
   tunnelSegmentId: number
 }
 
+/** Secret doors drop you into a stub that already connects to the grid. */
 export const SECRET_PASSAGES: SecretPassage[] = [
-  { id: 0, buildingId: 11, tunnelSegmentId: 2 },
-  { id: 1, buildingId: 28, tunnelSegmentId: 4 },
-  { id: 2, buildingId: 13, tunnelSegmentId: 5 },
-  { id: 3, buildingId: 26, tunnelSegmentId: 9 },
-  { id: 4, buildingId: 0, tunnelSegmentId: 3 },
+  { id: 0, buildingId: 11, tunnelSegmentId: 7 },
+  { id: 1, buildingId: 28, tunnelSegmentId: 8 },
+  { id: 2, buildingId: 13, tunnelSegmentId: 13 },
+  { id: 3, buildingId: 26, tunnelSegmentId: 17 },
+  { id: 4, buildingId: 0, tunnelSegmentId: 9 },
 ]
 
 /** Surface markers for map + wayfinder (world x,z). */
@@ -108,8 +129,10 @@ export type CityLandmark = {
   hint: string
   x: number
   z: number
-  kind: 'metro' | 'garage' | 'secret'
+  kind: 'metro' | 'garage' | 'secret' | 'guide'
   color: string
+  /** Lower = preferred when distances are similar. */
+  priority: number
 }
 
 function secretLandmarkPos(buildingId: number): { x: number; z: number } {
@@ -119,28 +142,81 @@ function secretLandmarkPos(buildingId: number): { x: number; z: number } {
   return { x: b.x - b.width * 0.5 - 0.65, z: b.z + d * 0.08 }
 }
 
+export function garageEntryPos(g: CityGarage) {
+  return {
+    x: g.x + Math.sin(g.yaw) * (g.depth * 0.5 + 2),
+    z: g.z + Math.cos(g.yaw) * (g.depth * 0.5 + 2),
+  }
+}
+
 export const CITY_LANDMARKS: CityLandmark[] = [
-  { id: 'metro-main', label: 'Main Square Metro', hint: 'Follow the cyan beacon — press E at the stairwell', x: 44, z: 44, kind: 'metro', color: '#4cc9f0' },
-  { id: 'metro-harbor', label: 'Harbor Metro', hint: 'Cyan stairwell at the harbor intersection — press E', x: 132, z: 132, kind: 'metro', color: '#4cc9f0' },
-  ...CITY_GARAGES.map((g) => {
-    const mouth = garageEntryPos(g)
-    return {
-      id: `garage-${g.id}`,
-      label: g.label,
-      hint: 'Yellow parking arch with beacon — press E',
-      x: mouth.x,
-      z: mouth.z,
-      kind: 'garage' as const,
-      color: '#ffd60a',
-    }
-  }),
+  {
+    id: 'guide-downtown',
+    label: 'Downtown',
+    hint: 'Walk toward the cyan metro station',
+    x: 22,
+    z: 18,
+    kind: 'guide',
+    color: '#e9ecef',
+    priority: 0,
+  },
+  {
+    id: 'metro-main',
+    label: 'Main Square Station',
+    hint: 'Cyan stair pavilion — press E',
+    x: 44,
+    z: 44,
+    kind: 'metro',
+    color: '#4cc9f0',
+    priority: 1,
+  },
+  {
+    id: 'garage-central',
+    label: 'Central Garage',
+    hint: 'Yellow parking bay — press E',
+    x: garageEntryPos(CITY_GARAGES[0]!).x,
+    z: garageEntryPos(CITY_GARAGES[0]!).z,
+    kind: 'garage',
+    color: '#ffd60a',
+    priority: 2,
+  },
+  {
+    id: 'metro-harbor',
+    label: 'Harbor Station',
+    hint: 'Cyan stair pavilion — press E',
+    x: 132,
+    z: 132,
+    kind: 'metro',
+    color: '#4cc9f0',
+    priority: 3,
+  },
+  {
+    id: 'garage-midtown',
+    label: 'Midtown Auto',
+    hint: 'Yellow parking bay — press E',
+    x: garageEntryPos(CITY_GARAGES[1]!).x,
+    z: garageEntryPos(CITY_GARAGES[1]!).z,
+    kind: 'garage',
+    color: '#ffd60a',
+    priority: 4,
+  },
+  {
+    id: 'garage-harbor',
+    label: 'Harbor Garage',
+    hint: 'Yellow parking bay — press E',
+    x: garageEntryPos(CITY_GARAGES[2]!).x,
+    z: garageEntryPos(CITY_GARAGES[2]!).z,
+    kind: 'garage',
+    color: '#ffd60a',
+    priority: 5,
+  },
   ...([
-    [11, 'Bank Alley Door', 'Purple door in the alley west of BANK'],
-    [28, 'Precinct Alley Door', 'Purple door behind POLICE HQ'],
-    [0, 'Cafe Alley Door', 'Purple door west of CAFE NOIR'],
-    [13, 'Tech Hub Alley Door', 'Purple door west of TECH HUB'],
-    [26, 'Bakery Alley Door', 'Purple door west of BAKERY'],
-  ] as const).map(([buildingId, label, hint]) => {
+    [0, 'Cafe cellar door', 'Quiet door west of CAFE NOIR'],
+    [11, 'Bank cellar door', 'Quiet door west of BANK'],
+    [28, 'Precinct cellar door', 'Quiet door west of POLICE'],
+    [13, 'Tech cellar door', 'Quiet door west of TECH HUB'],
+    [26, 'Bakery cellar door', 'Quiet door west of BAKERY'],
+  ] as const).map(([buildingId, label, hint], i) => {
     const pos = secretLandmarkPos(buildingId)
     return {
       id: `secret-${buildingId}`,
@@ -150,16 +226,10 @@ export const CITY_LANDMARKS: CityLandmark[] = [
       z: pos.z,
       kind: 'secret' as const,
       color: '#b5179e',
+      priority: 10 + i,
     }
   }),
 ]
-
-export function garageEntryPos(g: CityGarage) {
-  return {
-    x: g.x + Math.sin(g.yaw) * (g.depth * 0.5 + 2),
-    z: g.z + Math.cos(g.yaw) * (g.depth * 0.5 + 2),
-  }
-}
 
 export function secretDoorWorldPos(
   passage: SecretPassage,
@@ -175,29 +245,61 @@ export function secretDoorWorldPos(
   }
 }
 
+/** Underground spawn at the alley door — stub segment sits under it. */
+export function secretTunnelEntryPos(
+  passage: SecretPassage,
+  getHeight: (x: number, z: number) => number,
+): { x: number; y: number; z: number; segment: TunnelSegment } | null {
+  const seg = TUNNEL_SEGMENTS.find((s) => s.id === passage.tunnelSegmentId)
+  if (!seg) return null
+  const door = secretDoorWorldPos(passage, getHeight)
+  const clamped = clampInTunnel(door.x, door.z, passage.tunnelSegmentId)
+  return {
+    x: clamped.x,
+    z: clamped.z,
+    y: undergroundFloorY(getHeight, clamped.x, clamped.z),
+    segment: clamped.seg,
+  }
+}
+
 export function undergroundFloorY(getHeight: (x: number, z: number) => number, x: number, z: number) {
   return getHeight(x, z) + CITY_STREET_DECK - UNDERGROUND_DEPTH
 }
 
-export function inTunnelCorridor(x: number, z: number): TunnelSegment | null {
-  for (const seg of TUNNEL_SEGMENTS) {
-    if (Math.abs(x - seg.x) <= seg.halfW && Math.abs(z - seg.z) <= seg.halfD) return seg
+export function segmentContains(seg: TunnelSegment, x: number, z: number, pad = 0) {
+  return Math.abs(x - seg.x) <= seg.halfW + pad && Math.abs(z - seg.z) <= seg.halfD + pad
+}
+
+export function inTunnelCorridor(x: number, z: number, preferId = -1): TunnelSegment | null {
+  if (preferId >= 0) {
+    const preferred = TUNNEL_SEGMENTS.find((s) => s.id === preferId)
+    if (preferred && segmentContains(preferred, x, z)) return preferred
   }
-  return null
+  let best: TunnelSegment | null = null
+  let bestArea = Infinity
+  for (const seg of TUNNEL_SEGMENTS) {
+    if (!segmentContains(seg, x, z)) continue
+    const area = seg.halfW * seg.halfD
+    if (area < bestArea) {
+      bestArea = area
+      best = seg
+    }
+  }
+  return best
 }
 
 export function nearestSurfaceTunnelEntrance(
   x: number,
   z: number,
   _getHeight: (x: number, z: number) => number,
-  range = 7,
+  range = 8,
 ): TunnelSegment | null {
   const seen = new Set<number>()
   let best: TunnelSegment | null = null
   let bestD = range
   for (const seg of TUNNEL_SEGMENTS) {
-    if (!seg.surfaceExit || seen.has(seg.id)) continue
-    seen.add(seg.id)
+    if (!seg.surfaceExit || seen.has(seg.x * 1000 + seg.z)) continue
+    seen.add(seg.x * 1000 + seg.z)
     const d = Math.hypot(seg.x - x, seg.z - z)
     if (d < bestD) {
       bestD = d
@@ -250,42 +352,60 @@ export function nearestGarageEntry(
   return best
 }
 
-export function nearestCityLandmark(x: number, z: number, maxRange = 220): CityLandmark | null {
+/** Prefer metros/garages over secret doors when exploring from afar. */
+export function nearestCityLandmark(x: number, z: number, maxRange = 280): CityLandmark | null {
   let best: CityLandmark | null = null
-  let bestD = maxRange
+  let bestScore = Infinity
   for (const lm of CITY_LANDMARKS) {
+    if (lm.kind === 'secret') continue
     const d = Math.hypot(lm.x - x, lm.z - z)
-    if (d < bestD) {
-      bestD = d
+    if (d > maxRange) continue
+    const score = d + lm.priority * 8
+    if (score < bestScore) {
+      bestScore = score
       best = lm
     }
   }
   return best
 }
 
-export function clampInTunnel(x: number, z: number) {
-  const seg = inTunnelCorridor(x, z)
-  if (!seg) {
-    let best = TUNNEL_SEGMENTS[0]!
-    let bestD = Infinity
-    for (const s of TUNNEL_SEGMENTS) {
-      const d = Math.hypot(s.x - x, s.z - z)
-      if (d < bestD) {
-        bestD = d
-        best = s
-      }
-    }
-    return {
-      x: Math.max(best.x - best.halfW + 0.5, Math.min(best.x + best.halfW - 0.5, x)),
-      z: Math.max(best.z - best.halfD + 0.5, Math.min(best.z + best.halfD - 0.5, z)),
-      seg: best,
-    }
-  }
+function projectOntoSegment(seg: TunnelSegment, x: number, z: number) {
   return {
-    x: Math.max(seg.x - seg.halfW + 0.5, Math.min(seg.x + seg.halfW - 0.5, x)),
-    z: Math.max(seg.z - seg.halfD + 0.5, Math.min(seg.z + seg.halfD - 0.5, z)),
-    seg,
+    x: Math.max(seg.x - seg.halfW + 0.45, Math.min(seg.x + seg.halfW - 0.45, x)),
+    z: Math.max(seg.z - seg.halfD + 0.45, Math.min(seg.z + seg.halfD - 0.45, z)),
   }
+}
+
+/** Soft clamp onto the tunnel graph — never teleports to a distant segment center. */
+export function clampInTunnel(x: number, z: number, preferId = -1) {
+  const inside = inTunnelCorridor(x, z, preferId)
+  if (inside) {
+    const p = projectOntoSegment(inside, x, z)
+    return { x: p.x, z: p.z, seg: inside }
+  }
+
+  let best = TUNNEL_SEGMENTS[0]!
+  let bestD = Infinity
+  let bestP = { x, z }
+  for (const s of TUNNEL_SEGMENTS) {
+    const p = projectOntoSegment(s, x, z)
+    const d = Math.hypot(p.x - x, p.z - z)
+    if (d < bestD) {
+      bestD = d
+      best = s
+      bestP = p
+    }
+  }
+  return { x: bestP.x, z: bestP.z, seg: best }
+}
+
+/** Nearby corridors for underground rendering (walkable network you can see). */
+export function nearbyTunnelSegments(x: number, z: number, range = 55): TunnelSegment[] {
+  return TUNNEL_SEGMENTS.filter((s) => {
+    const dx = Math.max(Math.abs(x - s.x) - s.halfW, 0)
+    const dz = Math.max(Math.abs(z - s.z) - s.halfD, 0)
+    return Math.hypot(dx, dz) <= range
+  })
 }
 
 export function inGarageInterior(x: number, z: number, garageId: number): boolean {
@@ -296,4 +416,31 @@ export function inGarageInterior(x: number, z: number, garageId: number): boolea
   const lx = (x - g.x) * cos + (z - g.z) * sin
   const lz = -(x - g.x) * sin + (z - g.z) * cos
   return Math.abs(lx) <= g.width * 0.45 && Math.abs(lz) <= g.depth * 0.45
+}
+
+/** Push walkers out of garage shells when on the street. */
+export function resolveGaragePush(x: number, z: number, margin = 0.4): { x: number; z: number } {
+  let nx = x
+  let nz = z
+  for (const g of CITY_GARAGES) {
+    const cos = Math.cos(g.yaw)
+    const sin = Math.sin(g.yaw)
+    const lx = (nx - g.x) * cos + (nz - g.z) * sin
+    const lz = -(nx - g.x) * sin + (nz - g.z) * cos
+    const halfW = g.width * 0.5 + margin
+    const halfD = g.depth * 0.5 + margin
+    if (Math.abs(lx) > halfW || Math.abs(lz) > halfD) continue
+    // Open bay on +local Z — allow entry from mouth
+    const mouthOpen = lz > halfD - 2.4 && Math.abs(lx) < g.width * 0.38
+    if (mouthOpen) continue
+    const ox = halfW - Math.abs(lx)
+    const oz = halfD - Math.abs(lz)
+    let nlx = lx
+    let nlz = lz
+    if (ox < oz) nlx = Math.sign(lx || 1) * halfW
+    else nlz = Math.sign(lz || 1) * halfD
+    nx = g.x + nlx * cos - nlz * sin
+    nz = g.z + nlx * sin + nlz * cos
+  }
+  return { x: nx, z: nz }
 }

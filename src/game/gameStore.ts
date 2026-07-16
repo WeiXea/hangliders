@@ -324,7 +324,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           velocity: { x: 0, y: 0, z: 0 },
         }
         travelBanner =
-          'Urban Skyline — walk east toward downtown · cyan = metro · yellow = garage · purple = secrets'
+          'Urban Skyline — cyan pavilion = metro · yellow bay = garage · green mat = shops · purple cellar = tunnels'
       } else {
         const pad = pickCityLaunchPad()
         const building = getBuildingById(pad.buildingId)

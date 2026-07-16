@@ -293,8 +293,8 @@ export function HomeScreen() {
             </button>
             {biome === 'city' && (
               <p className={styles.cityExploreHint}>
-                City has metros, garages, secret tunnels, and shop interiors — only in <b>Urban Skyline</b>.
-                Free Flight starts you on the street; Challenge/XC launch from a rooftop.
+                <b>Urban Skyline</b> Free Flight starts at downtown — cyan metro pavilion, yellow
+                garage bay, green shop mats, purple cellar doors. Challenge/XC still launch from rooftops.
               </p>
             )}
           </>

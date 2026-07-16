@@ -628,7 +628,7 @@ export function FlightHUD() {
         !showCityGuide &&
         flight.landAction === 'none' && (
         <div className={styles.coach}>
-          Cyan beacons = metro · yellow arches = garages · purple doors = secret tunnels · green mat = shops
+          Follow the arrow · cyan pavilion = metro · yellow bay = garage · green mat = shop
         </div>
       )}
 
@@ -872,21 +872,21 @@ export function FlightHUD() {
       )}
 
       {nearTunnelGrate && !nearMount && !nearVehicle && (
-        <div className={styles.nearGround}>Metro stairwell — press E to go underground</div>
+        <div className={styles.nearGround}>Metro station — press E to go underground</div>
       )}
 
       {nearSecret && !nearMount && !nearVehicle && (
-        <div className={styles.nearGround}>Purple secret door — press E for underground passage</div>
+        <div className={styles.nearGround}>Cellar door — press E to enter the tunnels</div>
       )}
 
       {nearGarage && !nearMount && !nearVehicle && (
-        <div className={styles.nearGround}>{nearGarage.label} — press E to enter the garage</div>
+        <div className={styles.nearGround}>{nearGarage.label} — press E to walk inside</div>
       )}
 
       {inTunnel && (
         <div className={styles.coach}>
-          {tunnelSeg?.label ?? 'Underground tunnel'} — walk the corridors · E at cyan metro exits to surface
-          {tunnelSeg?.buildingLink != null ? ' · E at linked rooms for basement shop access' : ''}
+          {tunnelSeg?.label ?? 'Underground'} — walk the lit corridors · green ring = street exit
+          {tunnelSeg?.buildingLink != null ? ' · gold ring = shop basement (E)' : ''}
         </div>
       )}
 
@@ -896,7 +896,10 @@ export function FlightHUD() {
 
       {inside && (
         <div className={styles.coach}>
-          {insideBuilding?.shop ? `Inside ${insideBuilding.shop}` : 'Inside'} — press E at the door to leave
+          {insideBuilding?.shop ? `Inside ${insideBuilding.shop}` : 'Inside'} — E at the green mat to leave
+          {TUNNEL_SEGMENTS.some((s) => s.buildingLink === flight.interiorId)
+            ? ' · walk to the back and press E for the cellar tunnels'
+            : ''}
         </div>
       )}
 

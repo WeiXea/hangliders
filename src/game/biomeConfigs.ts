@@ -150,8 +150,8 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
     id: 'city',
     name: 'Urban Skyline',
     tagline: 'Glide above rooftops and rivers',
-    launchPosition: { x: -40, y: 0, z: -35 },
-    launchYaw: Math.PI * 0.05,
+    launchPosition: { x: 18, y: 0, z: 8 },
+    launchYaw: Math.PI * 0.2,
     windStrength: 0.4,
     thermalStrength: 0.38,
     fogColor: '#b4c0cc',
@@ -187,9 +187,9 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
       { x: -135, z: 62, yaw: Math.PI / 2, craftType: 'jet' },
       // Starbase pad — Falcon-class stack (board via tower elevator)
       { x: -158, z: 28, yaw: Math.PI / 2, craftType: 'rocket' },
-      // Street plaza spare gliders
-      { x: 48, z: 48, yaw: 0.4 },
-      { x: 130, z: 88, yaw: -0.5 },
+      // Street plaza spare gliders (kept clear of metro stairwells)
+      { x: 28, z: 58, yaw: 0.4 },
+      { x: 118, z: 100, yaw: -0.5 },
     ],
   },
   moon: {
