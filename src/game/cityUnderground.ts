@@ -27,7 +27,7 @@ export function interiorThemeForShop(shop?: string): InteriorTheme {
   const s = (shop ?? '').toUpperCase()
   if (s.includes('CAFE') || s.includes('NOIR')) return 'cafe'
   if (s.includes('BAKERY')) return 'bakery'
-  if (s.includes('POLICE')) return 'police'
+  if (s.includes('POLICE') || s.includes('HOSPITAL')) return 'police'
   if (s.includes('BANK')) return 'bank'
   if (s.includes('PHARMACY')) return 'pharmacy'
   if (s.includes('GROCER')) return 'grocery'
@@ -261,7 +261,7 @@ export const CITY_LANDMARKS: CityLandmark[] = [
   ...([
     [0, 'Cafe cellar door', 'Quiet door west of CAFE NOIR'],
     [11, 'Bank cellar door', 'Quiet door west of BANK'],
-    [28, 'Precinct cellar door', 'Quiet door west of POLICE'],
+    [28, 'Hospital cellar door', 'Quiet door west of HOSPITAL'],
     [13, 'Tech cellar door', 'Quiet door west of TECH HUB'],
     [26, 'Bakery cellar door', 'Quiet door west of BAKERY'],
   ] as const).map(([buildingId, label, hint], i) => {

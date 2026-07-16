@@ -72,14 +72,15 @@ function CloudLayers({ config }: { config: BiomeConfig }) {
 
 export function SharedLighting({ config }: { config?: BiomeConfig }) {
   const [sx, sy, sz] = config?.sunPosition ?? [140, 160, 90]
+  const city = config?.id === 'city'
   return (
     <>
       {/* SoftShadows removed — caused shimmer / “landscape changing” on large flats */}
-      <ambientLight intensity={0.24} color="#ffd6a5" />
+      <ambientLight intensity={city ? 0.55 : 0.24} color={city ? '#ffffff' : '#ffd6a5'} />
       <directionalLight
         position={[sx, sy, sz]}
-        intensity={2.45}
-        color="#ffe0b8"
+        intensity={city ? 2.1 : 2.45}
+        color={city ? '#fff6e0' : '#ffe0b8'}
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-camera-far={650}
@@ -90,8 +91,8 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
         shadow-bias={-0.0002}
         shadow-normalBias={0.04}
       />
-      <directionalLight position={[-70, 55, -40]} intensity={0.38} color="#9ec9e8" />
-      <hemisphereLight args={['#ffc97a', '#4a6741', 0.55]} />
+      <directionalLight position={[-70, 55, -40]} intensity={city ? 0.55 : 0.38} color="#9ec9e8" />
+      <hemisphereLight args={[city ? '#cfe8ff' : '#ffc97a', city ? '#74c69d' : '#4a6741', city ? 0.7 : 0.55]} />
       <mesh position={[sx * 0.4, sy * 0.4, sz * 0.4]}>
         <sphereGeometry args={[18, 16, 16]} />
         <meshBasicMaterial color="#ffe8c8" transparent opacity={0.14} depthWrite={false} />

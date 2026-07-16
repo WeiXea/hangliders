@@ -1,6 +1,5 @@
-import { useMemo, useEffect, type ReactElement } from 'react'
-import * as THREE from 'three'
-import { Text, useTexture } from '@react-three/drei'
+import { useMemo, type ReactElement } from 'react'
+import { Text } from '@react-three/drei'
 import type { BiomeConfig } from '../types/game'
 import {
   CITY_BUILDINGS,
@@ -14,7 +13,6 @@ import {
   OceanSurface,
 } from './TerrainHelpers'
 import { SharedSky, SharedLighting } from './SharedSky'
-import { prepMap } from '../game/pbrMaps'
 import { CityLife } from './CityLife'
 import { CityAirport } from './CityAirport'
 import { CityLaunchPad, RocketTower } from './CityLaunchPad'
@@ -23,6 +21,7 @@ import {
   TUNNEL_SEGMENTS,
 } from '../game/cityUnderground'
 import { CityFeatureMarkers } from './CityFeatureMarkers'
+import { CityToyTown } from './CityToyTown'
 import {
   GarageInteriorView,
   ThemedBuildingInterior,
@@ -33,178 +32,77 @@ interface CitySceneProps {
   config: BiomeConfig
 }
 
-function makeFacadeTexture(color: string, concrete?: THREE.Texture): THREE.CanvasTexture {
-  const size = 256
-  const c = document.createElement('canvas')
-  c.width = size
-  c.height = size
-  const g = c.getContext('2d')!
-  g.fillStyle = color
-  g.fillRect(0, 0, size, size)
-  if (concrete?.image) {
-    try {
-      g.globalAlpha = 0.55
-      g.drawImage(concrete.image as CanvasImageSource, 0, 0, size, size)
-      g.globalAlpha = 1
-      g.fillStyle = color
-      g.globalCompositeOperation = 'multiply'
-      g.fillRect(0, 0, size, size)
-      g.globalCompositeOperation = 'source-over'
-    } catch {
-      /* canvas draw may fail if image not ready */
-    }
-  }
-  for (let i = 0; i < 900; i++) {
-    g.fillStyle = `rgba(0,0,0,${Math.random() * 0.07})`
-    g.fillRect(Math.random() * size, Math.random() * size, 2, 2)
-  }
-  for (let y = 24; y < size; y += 28) {
-    g.fillStyle = 'rgba(0,0,0,0.12)'
-    g.fillRect(0, y, size, 2)
-  }
-  const tex = new THREE.CanvasTexture(c)
-  tex.colorSpace = THREE.SRGBColorSpace
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-  tex.anisotropy = 8
-  return tex
-}
-
+/** Flat-shaded toy-town building — Sketchfab low-poly city look. */
 function Building({
   building,
   groundY,
-  concreteMap,
-  concreteNor,
 }: {
   building: CityBuilding
   groundY: number
-  concreteMap?: THREE.Texture
-  concreteNor?: THREE.Texture
 }) {
   const { width, height, color, windows, enterable, roofLandable, shop, shopColor } = building
   const depth = buildingDepth(building)
-  const facade = useMemo(() => makeFacadeTexture(color, concreteMap), [color, concreteMap])
-  const rows = Math.floor(height / 3)
-  const cols = Math.max(1, Math.floor(width / 2))
-  const doorW = 1.8
-  const doorH = 2.5
-  const wallT = 0.28
-  const halfW = width / 2
+  const rows = Math.max(1, Math.floor(height / 3.2))
+  const cols = Math.max(1, Math.floor(width / 2.2))
+  const doorW = 1.9
+  const doorH = 2.4
   const halfD = depth / 2
-  const facadeProps = {
-    map: facade,
-    normalMap: concreteNor,
-    normalScale: new THREE.Vector2(0.45, 0.45),
-    color,
-    roughness: 0.78,
-    metalness: 0.08,
-    side: THREE.DoubleSide,
-    envMapIntensity: 0.5,
-  } as const
+  const roofColor = shopColor ?? '#6c757d'
+  const isHospital = shop === 'HOSPITAL'
 
   return (
     <group position={[building.x, groundY, building.z]}>
-      {!enterable ? (
-        <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
-          <boxGeometry args={[width, height, depth]} />
-          <meshStandardMaterial
-            map={facade}
-            normalMap={concreteNor}
-            normalScale={new THREE.Vector2(0.45, 0.45)}
-            color={color}
-            roughness={0.78}
-            metalness={0.08}
-            envMapIntensity={0.5}
-          />
-        </mesh>
-      ) : (
-        <>
-          <mesh castShadow receiveShadow position={[0, height / 2, -halfD + wallT / 2]}>
-            <boxGeometry args={[width, height, wallT]} />
-            <meshStandardMaterial {...facadeProps} />
-          </mesh>
-          <mesh castShadow receiveShadow position={[-halfW + wallT / 2, height / 2, 0]}>
-            <boxGeometry args={[wallT, height, depth]} />
-            <meshStandardMaterial {...facadeProps} />
-          </mesh>
-          <mesh castShadow receiveShadow position={[halfW - wallT / 2, height / 2, 0]}>
-            <boxGeometry args={[wallT, height, depth]} />
-            <meshStandardMaterial {...facadeProps} />
-          </mesh>
-          <mesh
-            castShadow
-            receiveShadow
-            position={[-(doorW / 2 + (halfW - doorW / 2) / 2), height / 2, halfD - wallT / 2]}
-          >
-            <boxGeometry args={[halfW - doorW / 2, height, wallT]} />
-            <meshStandardMaterial {...facadeProps} />
-          </mesh>
-          <mesh
-            castShadow
-            receiveShadow
-            position={[(doorW / 2 + (halfW - doorW / 2) / 2), height / 2, halfD - wallT / 2]}
-          >
-            <boxGeometry args={[halfW - doorW / 2, height, wallT]} />
-            <meshStandardMaterial {...facadeProps} />
-          </mesh>
-          <mesh
-            castShadow
-            receiveShadow
-            position={[0, doorH + (height - doorH) / 2, halfD - wallT / 2]}
-          >
-            <boxGeometry args={[doorW, height - doorH, wallT]} />
-            <meshStandardMaterial {...facadeProps} />
-          </mesh>
-        </>
-      )}
+      <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
+        <boxGeometry args={[width, height, depth]} />
+        <meshStandardMaterial color={color} roughness={0.92} metalness={0} flatShading />
+      </mesh>
+
+      {/* Flat or accent roof */}
+      <mesh castShadow receiveShadow position={[0, height + 0.12, 0]}>
+        <boxGeometry args={[width * 1.02, 0.28, depth * 1.02]} />
+        <meshStandardMaterial color={isHospital ? '#4cc9f0' : roofColor} roughness={0.85} flatShading />
+      </mesh>
 
       {roofLandable && (
         <>
-          <mesh
-            castShadow
-            receiveShadow
-            position={[0, height + 0.08, 0]}
-            rotation={[-Math.PI / 2, 0, 0]}
-          >
-            <planeGeometry args={[width * 0.96, depth * 0.96]} />
-            <meshStandardMaterial color="#5c6770" roughness={0.9} metalness={0.05} />
+          <mesh position={[0, height + 0.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[width * 0.9, depth * 0.9]} />
+            <meshStandardMaterial color="#adb5bd" roughness={0.9} flatShading />
           </mesh>
-          {[
-            [0, height + 0.45, depth * 0.48, width, 0.9, 0.22],
-            [0, height + 0.45, -depth * 0.48, width, 0.9, 0.22],
-            [width * 0.48, height + 0.45, 0, 0.22, 0.9, depth],
-            [-width * 0.48, height + 0.45, 0, 0.22, 0.9, depth],
-          ].map(([x, y, z, w, h, d], i) => (
-            <mesh key={i} castShadow position={[x, y, z]}>
-              <boxGeometry args={[w, h, d]} />
-              <meshStandardMaterial color="#495057" roughness={0.85} />
-            </mesh>
-          ))}
-          <mesh castShadow position={[width * 0.22, height + 0.55, -depth * 0.15]}>
-            <boxGeometry args={[1.4, 0.9, 1.1]} />
-            <meshStandardMaterial color="#868e96" metalness={0.45} roughness={0.4} />
+          {/* HVAC box */}
+          <mesh castShadow position={[width * 0.2, height + 0.65, -depth * 0.15]}>
+            <boxGeometry args={[1.2, 0.7, 1]} />
+            <meshStandardMaterial color="#868e96" roughness={0.75} flatShading />
           </mesh>
-          <mesh castShadow position={[-width * 0.18, height + 0.35, depth * 0.18]}>
-            <cylinderGeometry args={[0.35, 0.35, 0.55, 10]} />
-            <meshStandardMaterial color="#adb5bd" metalness={0.5} roughness={0.35} />
-          </mesh>
+          {isHospital && (
+            <group position={[0, height + 0.35, 0]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                <circleGeometry args={[1.6, 20]} />
+                <meshStandardMaterial color="#4cc9f0" roughness={0.7} flatShading />
+              </mesh>
+              <Text position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.7} color="#f8f9fa" anchorX="center" anchorY="middle">
+                H
+              </Text>
+            </group>
+          )}
         </>
       )}
 
+      {/* Bright window grid */}
       {Array.from({ length: rows }).map((_, row) =>
         Array.from({ length: cols }).map((_, col) => {
-          const idx = row * cols + col
-          const lit = windows[idx % windows.length]
+          const lit = windows[(row * cols + col) % windows.length]
           const wx = (col - cols / 2 + 0.5) * (width / cols)
           if (enterable && row === 0 && Math.abs(wx) < doorW * 0.55) return null
           return (
-            <mesh key={`${row}-${col}`} position={[wx, row * 3 + 1.5, halfD + 0.04]}>
-              <planeGeometry args={[Math.min(1.4, width / cols - 0.3), 2.0]} />
+            <mesh key={`${row}-${col}`} position={[wx, row * 3.1 + 1.6, halfD + 0.03]}>
+              <boxGeometry args={[Math.min(1.2, width / cols - 0.35), 1.5, 0.08]} />
               <meshStandardMaterial
-                color={lit ? '#ffe066' : '#1a2332'}
-                emissive={lit ? '#ffe066' : '#000000'}
-                emissiveIntensity={lit ? 0.5 : 0}
+                color={lit ? '#90e0ef' : '#495057'}
+                emissive={lit ? '#74c0fc' : '#000000'}
+                emissiveIntensity={lit ? 0.35 : 0}
                 roughness={0.35}
-                metalness={0.2}
+                flatShading
               />
             </mesh>
           )
@@ -213,67 +111,46 @@ function Building({
 
       {enterable && (
         <group position={[0, 0, halfD + 0.02]}>
-          <mesh position={[0, doorH + 0.12, 0]}>
-            <boxGeometry args={[doorW + 0.25, 0.2, 0.12]} />
-            <meshStandardMaterial color="#212529" roughness={0.6} />
+          <mesh position={[0, doorH / 2, 0]}>
+            <boxGeometry args={[doorW, doorH, 0.12]} />
+            <meshStandardMaterial color="#343a40" roughness={0.7} flatShading />
           </mesh>
-          <mesh position={[0, 0.02, 0.55]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[doorW * 1.35, 1.2]} />
-            <meshStandardMaterial color="#52b788" emissive="#52b788" emissiveIntensity={0.35} roughness={0.9} />
+          <mesh position={[0, 0.03, 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[doorW * 1.4, 1.3]} />
+            <meshStandardMaterial color="#52b788" emissive="#52b788" emissiveIntensity={0.4} roughness={1} />
           </mesh>
-          <Text position={[0, 0.08, 0.62]} fontSize={0.28} color="#d8f3dc" anchorX="center">
+          <Text position={[0, 0.1, 0.68]} fontSize={0.3} color="#d8f3dc" anchorX="center">
             E
           </Text>
         </group>
       )}
 
       {shop && (
-        <group position={[0, 0, halfD + 0.08]}>
-          {/* Awning */}
-          <mesh castShadow position={[0, 3.05, 0.55]} rotation={[0.35, 0, 0]}>
-            <boxGeometry args={[Math.min(width * 0.92, 7.5), 0.08, 1.35]} />
+        <group position={[0, 0, halfD + 0.06]}>
+          <mesh castShadow position={[0, 3.0, 0.5]} rotation={[0.4, 0, 0]}>
+            <boxGeometry args={[Math.min(width * 0.95, 8), 0.1, 1.4]} />
             <meshStandardMaterial
-              color={shopColor ?? '#c1272d'}
-              roughness={0.65}
-              emissive={shopColor ?? '#c1272d'}
-              emissiveIntensity={0.15}
+              color={shopColor ?? '#e63946'}
+              roughness={0.7}
+              flatShading
             />
           </mesh>
-          <mesh position={[0, 3.55, 0.12]}>
-            <boxGeometry args={[Math.min(width * 0.88, 6.8), 0.85, 0.18]} />
-            <meshStandardMaterial
-              color="#111827"
-              roughness={0.55}
-              metalness={0.2}
-            />
+          <mesh position={[0, 3.55, 0.1]}>
+            <boxGeometry args={[Math.min(width * 0.9, 7), 0.95, 0.2]} />
+            <meshStandardMaterial color={shopColor ?? '#e63946'} roughness={0.65} flatShading />
           </mesh>
           <Text
             position={[0, 3.55, 0.24]}
-            fontSize={0.42}
-            color="#f8f9fa"
+            fontSize={0.4}
+            color="#ffffff"
             anchorX="center"
             anchorY="middle"
             maxWidth={Math.min(width * 0.8, 6)}
-            outlineWidth={0.02}
+            outlineWidth={0.025}
             outlineColor="#000"
           >
             {shop}
           </Text>
-          {/* Display windows */}
-          {[-1.6, 1.6].map((ox) => (
-            <mesh key={ox} position={[ox, 1.55, 0.06]}>
-              <planeGeometry args={[1.5, 1.8]} />
-              <meshStandardMaterial
-                color="#90e0ef"
-                transparent
-                opacity={0.35}
-                roughness={0.1}
-                metalness={0.4}
-                emissive="#ffe066"
-                emissiveIntensity={0.12}
-              />
-            </mesh>
-          ))}
         </group>
       )}
     </group>
@@ -346,9 +223,8 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
     const zMax = 205
     const step = 22
     const roadW = 11
-    const swW = 2.6
-    const curbH = 0.16
-    const asphaltH = 0.12
+    const swW = 2.8
+    const asphaltH = 0.14
     const xs: number[] = []
     const zs: number[] = []
     for (let x = -44; x <= 220; x += step) xs.push(x)
@@ -358,42 +234,36 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
     const roadLenZ = zMax - zMin
     const midX = (xMin + xMax) / 2
     const midZ = (zMin + zMax) / 2
+    const asphalt = '#2b2d31'
+    const sidewalk = '#e9ecef'
+    const paint = '#f8f9fa'
 
     for (const z of zs) {
       const base = getHeight(midX, z)
-      const y = base + asphaltH * 0.5
       result.push(
-        <mesh key={`road-h-${z}`} position={[midX, y, z]} receiveShadow>
+        <mesh key={`road-h-${z}`} position={[midX, base + asphaltH * 0.5, z]} receiveShadow>
           <boxGeometry args={[roadLenX, asphaltH, roadW]} />
-          <meshStandardMaterial color="#1a1d21" roughness={0.92} />
+          <meshStandardMaterial color={asphalt} roughness={0.95} flatShading />
         </mesh>,
       )
-      // Single center stripe (not hundreds of dash meshes)
-      result.push(
-        <mesh key={`line-h-${z}`} position={[midX, base + asphaltH + 0.015, z]}>
-          <boxGeometry args={[roadLenX, 0.02, 0.14]} />
-          <meshStandardMaterial color="#c9a227" roughness={0.7} />
-        </mesh>,
-      )
+      // White dashed center line (toy-town style)
+      for (let dx = xMin + 4; dx < xMax; dx += 6) {
+        result.push(
+          <mesh key={`dash-h-${z}-${dx}`} position={[dx, base + asphaltH + 0.02, z]}>
+            <boxGeometry args={[2.4, 0.03, 0.22]} />
+            <meshStandardMaterial color={paint} roughness={0.8} flatShading />
+          </mesh>,
+        )
+      }
       for (const side of [-1, 1] as const) {
         result.push(
           <mesh
-            key={`curb-h-${z}-${side}`}
-            position={[midX, base + curbH * 0.5 + asphaltH, z + side * (roadW * 0.5 + 0.2)]}
-            receiveShadow
-          >
-            <boxGeometry args={[roadLenX, curbH, 0.35]} />
-            <meshStandardMaterial color="#6c757d" roughness={0.88} />
-          </mesh>,
-        )
-        result.push(
-          <mesh
             key={`sw-h-${z}-${side}`}
-            position={[midX, base + asphaltH + 0.02, z + side * (roadW * 0.5 + swW * 0.5 + 0.55)]}
+            position={[midX, base + asphaltH + 0.04, z + side * (roadW * 0.5 + swW * 0.5 + 0.15)]}
             receiveShadow
           >
-            <boxGeometry args={[roadLenX, 0.08, swW]} />
-            <meshStandardMaterial color="#b0b5ba" roughness={0.78} />
+            <boxGeometry args={[roadLenX, 0.1, swW]} />
+            <meshStandardMaterial color={sidewalk} roughness={0.9} flatShading />
           </mesh>,
         )
       }
@@ -401,60 +271,54 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
 
     for (const x of xs) {
       const base = getHeight(x, midZ)
-      const y = base + asphaltH * 0.5
       result.push(
-        <mesh key={`road-v-${x}`} position={[x, y, midZ]} receiveShadow>
+        <mesh key={`road-v-${x}`} position={[x, base + asphaltH * 0.5, midZ]} receiveShadow>
           <boxGeometry args={[roadW, asphaltH, roadLenZ]} />
-          <meshStandardMaterial color="#1a1d21" roughness={0.92} />
+          <meshStandardMaterial color={asphalt} roughness={0.95} flatShading />
         </mesh>,
       )
-      result.push(
-        <mesh key={`line-v-${x}`} position={[x, base + asphaltH + 0.015, midZ]}>
-          <boxGeometry args={[0.14, 0.02, roadLenZ]} />
-          <meshStandardMaterial color="#c9a227" roughness={0.7} />
-        </mesh>,
-      )
+      for (let dz = zMin + 4; dz < zMax; dz += 6) {
+        result.push(
+          <mesh key={`dash-v-${x}-${dz}`} position={[x, base + asphaltH + 0.02, dz]}>
+            <boxGeometry args={[0.22, 0.03, 2.4]} />
+            <meshStandardMaterial color={paint} roughness={0.8} flatShading />
+          </mesh>,
+        )
+      }
       for (const side of [-1, 1] as const) {
         result.push(
           <mesh
-            key={`curb-v-${x}-${side}`}
-            position={[x + side * (roadW * 0.5 + 0.2), base + curbH * 0.5 + asphaltH, midZ]}
-            receiveShadow
-          >
-            <boxGeometry args={[0.35, curbH, roadLenZ]} />
-            <meshStandardMaterial color="#6c757d" roughness={0.88} />
-          </mesh>,
-        )
-        result.push(
-          <mesh
             key={`sw-v-${x}-${side}`}
-            position={[x + side * (roadW * 0.5 + swW * 0.5 + 0.55), base + asphaltH + 0.02, midZ]}
+            position={[x + side * (roadW * 0.5 + swW * 0.5 + 0.15), base + asphaltH + 0.04, midZ]}
             receiveShadow
           >
-            <boxGeometry args={[swW, 0.08, roadLenZ]} />
-            <meshStandardMaterial color="#b0b5ba" roughness={0.78} />
+            <boxGeometry args={[swW, 0.1, roadLenZ]} />
+            <meshStandardMaterial color={sidewalk} roughness={0.9} flatShading />
           </mesh>,
         )
       }
     }
 
-    // Sparse crosswalks only
-    const xwPairs: [number, number][] = [
-      [22, 22],
-      [66, 66],
-      [110, 110],
-      [44, 132],
-      [154, 44],
-    ]
-    for (const [x, z] of xwPairs) {
-      const base = getHeight(x, z) + asphaltH + 0.03
-      for (let k = 0; k < 5; k++) {
-        result.push(
-          <mesh key={`xw-${x}-${z}-${k}`} position={[x - 2 + k * 1.0, base, z + 4.2]}>
-            <boxGeometry args={[0.5, 0.02, 2.4]} />
-            <meshStandardMaterial color="#e9ecef" roughness={0.8} />
-          </mesh>,
-        )
+    // Zebra crosswalks at every major intersection
+    for (const x of xs) {
+      for (const z of zs) {
+        if (x < -20 || x > 200 || z < 0 || z > 180) continue
+        if ((x / step + z / step) % 2 !== 0) continue
+        const base = getHeight(x, z) + asphaltH + 0.025
+        for (let k = 0; k < 6; k++) {
+          result.push(
+            <mesh key={`xw-n-${x}-${z}-${k}`} position={[x - 2.5 + k * 1.0, base, z + 5.2]}>
+              <boxGeometry args={[0.55, 0.025, 2.2]} />
+              <meshStandardMaterial color={paint} roughness={0.85} flatShading />
+            </mesh>,
+          )
+          result.push(
+            <mesh key={`xw-e-${x}-${z}-${k}`} position={[x + 5.2, base, z - 2.5 + k * 1.0]}>
+              <boxGeometry args={[2.2, 0.025, 0.55]} />
+              <meshStandardMaterial color={paint} roughness={0.85} flatShading />
+            </mesh>,
+          )
+        }
       }
     }
 
@@ -462,19 +326,6 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
   }, [getHeight])
 
   return <group>{parts}</group>
-}
-
-function SkylineSilhouette() {
-  return (
-    <group position={[400, 0, 360]}>
-      {Array.from({ length: 16 }, (_, i) => (
-        <mesh key={i} position={[i * 14, 12 + (i % 5) * 8, (i % 3) * 10]}>
-          <boxGeometry args={[8, 20 + (i % 6) * 10, 8]} />
-          <meshStandardMaterial color="#495057" roughness={0.8} />
-        </mesh>
-      ))}
-    </group>
-  )
 }
 
 function ParkBench({ position, yaw = 0 }: { position: [number, number, number]; yaw?: number }) {
@@ -518,21 +369,6 @@ function StreetLamp({ position }: { position: [number, number, number] }) {
   )
 }
 
-function Billboard({ position }: { position: [number, number, number] }) {
-  return (
-    <group position={position}>
-      <mesh castShadow position={[0, 2.5, 0]}>
-        <boxGeometry args={[0.12, 5, 0.12]} />
-        <meshStandardMaterial color="#495057" metalness={0.4} />
-      </mesh>
-      <mesh castShadow position={[0, 5.2, 0]}>
-        <boxGeometry args={[3.2, 1.8, 0.15]} />
-        <meshStandardMaterial color="#c1272d" roughness={0.7} />
-      </mesh>
-    </group>
-  )
-}
-
 export function CityScene({ config }: CitySceneProps) {
   const rocketElevY = useGameStore((s) =>
     s.flight.phase === 'rocketElevator' ? s.flight.rocketMission?.elevatorY : undefined,
@@ -542,14 +378,6 @@ export function CityScene({ config }: CitySceneProps) {
   const garageId = useGameStore((s) => s.flight.garageId)
   /** Shop / tunnel / garage each replace the outdoor city with an isolated space. */
   const indoors = interiorId >= 0 || tunnelSegment >= 0 || garageId >= 0
-  const concrete = useTexture({
-    map: '/textures/concrete_diff_1k.jpg',
-    nor: '/textures/concrete_nor_1k.jpg',
-  })
-  useEffect(() => {
-    prepMap(concrete.map, 2, THREE.SRGBColorSpace)
-    prepMap(concrete.nor, 2)
-  }, [concrete])
 
   if (indoors) {
     return <CitySubSurface config={config} />
@@ -559,20 +387,14 @@ export function CityScene({ config }: CitySceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="city" size={1280} segments={128} />
-      <HorizonRing color="#6c757d" y={0} />
+      <DetailedTerrain config={config} biome="city" size={1280} segments={96} />
+      <HorizonRing color="#8ecae6" y={0} />
+      <CityToyTown getHeight={config.getHeight} />
       <CityStreets getHeight={config.getHeight} />
       <CityFeatureMarkers getHeight={config.getHeight} />
       {CITY_BUILDINGS.map((b) => (
-        <Building
-          key={b.id}
-          building={b}
-          groundY={config.getHeight(b.x, b.z)}
-          concreteMap={concrete.map}
-          concreteNor={concrete.nor}
-        />
+        <Building key={b.id} building={b} groundY={config.getHeight(b.x, b.z)} />
       ))}
-      <SkylineSilhouette />
       <CityLife />
       <CityAirport />
       <CityLaunchPad />
@@ -580,22 +402,12 @@ export function CityScene({ config }: CitySceneProps) {
       <ParkBench position={[22, config.getHeight(22, 48), 48]} yaw={0.3} />
       <ParkBench position={[48, config.getHeight(48, 88), 88]} yaw={-0.5} />
       <ParkBench position={[90, config.getHeight(90, 130), 130]} yaw={0.8} />
-      <ParkBench position={[140, config.getHeight(140, 70), 70]} yaw={-0.2} />
-      <ParkBench position={[70, config.getHeight(70, 40), 40]} yaw={1.1} />
-      <ParkBench position={[190, config.getHeight(190, 120), 120]} yaw={-0.7} />
       <StreetLamp position={[18, config.getHeight(18, 40), 40]} />
       <StreetLamp position={[40, config.getHeight(40, 62), 62]} />
       <StreetLamp position={[72, config.getHeight(72, 95), 95]} />
       <StreetLamp position={[105, config.getHeight(105, 120), 120]} />
       <StreetLamp position={[160, config.getHeight(160, 150), 150]} />
-      <StreetLamp position={[200, config.getHeight(200, 90), 90]} />
       <StreetLamp position={[55, config.getHeight(55, 30), 30]} />
-      <StreetLamp position={[125, config.getHeight(125, 70), 70]} />
-      <StreetLamp position={[175, config.getHeight(175, 55), 55]} />
-      <Billboard position={[35, config.getHeight(35, 75), 75]} />
-      <Billboard position={[125, config.getHeight(125, 140), 140]} />
-      <Billboard position={[180, config.getHeight(180, 110), 110]} />
-      <Billboard position={[60, config.getHeight(60, 160), 160]} />
       <OceanSurface
         y={-0.55}
         scale={[980, 160]}
