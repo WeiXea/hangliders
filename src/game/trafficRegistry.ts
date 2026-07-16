@@ -30,14 +30,14 @@ export type ParkedVehicleDef = {
 export const PARKED_VEHICLES: ParkedVehicleDef[] = [
   { id: 100, kind: 'car', x: 8, z: 5.5, yaw: Math.PI / 2, color: '#2a6f97' },
   { id: 101, kind: 'taxi', x: 18, z: 5.5, yaw: Math.PI / 2, color: '#ffd60a' },
-  { id: 102, kind: 'car', x: 50, z: 16.5, yaw: 0, color: '#bc4749' },
-  { id: 103, kind: 'police', x: 28, z: 27.5, yaw: Math.PI / 2 },
+  { id: 102, kind: 'car', x: 42, z: 5.5, yaw: Math.PI / 2, color: '#bc4749' },
+  { id: 103, kind: 'police', x: 28, z: 16.5, yaw: Math.PI / 2 },
   { id: 104, kind: 'car', x: 72, z: 49.5, yaw: Math.PI / 2, color: '#457b9d' },
-  { id: 105, kind: 'taxi', x: 94, z: 60.5, yaw: 0 },
+  { id: 105, kind: 'taxi', x: 110, z: 71.5, yaw: Math.PI / 2 },
   { id: 106, kind: 'car', x: 116, z: 104.5, yaw: Math.PI / 2, color: '#6a994e' },
-  { id: 107, kind: 'bus', x: 148, z: 88, yaw: 0 },
-  { id: 108, kind: 'car', x: 38, z: 71.5, yaw: Math.PI, color: '#e76f51' },
-  { id: 109, kind: 'fire', x: 160, z: 115.5, yaw: Math.PI / 2 },
+  { id: 107, kind: 'bus', x: 160, z: 88, yaw: 0 },
+  { id: 108, kind: 'car', x: 38, z: 82.5, yaw: Math.PI, color: '#e76f51' },
+  { id: 109, kind: 'fire', x: 148, z: 126.5, yaw: Math.PI / 2 },
 ]
 
 /** Mutable world cars — updated when the player exits so they stay put. */

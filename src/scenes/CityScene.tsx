@@ -280,25 +280,33 @@ function Building({
   )
 }
 
-function BuildingInterior({ config }: { config: BiomeConfig }) {
-  const interiorId = useGameStore((s) => s.flight.interiorId)
-  const b = CITY_BUILDINGS.find((x) => x.id === interiorId)
-  if (!b || !b.enterable) return null
-  return <ThemedBuildingInterior building={b} groundY={config.getHeight(b.x, b.z)} />
-}
-
 function CitySubSurface({ config }: { config: BiomeConfig }) {
+  const interiorId = useGameStore((s) => s.flight.interiorId)
   const tunnelSegment = useGameStore((s) => s.flight.tunnelSegment)
   const garageId = useGameStore((s) => s.flight.garageId)
   const px = useGameStore((s) => s.flight.position.x)
   const pz = useGameStore((s) => s.flight.position.z)
+
+  if (interiorId >= 0) {
+    const b = CITY_BUILDINGS.find((x) => x.id === interiorId)
+    if (!b || !b.enterable) return null
+    return (
+      <>
+        <color attach="background" args={['#1a1410']} />
+        <fog attach="fog" args={['#1a1410', 8, 28]} />
+        <ambientLight intensity={0.45} />
+        <ThemedBuildingInterior building={b} groundY={config.getHeight(b.x, b.z)} isolated />
+      </>
+    )
+  }
+
   if (tunnelSegment >= 0) {
     const seg = TUNNEL_SEGMENTS.find((s) => s.id === tunnelSegment)
     if (!seg) return null
     return (
       <>
-        <color attach="background" args={['#0b0e12']} />
-        <fog attach="fog" args={['#0b0e12', 12, 70]} />
+        <color attach="background" args={['#12161c']} />
+        <fog attach="fog" args={['#12161c', 18, 85]} />
         <TunnelNetworkView
           playerX={px}
           playerZ={pz}
@@ -308,13 +316,14 @@ function CitySubSurface({ config }: { config: BiomeConfig }) {
       </>
     )
   }
+
   if (garageId >= 0) {
     const g = CITY_GARAGES.find((gar) => gar.id === garageId)
     if (!g) return null
     return (
       <>
-        <color attach="background" args={['#111418']} />
-        <fog attach="fog" args={['#111418', 10, 40]} />
+        <color attach="background" args={['#1a1d21']} />
+        <fog attach="fog" args={['#1a1d21', 12, 42]} />
         <GarageInteriorView
           label={g.label}
           x={g.x}
@@ -531,7 +540,8 @@ export function CityScene({ config }: CitySceneProps) {
   const interiorId = useGameStore((s) => s.flight.interiorId)
   const tunnelSegment = useGameStore((s) => s.flight.tunnelSegment)
   const garageId = useGameStore((s) => s.flight.garageId)
-  const underground = tunnelSegment >= 0 || garageId >= 0
+  /** Shop / tunnel / garage each replace the outdoor city with an isolated space. */
+  const indoors = interiorId >= 0 || tunnelSegment >= 0 || garageId >= 0
   const concrete = useTexture({
     map: '/textures/concrete_diff_1k.jpg',
     nor: '/textures/concrete_nor_1k.jpg',
@@ -541,39 +551,32 @@ export function CityScene({ config }: CitySceneProps) {
     prepMap(concrete.nor, 2)
   }, [concrete])
 
+  if (indoors) {
+    return <CitySubSurface config={config} />
+  }
+
   return (
     <>
-      {!underground && <SharedSky config={config} />}
-      {!underground && <SharedLighting config={config} />}
-      {underground ? (
-        <CitySubSurface config={config} />
-      ) : (
-        <>
-          <DetailedTerrain config={config} biome="city" size={1280} segments={128} />
-          <HorizonRing color="#6c757d" y={0} />
-          <CityStreets getHeight={config.getHeight} />
-          <CityFeatureMarkers getHeight={config.getHeight} />
-          {CITY_BUILDINGS.map((b) =>
-            interiorId === b.id ? null : (
-              <Building
-                key={b.id}
-                building={b}
-                groundY={config.getHeight(b.x, b.z)}
-                concreteMap={concrete.map}
-                concreteNor={concrete.nor}
-              />
-            ),
-          )}
-          <BuildingInterior config={config} />
-          <SkylineSilhouette />
-          <CityLife />
-          <CityAirport />
-          <CityLaunchPad />
-          <RocketTower elevatorY={rocketElevY} />
-        </>
-      )}
-      {!underground && (
-        <>
+      <SharedSky config={config} />
+      <SharedLighting config={config} />
+      <DetailedTerrain config={config} biome="city" size={1280} segments={128} />
+      <HorizonRing color="#6c757d" y={0} />
+      <CityStreets getHeight={config.getHeight} />
+      <CityFeatureMarkers getHeight={config.getHeight} />
+      {CITY_BUILDINGS.map((b) => (
+        <Building
+          key={b.id}
+          building={b}
+          groundY={config.getHeight(b.x, b.z)}
+          concreteMap={concrete.map}
+          concreteNor={concrete.nor}
+        />
+      ))}
+      <SkylineSilhouette />
+      <CityLife />
+      <CityAirport />
+      <CityLaunchPad />
+      <RocketTower elevatorY={rocketElevY} />
       <ParkBench position={[22, config.getHeight(22, 48), 48]} yaw={0.3} />
       <ParkBench position={[48, config.getHeight(48, 88), 88]} yaw={-0.5} />
       <ParkBench position={[90, config.getHeight(90, 130), 130]} yaw={0.8} />
@@ -593,9 +596,6 @@ export function CityScene({ config }: CitySceneProps) {
       <Billboard position={[125, config.getHeight(125, 140), 140]} />
       <Billboard position={[180, config.getHeight(180, 110), 110]} />
       <Billboard position={[60, config.getHeight(60, 160), 160]} />
-        </>
-      )}
-      {!underground && (
       <OceanSurface
         y={-0.55}
         scale={[980, 160]}
@@ -604,7 +604,6 @@ export function CityScene({ config }: CitySceneProps) {
         position={[40, 0, -60]}
         followAxis="none"
       />
-      )}
     </>
   )
 }

@@ -5,7 +5,7 @@ import { buildingDepth } from '../game/cityBuildings'
 import type { InteriorTheme, TunnelSegment } from '../game/cityUnderground'
 import { interiorThemeForShop, nearbyTunnelSegments, undergroundFloorY } from '../game/cityUnderground'
 
-const ROOM_H = 3.2
+const ROOM_H = 4.4
 
 function RoomShell({
   width,
@@ -14,6 +14,7 @@ function RoomShell({
   floorColor,
   wallColor,
   ceilingColor,
+  accent,
 }: {
   width: number
   depth: number
@@ -21,51 +22,93 @@ function RoomShell({
   floorColor: string
   wallColor: string
   ceilingColor: string
+  accent: string
 }) {
-  const inset = 0.15
+  const inset = 0.1
   const w = width - inset * 2
   const d = depth - inset * 2
+  const doorW = 2.1
   return (
     <>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0.01, 0]}>
         <planeGeometry args={[w, d]} />
-        <meshStandardMaterial color={floorColor} roughness={0.88} />
+        <meshStandardMaterial color={floorColor} roughness={0.82} />
       </mesh>
-      <mesh position={[0, roomH, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[w, d]} />
-        <meshStandardMaterial color={ceilingColor} roughness={0.94} />
+      {/* Rug */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -d * 0.05]}>
+        <planeGeometry args={[w * 0.55, d * 0.45]} />
+        <meshStandardMaterial color={accent} roughness={0.9} />
       </mesh>
-      {/* Back wall */}
-      <mesh receiveShadow position={[0, roomH / 2, -d / 2 + 0.08]}>
-        <boxGeometry args={[w, roomH, 0.16]} />
-        <meshStandardMaterial color={wallColor} roughness={0.82} />
+      <mesh position={[0, roomH, 0]}>
+        <boxGeometry args={[w, 0.12, d]} />
+        <meshStandardMaterial color={ceilingColor} roughness={0.92} />
       </mesh>
-      {/* Side walls */}
-      <mesh receiveShadow position={[-w / 2 + 0.08, roomH / 2, 0]}>
-        <boxGeometry args={[0.16, roomH, d]} />
-        <meshStandardMaterial color={wallColor} roughness={0.82} />
+      {/* Ceiling light grid */}
+      {[-0.35, 0.35].map((ox) =>
+        [-0.3, 0.15].map((oz) => (
+          <group key={`${ox}-${oz}`}>
+            <mesh position={[ox * w * 0.35, roomH - 0.18, oz * d]}>
+              <boxGeometry args={[1.4, 0.08, 0.55]} />
+              <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={0.9} />
+            </mesh>
+            <pointLight
+              position={[ox * w * 0.35, roomH - 0.7, oz * d]}
+              intensity={1.35}
+              color="#fff3bf"
+              distance={10}
+            />
+          </group>
+        )),
+      )}
+      {/* Solid walls */}
+      <mesh receiveShadow position={[0, roomH / 2, -d / 2 + 0.1]}>
+        <boxGeometry args={[w, roomH, 0.22]} />
+        <meshStandardMaterial color={wallColor} roughness={0.78} />
       </mesh>
-      <mesh receiveShadow position={[w / 2 - 0.08, roomH / 2, 0]}>
-        <boxGeometry args={[0.16, roomH, d]} />
-        <meshStandardMaterial color={wallColor} roughness={0.82} />
+      <mesh receiveShadow position={[-w / 2 + 0.1, roomH / 2, 0]}>
+        <boxGeometry args={[0.22, roomH, d]} />
+        <meshStandardMaterial color={wallColor} roughness={0.78} />
       </mesh>
-      {/* Front wall with door gap */}
-      <mesh receiveShadow position={[-w * 0.28, roomH / 2, d / 2 - 0.08]}>
-        <boxGeometry args={[w * 0.44, roomH, 0.16]} />
-        <meshStandardMaterial color={wallColor} roughness={0.82} />
+      <mesh receiveShadow position={[w / 2 - 0.1, roomH / 2, 0]}>
+        <boxGeometry args={[0.22, roomH, d]} />
+        <meshStandardMaterial color={wallColor} roughness={0.78} />
       </mesh>
-      <mesh receiveShadow position={[w * 0.28, roomH / 2, d / 2 - 0.08]}>
-        <boxGeometry args={[w * 0.44, roomH, 0.16]} />
-        <meshStandardMaterial color={wallColor} roughness={0.82} />
+      {/* Front wall with door cutout */}
+      <mesh receiveShadow position={[-(doorW / 2 + (w - doorW) / 4), roomH / 2, d / 2 - 0.1]}>
+        <boxGeometry args={[(w - doorW) / 2, roomH, 0.22]} />
+        <meshStandardMaterial color={wallColor} roughness={0.78} />
       </mesh>
-      <mesh receiveShadow position={[0, roomH * 0.72, d / 2 - 0.08]}>
-        <boxGeometry args={[1.6, roomH * 0.56, 0.16]} />
-        <meshStandardMaterial color={wallColor} roughness={0.82} />
+      <mesh receiveShadow position={[(doorW / 2 + (w - doorW) / 4), roomH / 2, d / 2 - 0.1]}>
+        <boxGeometry args={[(w - doorW) / 2, roomH, 0.22]} />
+        <meshStandardMaterial color={wallColor} roughness={0.78} />
       </mesh>
-      {/* Door frame */}
-      <mesh position={[0, 1.25, d / 2 - 0.02]}>
-        <boxGeometry args={[1.85, 2.55, 0.12]} />
-        <meshStandardMaterial color="#212529" roughness={0.55} />
+      <mesh receiveShadow position={[0, 2.7 + (roomH - 2.7) / 2, d / 2 - 0.1]}>
+        <boxGeometry args={[doorW, roomH - 2.7, 0.22]} />
+        <meshStandardMaterial color={wallColor} roughness={0.78} />
+      </mesh>
+      {/* Exit door frame + glowing mat */}
+      <mesh position={[0, 1.35, d / 2 - 0.02]}>
+        <boxGeometry args={[doorW + 0.25, 2.7, 0.14]} />
+        <meshStandardMaterial color="#212529" roughness={0.5} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, d / 2 - 0.55]}>
+        <planeGeometry args={[doorW * 1.2, 1.1]} />
+        <meshStandardMaterial color="#52b788" emissive="#52b788" emissiveIntensity={0.55} />
+      </mesh>
+      <Text position={[0, 0.12, d / 2 - 0.4]} fontSize={0.28} color="#d8f3dc" anchorX="center">
+        EXIT · E
+      </Text>
+      {/* Window panes (opaque — no street bleed) */}
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * w * 0.28, 2.1, -d / 2 + 0.14]}>
+          <planeGeometry args={[1.6, 1.5]} />
+          <meshStandardMaterial color="#87ceeb" emissive="#ffe8a3" emissiveIntensity={0.2} roughness={0.2} />
+        </mesh>
+      ))}
+      {/* Baseboard + crown */}
+      <mesh position={[0, 0.12, 0]}>
+        <boxGeometry args={[w - 0.3, 0.24, d - 0.3]} />
+        <meshStandardMaterial color="#343a40" roughness={0.7} transparent opacity={0.35} />
       </mesh>
     </>
   )
@@ -313,31 +356,71 @@ const THEME_COLORS: Record<InteriorTheme, { floor: string; wall: string; ceiling
 export function ThemedBuildingInterior({
   building,
   groundY,
+  isolated = false,
 }: {
   building: CityBuilding
   groundY: number
+  isolated?: boolean
 }) {
-  const depth = buildingDepth(building)
+  const depth = Math.max(buildingDepth(building), 8)
+  const width = Math.max(building.width, 8.5)
   const theme = interiorThemeForShop(building.shop)
   const colors = THEME_COLORS[theme]
 
   return (
     <group position={[building.x, groundY + 0.12, building.z]}>
-      <ambientLight intensity={0.28} color={colors.ambient} />
+      <ambientLight intensity={isolated ? 0.55 : 0.32} color={colors.ambient} />
+      <hemisphereLight args={[colors.ambient, '#1a1410', isolated ? 0.45 : 0.2]} />
+      <pointLight position={[0, ROOM_H - 0.6, 0]} intensity={isolated ? 1.8 : 1.1} color="#fff8e7" distance={16} />
       <RoomShell
-        width={building.width}
+        width={width}
         depth={depth}
         roomH={ROOM_H}
         floorColor={colors.floor}
         wallColor={colors.wall}
         ceilingColor={colors.ceiling}
+        accent={building.shopColor ?? colors.ambient}
       />
-      <ThemeProps theme={theme} width={building.width} depth={depth} />
+      {/* Back counter / partition wall */}
+      <mesh castShadow position={[0, 1.15, -depth * 0.22]}>
+        <boxGeometry args={[width * 0.72, 1.15, 0.55]} />
+        <meshStandardMaterial color="#343a40" roughness={0.65} />
+      </mesh>
+      <mesh position={[0, 2.35, -depth * 0.28]}>
+        <boxGeometry args={[width * 0.5, 0.7, 0.12]} />
+        <meshStandardMaterial color="#111827" roughness={0.5} />
+      </mesh>
       {building.shop && (
-        <Text position={[0, 2.85, -depth * 0.35]} fontSize={0.38} color="#f8f9fa" anchorX="center" outlineWidth={0.025} outlineColor="#000">
+        <Text
+          position={[0, 2.35, -depth * 0.2]}
+          fontSize={0.42}
+          color="#f8f9fa"
+          anchorX="center"
+          outlineWidth={0.03}
+          outlineColor="#000"
+        >
           {building.shop}
         </Text>
       )}
+      <ThemeProps theme={theme} width={width} depth={depth} />
+      {/* Side display shelves */}
+      {([-1, 1] as const).map((s) => (
+        <group key={s} position={[s * width * 0.38, 0, -depth * 0.05]}>
+          {[0.6, 1.4, 2.2].map((hy) => (
+            <mesh key={hy} castShadow position={[0, hy, 0]}>
+              <boxGeometry args={[0.9, 0.08, depth * 0.45]} />
+              <meshStandardMaterial color="#6c757d" roughness={0.6} />
+            </mesh>
+          ))}
+          <mesh castShadow position={[0, 1.4, 0]}>
+            <boxGeometry args={[0.12, 2.8, depth * 0.45]} />
+            <meshStandardMaterial color="#495057" roughness={0.7} />
+          </mesh>
+        </group>
+      ))}
+      <Text position={[0, ROOM_H - 0.45, depth * 0.35]} fontSize={0.26} color="#adb5bd" anchorX="center">
+        Press E at the green EXIT mat
+      </Text>
     </group>
   )
 }
@@ -357,9 +440,17 @@ export function GarageInteriorView({
 }) {
   return (
     <group position={[x, groundY, z]} rotation={[0, yaw, 0]}>
-      <ambientLight intensity={0.4} />
-      <pointLight position={[0, 3.8, 0]} intensity={1.4} color="#fff3bf" distance={16} />
-      <pointLight position={[3, 2.5, 2]} intensity={0.5} color="#ffd60a" distance={10} />
+      <ambientLight intensity={0.65} />
+      <hemisphereLight args={['#fff3bf', '#212529', 0.4]} />
+      <pointLight position={[0, 3.8, 0]} intensity={2.2} color="#fff3bf" distance={20} />
+      <pointLight position={[3, 2.5, 2]} intensity={1.2} color="#ffd60a" distance={14} />
+      <pointLight position={[-3, 2.5, -1]} intensity={1.1} color="#fff8e7" distance={14} />
+      {[-3, 0, 3].map((ox) => (
+        <mesh key={ox} position={[ox, 4.4, 0]}>
+          <boxGeometry args={[2.2, 0.1, 8]} />
+          <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={1.0} />
+        </mesh>
+      ))}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[14, 11]} />
         <meshStandardMaterial color="#3d4146" roughness={0.9} />
@@ -465,10 +556,10 @@ function CorridorMesh({
         return (
           <group key={t}>
             <mesh position={[lx, h - 0.12, lz]}>
-              <boxGeometry args={alongZ ? [0.35, 0.08, Math.min(d * 0.7, 12)] : [Math.min(w * 0.7, 12), 0.08, 0.35]} />
-              <meshStandardMaterial color="#f8f9fa" emissive="#ffe8a3" emissiveIntensity={0.55} />
+              <boxGeometry args={alongZ ? [0.45, 0.1, Math.min(d * 0.75, 14)] : [Math.min(w * 0.75, 14), 0.1, 0.45]} />
+              <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={1.15} />
             </mesh>
-            <pointLight position={[lx, h - 0.4, lz]} intensity={0.55} color="#fff3bf" distance={14} />
+            <pointLight position={[lx, h - 0.55, lz]} intensity={1.6} color="#fff3bf" distance={18} />
           </group>
         )
       })}
@@ -516,8 +607,9 @@ export function TunnelNetworkView({
   const playerFloor = undergroundFloorY(getHeight, playerX, playerZ)
   return (
     <group>
-      <ambientLight intensity={0.16} color="#445566" />
-      <hemisphereLight args={['#6c8aa8', '#0a0c10', 0.35]} />
+      <ambientLight intensity={0.42} color="#6a849c" />
+      <hemisphereLight args={['#9ec5e8', '#0f1318', 0.55]} />
+      <pointLight position={[playerX, playerFloor + 3.2, playerZ]} intensity={1.2} color="#fff3bf" distance={22} />
       {segs.map((seg) => (
         <CorridorMesh
           key={seg.id}
@@ -529,7 +621,7 @@ export function TunnelNetworkView({
         <Text
           position={[playerX, playerFloor + 2.85, playerZ]}
           fontSize={0.28}
-          color="#adb5bd"
+          color="#e9ecef"
           anchorX="center"
         >
           {currentLabel}

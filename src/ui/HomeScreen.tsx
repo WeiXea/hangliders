@@ -293,8 +293,8 @@ export function HomeScreen() {
             </button>
             {biome === 'city' && (
               <p className={styles.cityExploreHint}>
-                <b>Urban Skyline</b> Free Flight starts at downtown — cyan metro pavilion, yellow
-                garage bay, green shop mats, purple cellar doors. Challenge/XC still launch from rooftops.
+                <b>Urban Skyline</b> Free Flight starts downtown — yellow road tunnels (drive through),
+                cyan metro (walk + E), lit garages, and shops that open as their own rooms.
               </p>
             )}
           </>

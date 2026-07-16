@@ -26,6 +26,7 @@ import { sampleRocketLaunchSupport } from './rocketPad'
 import {
   clampInTunnel,
   garageEntryPos,
+  inRoadTunnel,
   nearestGarageEntry,
   nearestSecretAlleyDoor,
   nearestSurfaceTunnelEntrance,
@@ -909,9 +910,12 @@ export function tickFlight(
         }
       }
 
-      const pushed = resolveBuildingPush(next.position, config.getHeight, 1.35, -1)
-      next.position.x = pushed.x
-      next.position.z = pushed.z
+      // Keep road underpasses clear — do not shove cars into tunnel walls as buildings
+      if (!inRoadTunnel(next.position.x, next.position.z)) {
+        const pushed = resolveBuildingPush(next.position, config.getHeight, 1.35, -1)
+        next.position.x = pushed.x
+        next.position.z = pushed.z
+      }
     }
     support = supportY(config, next.position.x, next.position.z)
     groundY = support.y

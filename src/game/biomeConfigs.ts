@@ -169,27 +169,27 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
     ],
     landingZone: { center: { x: 210, y: 0, z: 280 }, radius: 26 },
     parkedGliders: [
-      // Rooftop mounts — green elevators at street level
-      { x: 30, z: 35, yaw: 0.2, buildingId: 1 },
-      { x: 15, z: 55, yaw: -0.15, buildingId: 5 },
-      { x: 65, z: 80, yaw: 0.35, buildingId: 7 },
-      { x: 100, z: 60, yaw: -0.4, buildingId: 9 },
-      { x: 110, z: 150, yaw: 0.1, buildingId: 17 },
-      { x: 75, z: 160, yaw: -0.25, buildingId: 21 },
-      { x: 175, z: 40, yaw: 0.55, buildingId: 27 },
-      { x: 40, z: 180, yaw: -0.7, buildingId: 29 },
-      { x: 160, z: 110, yaw: 0.12, buildingId: 14 },
+      // Rooftop mounts — match relocated building centers
+      { x: 33, z: 30, yaw: 0.2, buildingId: 1 },
+      { x: 10, z: 54, yaw: -0.15, buildingId: 5 },
+      { x: 54, z: 74, yaw: 0.35, buildingId: 7 },
+      { x: 98, z: 52, yaw: -0.4, buildingId: 9 },
+      { x: 120, z: 142, yaw: 0.1, buildingId: 17 },
+      { x: 76, z: 164, yaw: -0.25, buildingId: 21 },
+      { x: 186, z: 30, yaw: 0.55, buildingId: 27 },
+      { x: 54, z: 174, yaw: -0.7, buildingId: 29 },
+      { x: 174, z: 98, yaw: 0.12, buildingId: 14 },
       // Rooftop choppers
-      { x: 180, z: 70, yaw: 0.2, buildingId: 15, craftType: 'helicopter' },
-      { x: -25, z: 60, yaw: 0.15, buildingId: 19, craftType: 'helicopter' },
-      { x: 120, z: 90, yaw: -0.2, buildingId: 12, craftType: 'helicopter' },
+      { x: 186, z: 76, yaw: 0.2, buildingId: 15, craftType: 'helicopter' },
+      { x: -32, z: 54, yaw: 0.15, buildingId: 19, craftType: 'helicopter' },
+      { x: 120, z: 76, yaw: -0.2, buildingId: 12, craftType: 'helicopter' },
       // Skyline Municipal — F-35 on the apron
       { x: -135, z: 62, yaw: Math.PI / 2, craftType: 'jet' },
       // Starbase pad — Falcon-class stack (board via tower elevator)
       { x: -158, z: 28, yaw: Math.PI / 2, craftType: 'rocket' },
-      // Street plaza spare gliders (kept clear of metro stairwells)
-      { x: 28, z: 58, yaw: 0.4 },
-      { x: 118, z: 100, yaw: -0.5 },
+      // Street plaza spare gliders (kept clear of metro / underpasses)
+      { x: 28, z: 52, yaw: 0.4 },
+      { x: 118, z: 108, yaw: -0.5 },
     ],
   },
   moon: {

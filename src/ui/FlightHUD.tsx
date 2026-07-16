@@ -25,6 +25,7 @@ import {
 import { xcProgressLabel, xcNavTarget, xcElapsedMs, formatXCTime, xcRelBearing } from '../game/xcTask'
 import { nearestEnterableDoor, sampleCitySupport, nearestElevatorBuilding, getBuildingById } from '../game/cityBuildings'
 import {
+  inRoadTunnel,
   nearestGarageEntry,
   nearestCityLandmark,
   nearestSecretAlleyDoor,
@@ -567,7 +568,9 @@ export function FlightHUD() {
 
       {driving && (
         <div className={styles.coach}>
-          Drive · ↑ gas · ↓ brake · A/D steer (heavier at speed) · E exit when stopped
+          {inRoadTunnel(flight.position.x, flight.position.z)
+            ? `${inRoadTunnel(flight.position.x, flight.position.z)?.label ?? 'Underpass'} — keep driving straight to the other end`
+            : 'Drive · ↑ gas · ↓ brake · A/D steer · yellow tubes = drive-through tunnels · E exit when stopped'}
         </div>
       )}
 
@@ -628,7 +631,7 @@ export function FlightHUD() {
         !showCityGuide &&
         flight.landAction === 'none' && (
         <div className={styles.coach}>
-          Follow the arrow · cyan pavilion = metro · yellow bay = garage · green mat = shop
+          Follow the arrow · cyan = metro walk · yellow tube = drive-through tunnel · green mat = shop
         </div>
       )}
 

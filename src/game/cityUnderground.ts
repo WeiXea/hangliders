@@ -54,12 +54,40 @@ export type CityGarage = {
   label: string
 }
 
-/** Garages on major corners — visible from the street grid. */
+/** Garages on clear curb lots — open bay in, drive/walk out the same mouth. */
 export const CITY_GARAGES: CityGarage[] = [
-  { id: 0, x: 22, z: 22, width: 14, depth: 10, yaw: 0, label: 'Central Garage' },
-  { id: 1, x: 66, z: 88, width: 14, depth: 11, yaw: Math.PI / 2, label: 'Midtown Auto' },
-  { id: 2, x: 132, z: 132, width: 14, depth: 10, yaw: 0, label: 'Harbor Garage' },
+  { id: 0, x: 22, z: 12, width: 14, depth: 12, yaw: 0, label: 'Central Garage' },
+  { id: 1, x: 88, z: 100, width: 14, depth: 12, yaw: Math.PI / 2, label: 'Midtown Auto' },
+  { id: 2, x: 148, z: 148, width: 14, depth: 12, yaw: 0, label: 'Harbor Garage' },
 ]
+
+/** Surface road underpasses — cars drive straight through (lit tube on the street). */
+export type RoadTunnel = {
+  id: number
+  x: number
+  z: number
+  /** Travel axis: cars move along this world axis */
+  axis: 'x' | 'z'
+  length: number
+  halfW: number
+  label: string
+}
+
+export const ROAD_TUNNELS: RoadTunnel[] = [
+  { id: 0, x: 44, z: 120, axis: 'z', length: 40, halfW: 5.8, label: 'Central Underpass' },
+  { id: 1, x: 100, z: 66, axis: 'x', length: 44, halfW: 5.8, label: 'Midtown Underpass' },
+]
+
+export function inRoadTunnel(x: number, z: number): RoadTunnel | null {
+  for (const t of ROAD_TUNNELS) {
+    if (t.axis === 'z') {
+      if (Math.abs(x - t.x) <= t.halfW && Math.abs(z - t.z) <= t.length * 0.5) return t
+    } else if (Math.abs(z - t.z) <= t.halfW && Math.abs(x - t.x) <= t.length * 0.5) {
+      return t
+    }
+  }
+  return null
+}
 
 export type TunnelSegment = {
   id: number
@@ -88,23 +116,23 @@ export const TUNNEL_SEGMENTS: TunnelSegment[] = [
   // —— Midtown (bank / police / cafe links) ——
   { id: 5, x: 44, z: 88, halfW: 3.2, halfD: 8, label: 'Midtown Junction' },
   { id: 6, x: 20, z: 88, halfW: 30, halfD: 3.2, secret: true, label: 'Midtown Catacombs' },
-  { id: 7, x: 55, z: 88, halfW: 8, halfD: 10, buildingLink: 11, label: 'Bank Basement Link' },
-  { id: 8, x: -8, z: 94, halfW: 4.5, halfD: 14, buildingLink: 28, secret: true, label: 'Precinct Underpass' },
-  { id: 9, x: 5, z: 26, halfW: 4, halfD: 8, buildingLink: 0, secret: true, label: 'Cafe Cellar' },
-  { id: 19, x: 24, z: 26, halfW: 22, halfD: 3.2, secret: true, label: 'Cafe Approach' },
+  { id: 7, x: 54, z: 88, halfW: 8, halfD: 12, buildingLink: 11, label: 'Bank Basement Link' },
+  { id: 8, x: -12, z: 94, halfW: 5, halfD: 14, buildingLink: 28, secret: true, label: 'Precinct Underpass' },
+  { id: 9, x: 5, z: 30, halfW: 4, halfD: 8, buildingLink: 0, secret: true, label: 'Cafe Cellar' },
+  { id: 19, x: 24, z: 30, halfW: 22, halfD: 3.2, secret: true, label: 'Cafe Approach' },
 
   // —— East / Tech Hub ——
   { id: 10, x: 132, z: 44, halfW: 3.2, halfD: 8, label: 'Tech Junction' },
   { id: 11, x: 132, z: 22, halfW: 3.2, halfD: 18, label: 'Tech South Spur' },
   { id: 12, x: 132, z: 66, halfW: 3.2, halfD: 22, label: 'Harbor Approach' },
-  { id: 13, x: 140, z: 50, halfW: 10, halfD: 3.2, buildingLink: 13, label: 'Tech Hub Link' },
+  { id: 13, x: 148, z: 54, halfW: 12, halfD: 3.2, buildingLink: 13, label: 'Tech Hub Link' },
 
   // —— Harbor ——
   { id: 14, x: 132, z: 132, halfW: 4, halfD: 4, surfaceExit: true, label: 'Harbor Station' },
   { id: 15, x: 88, z: 132, halfW: 28, halfD: 3.2, secret: true, label: 'Harbor Run' },
   { id: 16, x: 132, z: 110, halfW: 3.2, halfD: 18, label: 'Harbor North Approach' },
-  { id: 17, x: 154, z: 154, halfW: 3.2, halfD: 20, buildingLink: 26, secret: true, label: 'Bakery Cellar' },
-  { id: 18, x: 143, z: 132, halfW: 14, halfD: 3.2, secret: true, label: 'Bakery Approach' },
+  { id: 17, x: 164, z: 160, halfW: 3.2, halfD: 18, buildingLink: 26, secret: true, label: 'Bakery Cellar' },
+  { id: 18, x: 148, z: 132, halfW: 18, halfD: 3.2, secret: true, label: 'Bakery Approach' },
 ]
 
 export type SecretPassage = {
@@ -161,6 +189,16 @@ export const CITY_LANDMARKS: CityLandmark[] = [
     priority: 0,
   },
   {
+    id: 'road-tunnel-midtown',
+    label: 'Midtown Underpass',
+    hint: 'Lit road tunnel — drive straight through',
+    x: 100,
+    z: 66,
+    kind: 'metro',
+    color: '#ffd60a',
+    priority: 1,
+  },
+  {
     id: 'metro-main',
     label: 'Main Square Station',
     hint: 'Cyan stair pavilion — press E',
@@ -177,6 +215,16 @@ export const CITY_LANDMARKS: CityLandmark[] = [
     x: garageEntryPos(CITY_GARAGES[0]!).x,
     z: garageEntryPos(CITY_GARAGES[0]!).z,
     kind: 'garage',
+    color: '#ffd60a',
+    priority: 2,
+  },
+  {
+    id: 'road-tunnel-central',
+    label: 'Central Underpass',
+    hint: 'Lit road tunnel on Avenue 44 — drive through',
+    x: 44,
+    z: 120,
+    kind: 'metro',
     color: '#ffd60a',
     priority: 2,
   },
