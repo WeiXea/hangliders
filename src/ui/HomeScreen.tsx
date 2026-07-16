@@ -7,7 +7,7 @@ import { handleNetMessage, sendHello, setRoomSession } from '../game/netSync'
 import type { Biome, GameMode } from '../types/game'
 import styles from './HomeScreen.module.css'
 
-const BIOMES: Biome[] = ['beach', 'mountains', 'city']
+const BIOMES: Biome[] = ['city', 'beach', 'mountains']
 
 export function HomeScreen() {
   const biome = useGameStore((s) => s.biome)
@@ -293,8 +293,8 @@ export function HomeScreen() {
             </button>
             {biome === 'city' && (
               <p className={styles.cityExploreHint}>
-                <b>Urban Skyline</b> Free Flight starts downtown — yellow road tunnels (drive through),
-                cyan metro (walk + E), lit garages, and shops that open as their own rooms.
+                <b>Urban Skyline</b> (selected) — Kenney cars, roads, and buildings. Free Flight starts
+                downtown. Hard-refresh if you still see the old boxy city.
               </p>
             )}
           </>

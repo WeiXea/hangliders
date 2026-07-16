@@ -307,16 +307,45 @@ function KenneyProps({ getHeight }: { getHeight: (x: number, z: number) => numbe
   return <group>{props}</group>
 }
 
+function BoxFallback({
+  building,
+  groundY,
+}: {
+  building: CityBuilding
+  groundY: number
+}) {
+  const depth = buildingDepth(building)
+  return (
+    <mesh
+      castShadow
+      receiveShadow
+      position={[building.x, groundY + building.height / 2, building.z]}
+    >
+      <boxGeometry args={[building.width, building.height, depth]} />
+      <meshStandardMaterial color={building.color} roughness={0.85} />
+    </mesh>
+  )
+}
+
 /** Kenney visual city layer — roads, buildings, street props (CC0). */
 export function KenneyCity({ getHeight }: { getHeight: (x: number, z: number) => number }) {
   return (
-    <Suspense fallback={null}>
-      <KenneyRoads getHeight={getHeight} />
+    <group>
+      <Suspense fallback={null}>
+        <KenneyRoads getHeight={getHeight} />
+      </Suspense>
       {CITY_BUILDINGS.map((b) => (
-        <KenneyBuilding key={b.id} building={b} groundY={getHeight(b.x, b.z)} />
+        <Suspense
+          key={b.id}
+          fallback={<BoxFallback building={b} groundY={getHeight(b.x, b.z)} />}
+        >
+          <KenneyBuilding building={b} groundY={getHeight(b.x, b.z)} />
+        </Suspense>
       ))}
-      <KenneyProps getHeight={getHeight} />
-    </Suspense>
+      <Suspense fallback={null}>
+        <KenneyProps getHeight={getHeight} />
+      </Suspense>
+    </group>
   )
 }
 

@@ -27,7 +27,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Include Kenney GLBs so the city isn't blank on cached PWA loads
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,glb,hdr,jpg}'],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
     }),
   ],
