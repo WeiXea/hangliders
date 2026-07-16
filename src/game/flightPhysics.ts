@@ -21,10 +21,11 @@ import {
   hitWorldProps,
   resolvePropPush,
 } from './obstacles'
-import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos, nearestElevatorBuilding, elevatorStreetPos, elevatorRoofPos, CITY_STREET_DECK } from './cityBuildings'
+import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos, interiorEntryPos, nearestElevatorBuilding, elevatorStreetPos, elevatorRoofPos, CITY_STREET_DECK } from './cityBuildings'
 import { sampleRocketLaunchSupport } from './rocketPad'
 import {
   clampInTunnel,
+  garageEntryPos,
   nearestGarageEntry,
   nearestSecretAlleyDoor,
   nearestSurfaceTunnelEntrance,
@@ -506,10 +507,9 @@ export function tickFlight(
         const g = CITY_GARAGES.find((gar) => gar.id === next.garageId)
         if (g) {
           next.garageId = -1
-          const mouthZ = g.z + (g.depth * 0.5 + 1.5) * Math.cos(g.yaw)
-          const mouthX = g.x + (g.depth * 0.5 + 1.5) * Math.sin(g.yaw)
-          next.position.x = mouthX
-          next.position.z = mouthZ
+          const mouth = garageEntryPos(g)
+          next.position.x = mouth.x
+          next.position.z = mouth.z
           next.position.y = config.getHeight(g.x, g.z) + CITY_STREET_DECK + WALK_FEET
         }
       } else if (next.interiorId >= 0) {
@@ -545,20 +545,23 @@ export function tickFlight(
         next.position.z = secretDoor.segment.z
         next.position.y = undergroundFloorY(config.getHeight, secretDoor.segment.x, secretDoor.segment.z) + WALK_FEET
       } else if (garageEnt && !nearGlider && !nearVeh && !elev) {
+        const mouth = garageEntryPos(garageEnt)
         next.garageId = garageEnt.id
         next.tunnelSegment = -1
         next.interiorId = -1
-        next.position.x = garageEnt.x
-        next.position.z = garageEnt.z
+        next.position.x = mouth.x
+        next.position.z = mouth.z
         next.position.y = config.getHeight(garageEnt.x, garageEnt.z) + CITY_STREET_DECK - 0.35 + WALK_FEET
       } else if (next.tunnelSegment >= 0 && curTunnel?.buildingLink != null) {
         const b = getBuildingById(curTunnel.buildingLink)
         if (b) {
+          const entry = interiorEntryPos(b, config.getHeight, true)
           next.interiorId = b.id
           next.tunnelSegment = -1
-          next.position.x = b.x
-          next.position.z = b.z
-          next.position.y = config.getHeight(b.x, b.z) + 0.15 + WALK_FEET
+          next.position.x = entry.x
+          next.position.z = entry.z
+          next.position.y = entry.y + WALK_FEET
+          next.yaw = entry.yaw
         }
       } else if (elev && !nearGlider && !nearVeh) {
         if (elev.toRoof) {
@@ -583,12 +586,14 @@ export function tickFlight(
       } else {
         const doorB = nearestEnterableDoor(next.position.x, next.position.z, config.getHeight)
         if (doorB && !nearGlider && !elev && !nearVeh) {
+          const entry = interiorEntryPos(doorB, config.getHeight)
           next.interiorId = doorB.id
           next.tunnelSegment = -1
           next.garageId = -1
-          next.position.x = doorB.x
-          next.position.z = doorB.z
-          next.position.y = config.getHeight(doorB.x, doorB.z) + 0.15 + WALK_FEET
+          next.position.x = entry.x
+          next.position.z = entry.z
+          next.position.y = entry.y + WALK_FEET
+          next.yaw = entry.yaw
           next.landAction = 'none'
         }
       }

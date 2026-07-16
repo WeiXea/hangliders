@@ -23,6 +23,7 @@ import {
   TUNNEL_SEGMENTS,
   undergroundFloorY,
 } from '../game/cityUnderground'
+import { CityFeatureMarkers } from './CityFeatureMarkers'
 import {
   GarageInteriorView,
   ThemedBuildingInterior,
@@ -219,8 +220,11 @@ function Building({
           </mesh>
           <mesh position={[0, 0.02, 0.55]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[doorW * 1.35, 1.2]} />
-            <meshStandardMaterial color="#2d6a4f" roughness={0.9} />
+            <meshStandardMaterial color="#52b788" emissive="#52b788" emissiveIntensity={0.35} roughness={0.9} />
           </mesh>
+          <Text position={[0, 0.08, 0.62]} fontSize={0.28} color="#d8f3dc" anchorX="center">
+            E
+          </Text>
         </group>
       )}
 
@@ -323,61 +327,6 @@ function CitySubSurface({ config }: { config: BiomeConfig }) {
     )
   }
   return null
-}
-
-function CityGarages({ getHeight }: { getHeight: (x: number, z: number) => number }) {
-  return (
-    <>
-      {CITY_GARAGES.map((g) => {
-        const gy = getHeight(g.x, g.z) + 0.12
-        return (
-          <group key={g.id} position={[g.x, gy, g.z]} rotation={[0, g.yaw, 0]}>
-            <mesh castShadow position={[0, g.depth * 0.25, 0]}>
-              <boxGeometry args={[g.width, g.depth * 0.5, g.depth]} />
-              <meshStandardMaterial color="#495057" roughness={0.82} metalness={0.15} />
-            </mesh>
-            <mesh castShadow position={[0, g.depth * 0.52, g.depth * 0.5 - 0.15]}>
-              <boxGeometry args={[g.width * 0.92, g.depth * 0.05, 0.2]} />
-              <meshStandardMaterial color="#212529" roughness={0.55} metalness={0.45} />
-            </mesh>
-            <Text position={[0, g.depth * 0.55, g.depth * 0.55]} fontSize={0.42} color="#ffd60a" anchorX="center">
-              {g.label}
-            </Text>
-            {/* Interior bay glow */}
-            <pointLight position={[0, 2.2, 0]} intensity={0.6} color="#fff3bf" distance={8} />
-          </group>
-        )
-      })}
-    </>
-  )
-}
-
-function CityTunnelMarkers({ getHeight }: { getHeight: (x: number, z: number) => number }) {
-  return (
-    <>
-      {TUNNEL_SEGMENTS.filter((s) => s.surfaceExit).map((seg) => {
-        const gy = getHeight(seg.x, seg.z) + 0.12
-        return (
-          <group key={`grate-${seg.id}`} position={[seg.x, gy, seg.z]}>
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-              <ringGeometry args={[1.1, 1.45, 16]} />
-              <meshStandardMaterial color="#495057" metalness={0.65} roughness={0.35} />
-            </mesh>
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}>
-              <ringGeometry args={[0.2, 1.05, 8]} />
-              <meshStandardMaterial color="#212529" metalness={0.7} roughness={0.4} wireframe />
-            </mesh>
-          </group>
-        )
-      })}
-      {TUNNEL_SEGMENTS.filter((s) => s.secret).map((seg) => (
-        <mesh key={`secret-${seg.id}`} position={[seg.x, undergroundFloorY(getHeight, seg.x, seg.z) + 0.05, seg.z]}>
-          <boxGeometry args={[0.4, 0.08, 0.4]} />
-          <meshStandardMaterial color="#ffd60a" emissive="#ffd60a" emissiveIntensity={0.35} />
-        </mesh>
-      ))}
-    </>
-  )
 }
 
 function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => number }) {
@@ -604,8 +553,7 @@ export function CityScene({ config }: CitySceneProps) {
           <DetailedTerrain config={config} biome="city" size={1280} segments={128} />
           <HorizonRing color="#6c757d" y={0} />
           <CityStreets getHeight={config.getHeight} />
-          <CityGarages getHeight={config.getHeight} />
-          <CityTunnelMarkers getHeight={config.getHeight} />
+          <CityFeatureMarkers getHeight={config.getHeight} />
           {CITY_BUILDINGS.map((b) =>
             interiorId === b.id ? null : (
               <Building

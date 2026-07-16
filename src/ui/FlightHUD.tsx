@@ -26,6 +26,7 @@ import { xcProgressLabel, xcNavTarget, xcElapsedMs, formatXCTime, xcRelBearing }
 import { nearestEnterableDoor, sampleCitySupport, nearestElevatorBuilding, getBuildingById } from '../game/cityBuildings'
 import {
   nearestGarageEntry,
+  nearestCityLandmark,
   nearestSecretAlleyDoor,
   nearestSurfaceTunnelEntrance,
   TUNNEL_SEGMENTS,
@@ -293,6 +294,36 @@ export function FlightHUD() {
     flight.garageId < 0 &&
     flight.interiorId < 0 &&
     nearestGarageEntry(flight.position.x, flight.position.z, config.getHeight)
+
+  const cityLandmark =
+    walking &&
+    biome === 'city' &&
+    flight.tunnelSegment < 0 &&
+    flight.garageId < 0 &&
+    flight.interiorId < 0
+      ? nearestCityLandmark(flight.position.x, flight.position.z)
+      : null
+  const cityLandmarkDist = cityLandmark
+    ? Math.hypot(cityLandmark.x - flight.position.x, cityLandmark.z - flight.position.z)
+    : 0
+  const cityLandmarkBearing = cityLandmark
+    ? xcRelBearing(flight.yaw, flight.position, { x: cityLandmark.x, z: cityLandmark.z })
+    : 0
+  const showCityGuide =
+    walking &&
+    biome === 'city' &&
+    flight.tunnelSegment < 0 &&
+    flight.garageId < 0 &&
+    flight.interiorId < 0 &&
+    !nearMount &&
+    !nearVehicle &&
+    !nearDoor &&
+    !nearElev &&
+    !nearTunnelGrate &&
+    !nearSecret &&
+    !nearGarage &&
+    cityLandmark &&
+    cityLandmarkDist > 10
 
   const thermalCue = (() => {
     if (!flying || !nearTh || flight.stallWarning) return null
@@ -578,12 +609,30 @@ export function FlightHUD() {
       )}
 
       {walking &&
+        biome === 'city' &&
         !nearMount &&
         !nearVehicle &&
         !nearDoor &&
         !nearElev &&
         !inside &&
         !onRoof &&
+        !inTunnel &&
+        !inGarage &&
+        !showCityGuide &&
+        flight.landAction === 'none' && (
+        <div className={styles.coach}>
+          Cyan beacons = metro · yellow arches = garages · purple doors = secret tunnels · green mat = shops
+        </div>
+      )}
+
+      {walking &&
+        !nearMount &&
+        !nearVehicle &&
+        !nearDoor &&
+        !nearElev &&
+        !inside &&
+        !onRoof &&
+        biome !== 'city' &&
         flight.landAction === 'none' && (
         <div className={styles.coach}>
           Green-ring cars · gold-ring F-35 at Skyline Municipal (west) · Shift to sprint
@@ -797,22 +846,40 @@ export function FlightHUD() {
         </div>
       )}
 
+      {showCityGuide && cityLandmark && (
+        <div className={styles.cityWayfinder} aria-live="polite">
+          <div
+            className={styles.cityWayArrow}
+            style={{
+              borderBottomColor: cityLandmark.color,
+              transform: `rotate(${cityLandmarkBearing}rad)`,
+            }}
+          />
+          <div>
+            <div className={styles.cityWayTitle}>{cityLandmark.label}</div>
+            <div className={styles.cityWaySub}>
+              {Math.round(cityLandmarkDist)} m · {cityLandmark.hint}
+            </div>
+          </div>
+        </div>
+      )}
+
       {nearTunnelGrate && !nearMount && !nearVehicle && (
-        <div className={styles.nearGround}>Street grate — press E to enter the underground tunnel</div>
+        <div className={styles.nearGround}>Metro stairwell — press E to go underground</div>
       )}
 
       {nearSecret && !nearMount && !nearVehicle && (
-        <div className={styles.nearGround}>Hidden alley door — press E for secret passage</div>
+        <div className={styles.nearGround}>Purple secret door — press E for underground passage</div>
       )}
 
       {nearGarage && !nearMount && !nearVehicle && (
-        <div className={styles.nearGround}>{nearGarage.label} — press E to walk inside</div>
+        <div className={styles.nearGround}>{nearGarage.label} — press E to enter the garage</div>
       )}
 
       {inTunnel && (
         <div className={styles.coach}>
-          {tunnelSeg?.label ?? 'Underground tunnel'} — walk the corridors · E at grates to surface
-          {tunnelSeg?.buildingLink != null ? ' · E at linked rooms for basement access' : ''}
+          {tunnelSeg?.label ?? 'Underground tunnel'} — walk the corridors · E at cyan metro exits to surface
+          {tunnelSeg?.buildingLink != null ? ' · E at linked rooms for basement shop access' : ''}
         </div>
       )}
 
