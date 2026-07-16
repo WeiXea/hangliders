@@ -145,30 +145,30 @@ export function vehicleRestClearance(kind: TrafficKind): number {
 export function vehicleMaxSpeed(kind: TrafficKind): number {
   switch (kind) {
     case 'bus':
-      return 11
-    case 'fire':
       return 16
+    case 'fire':
+      return 24
     case 'police':
-      return 22
+      return 30
     case 'taxi':
-      return 17
+      return 24
     default:
-      return 15
+      return 22
   }
 }
 
 export function vehicleAccel(kind: TrafficKind): number {
   switch (kind) {
     case 'bus':
-      return 3.8
+      return 5.5
     case 'fire':
-      return 7.5
+      return 10
     case 'police':
-      return 11
+      return 14
     case 'taxi':
-      return 8.5
+      return 11
     default:
-      return 8
+      return 10.5
   }
 }
 
@@ -196,15 +196,15 @@ export function vehicleEngineProfile(kind: TrafficKind): {
 } {
   switch (kind) {
     case 'bus':
-      return { idle: 55, high: 140, vol: 0.07, grit: 0.55 }
+      return { idle: 48, high: 175, vol: 0.12, grit: 0.75 }
     case 'fire':
-      return { idle: 70, high: 200, vol: 0.085, grit: 0.7 }
+      return { idle: 62, high: 245, vol: 0.14, grit: 0.85 }
     case 'police':
-      return { idle: 85, high: 260, vol: 0.075, grit: 0.45 }
+      return { idle: 78, high: 320, vol: 0.13, grit: 0.55 }
     case 'taxi':
-      return { idle: 75, high: 220, vol: 0.065, grit: 0.4 }
+      return { idle: 68, high: 270, vol: 0.11, grit: 0.5 }
     default:
-      return { idle: 72, high: 210, vol: 0.07, grit: 0.42 }
+      return { idle: 65, high: 260, vol: 0.12, grit: 0.52 }
   }
 }
 

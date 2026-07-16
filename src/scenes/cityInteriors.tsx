@@ -549,20 +549,11 @@ function CorridorMesh({
         <boxGeometry args={[w, 0.16, d]} />
         <meshStandardMaterial color="#15181c" roughness={0.92} />
       </mesh>
-      {/* Ceiling lights */}
-      {([-0.35, 0.35] as const).map((t) => {
-        const lx = alongZ ? t * (w * 0.35) : 0
-        const lz = alongZ ? 0 : t * (d * 0.35)
-        return (
-          <group key={t}>
-            <mesh position={[lx, h - 0.12, lz]}>
-              <boxGeometry args={alongZ ? [0.45, 0.1, Math.min(d * 0.75, 14)] : [Math.min(w * 0.75, 14), 0.1, 0.45]} />
-              <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={1.15} />
-            </mesh>
-            <pointLight position={[lx, h - 0.55, lz]} intensity={1.6} color="#fff3bf" distance={18} />
-          </group>
-        )
-      })}
+      {/* Ceiling light strip — emissive only; player lantern covers the rest */}
+      <mesh position={[0, h - 0.12, 0]}>
+        <boxGeometry args={alongZ ? [0.45, 0.1, Math.min(d * 0.8, 16)] : [Math.min(w * 0.8, 16), 0.1, 0.45]} />
+        <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={1.35} />
+      </mesh>
       {seg.label && (seg.surfaceExit || seg.buildingLink != null || seg.secret) && (
         <Text
           position={[0, 2.4, 0]}

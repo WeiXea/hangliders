@@ -28,7 +28,6 @@ function PulseBeacon({ color, height = 8 }: { color: string; height?: number }) 
         <sphereGeometry args={[0.32, 12, 12]} />
         <meshStandardMaterial ref={ref} color={color} emissive={color} emissiveIntensity={0.55} />
       </mesh>
-      <pointLight position={[0, height, 0]} intensity={1.1} color={color} distance={16} />
     </group>
   )
 }
@@ -135,7 +134,6 @@ function GarageEntrance({
         <ringGeometry args={[1.7, 2.05, 28]} />
         <meshStandardMaterial color="#52b788" emissive="#52b788" emissiveIntensity={0.4} side={THREE.DoubleSide} />
       </mesh>
-      <pointLight position={[0, 3.2, g.depth * 0.2]} intensity={1.3} color="#fff3bf" distance={14} />
     </group>
   )
 }
@@ -205,19 +203,18 @@ function RoadUnderpass({
         <planeGeometry args={[0.28, len * 0.92]} />
         <meshStandardMaterial color="#ffd60a" emissive="#ffd60a" emissiveIntensity={0.35} />
       </mesh>
-      {/* Ceiling fluorescents */}
-      {Array.from({ length: 8 }, (_, i) => {
-        const oz = -len * 0.42 + (i * len * 0.84) / 7
+      {/* Ceiling fluorescents — emissive panels + 2 real lights (perf) */}
+      {Array.from({ length: 4 }, (_, i) => {
+        const oz = -len * 0.35 + (i * len * 0.7) / 3
         return (
-          <group key={i}>
-            <mesh position={[0, h - 0.28, oz]}>
-              <boxGeometry args={[w * 0.55, 0.1, 1.6]} />
-              <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={1.25} />
-            </mesh>
-            <pointLight position={[0, h - 0.9, oz]} intensity={2.4} color="#fff3bf" distance={12} />
-          </group>
+          <mesh key={i} position={[0, h - 0.28, oz]}>
+            <boxGeometry args={[w * 0.55, 0.1, 1.8]} />
+            <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={1.4} />
+          </mesh>
         )
       })}
+      <pointLight position={[0, h - 0.9, -len * 0.25]} intensity={2.0} color="#fff3bf" distance={16} />
+      <pointLight position={[0, h - 0.9, len * 0.25]} intensity={2.0} color="#fff3bf" distance={16} />
       {/* Mouth frames — lintel + pillars only (drive path stays open) */}
       {([-1, 1] as const).map((s) => (
         <group key={s} position={[0, 0, s * (len * 0.5)]}>

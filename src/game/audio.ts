@@ -420,15 +420,17 @@ export function tickVehicleEngine(
     kind as 'car' | 'bus' | 'police' | 'fire' | 'taxi',
   )
 
-  const t = Math.min(1, Math.abs(speed) / Math.max(1, maxSpeed))
-  const hz = profile.idle + (profile.high - profile.idle) * (0.15 + t * 0.85)
-  const vol = profile.vol * (0.35 + t * 0.65)
-  const grit = profile.grit * profile.vol * (0.2 + t * 0.9)
+  // Ease-in so idle → cruise → redline feels progressive, not linear
+  const raw = Math.min(1, Math.abs(speed) / Math.max(1, maxSpeed))
+  const t = raw * raw * (3 - 2 * raw)
+  const hz = profile.idle + (profile.high - profile.idle) * (0.08 + t * 0.92)
+  const vol = profile.vol * (0.28 + t * 0.85)
+  const grit = profile.grit * profile.vol * (0.15 + t * 1.15)
   const now = ac.currentTime
-  engineOsc.frequency.setTargetAtTime(hz, now, 0.08)
-  engineFilter.frequency.setTargetAtTime(320 + t * 480, now, 0.1)
-  engineGain.gain.setTargetAtTime(vol, now, 0.06)
-  engineNoiseGain.gain.setTargetAtTime(grit * 0.45, now, 0.08)
+  engineOsc.frequency.setTargetAtTime(hz, now, 0.05)
+  engineFilter.frequency.setTargetAtTime(280 + t * 720, now, 0.07)
+  engineGain.gain.setTargetAtTime(vol, now, 0.04)
+  engineNoiseGain.gain.setTargetAtTime(grit * 0.55, now, 0.06)
 }
 
 export function stopVehicleEngine() {

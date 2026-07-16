@@ -49,6 +49,8 @@ function Building({
   const halfD = depth / 2
   const roofColor = shopColor ?? '#6c757d'
   const isHospital = shop === 'HOSPITAL'
+  // Short blocks get gabled roofs like the Sketchfab residential/shop houses
+  const usePitch = height <= 12 && !isHospital
 
   return (
     <group position={[building.x, groundY, building.z]}>
@@ -57,19 +59,42 @@ function Building({
         <meshStandardMaterial color={color} roughness={0.92} metalness={0} flatShading />
       </mesh>
 
-      {/* Flat or accent roof */}
-      <mesh castShadow receiveShadow position={[0, height + 0.12, 0]}>
-        <boxGeometry args={[width * 1.02, 0.28, depth * 1.02]} />
-        <meshStandardMaterial color={isHospital ? '#4cc9f0' : roofColor} roughness={0.85} flatShading />
-      </mesh>
+      {usePitch ? (
+        <>
+          <mesh
+            castShadow
+            position={[0, height + 1.1, 0]}
+            rotation={[0, 0, Math.PI / 4]}
+          >
+            <boxGeometry args={[Math.hypot(width, width) * 0.52, 0.22, depth * 1.08]} />
+            <meshStandardMaterial color={shopColor ?? '#4a5568'} roughness={0.85} flatShading />
+          </mesh>
+          <mesh
+            castShadow
+            position={[0, height + 1.1, 0]}
+            rotation={[0, 0, -Math.PI / 4]}
+          >
+            <boxGeometry args={[Math.hypot(width, width) * 0.52, 0.22, depth * 1.08]} />
+            <meshStandardMaterial color={shopColor ?? '#5c6778'} roughness={0.85} flatShading />
+          </mesh>
+          <mesh position={[width * 0.28, height + 1.9, 0]}>
+            <boxGeometry args={[0.35, 1.1, 0.35]} />
+            <meshStandardMaterial color="#ced4da" roughness={0.8} flatShading />
+          </mesh>
+        </>
+      ) : (
+        <mesh castShadow receiveShadow position={[0, height + 0.12, 0]}>
+          <boxGeometry args={[width * 1.02, 0.28, depth * 1.02]} />
+          <meshStandardMaterial color={isHospital ? '#4cc9f0' : roofColor} roughness={0.85} flatShading />
+        </mesh>
+      )}
 
-      {roofLandable && (
+      {roofLandable && !usePitch && (
         <>
           <mesh position={[0, height + 0.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[width * 0.9, depth * 0.9]} />
             <meshStandardMaterial color="#adb5bd" roughness={0.9} flatShading />
           </mesh>
-          {/* HVAC box */}
           <mesh castShadow position={[width * 0.2, height + 0.65, -depth * 0.15]}>
             <boxGeometry args={[1.2, 0.7, 1]} />
             <meshStandardMaterial color="#868e96" roughness={0.75} flatShading />
@@ -88,15 +113,15 @@ function Building({
         </>
       )}
 
-      {/* Bright window grid */}
+      {/* Fewer window panes on tall faces — still reads as a grid */}
       {Array.from({ length: rows }).map((_, row) =>
-        Array.from({ length: cols }).map((_, col) => {
+        Array.from({ length: Math.min(cols, 4) }).map((_, col) => {
           const lit = windows[(row * cols + col) % windows.length]
-          const wx = (col - cols / 2 + 0.5) * (width / cols)
+          const wx = (col - Math.min(cols, 4) / 2 + 0.5) * (width / Math.min(cols, 4))
           if (enterable && row === 0 && Math.abs(wx) < doorW * 0.55) return null
           return (
             <mesh key={`${row}-${col}`} position={[wx, row * 3.1 + 1.6, halfD + 0.03]}>
-              <boxGeometry args={[Math.min(1.2, width / cols - 0.35), 1.5, 0.08]} />
+              <boxGeometry args={[Math.min(1.35, width / Math.min(cols, 4) - 0.35), 1.5, 0.08]} />
               <meshStandardMaterial
                 color={lit ? '#90e0ef' : '#495057'}
                 emissive={lit ? '#74c0fc' : '#000000'}
@@ -108,6 +133,20 @@ function Building({
           )
         }),
       )}
+
+      {shop && (
+        <mesh position={[0, doorH + 0.55, halfD + 0.35]}>
+          <boxGeometry args={[width * 0.92, 0.55, 0.7]} />
+          <meshStandardMaterial color={shopColor ?? '#e63946'} roughness={0.7} flatShading />
+        </mesh>
+      )}
+      {shop &&
+        Array.from({ length: 5 }).map((_, i) => (
+          <mesh key={`awn-${i}`} position={[-width * 0.35 + i * (width * 0.175), doorH + 0.55, halfD + 0.72]}>
+            <boxGeometry args={[width * 0.14, 0.12, 0.08]} />
+            <meshStandardMaterial color={i % 2 === 0 ? '#f8f9fa' : shopColor ?? '#e63946'} roughness={0.75} flatShading />
+          </mesh>
+        ))}
 
       {enterable && (
         <group position={[0, 0, halfD + 0.02]}>
@@ -246,15 +285,13 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
           <meshStandardMaterial color={asphalt} roughness={0.95} flatShading />
         </mesh>,
       )
-      // White dashed center line (toy-town style)
-      for (let dx = xMin + 4; dx < xMax; dx += 6) {
-        result.push(
-          <mesh key={`dash-h-${z}-${dx}`} position={[dx, base + asphaltH + 0.02, z]}>
-            <boxGeometry args={[2.4, 0.03, 0.22]} />
-            <meshStandardMaterial color={paint} roughness={0.8} flatShading />
-          </mesh>,
-        )
-      }
+      // One continuous center stripe per road (cheap; still reads as paint from street level)
+      result.push(
+        <mesh key={`line-h-${z}`} position={[midX, base + asphaltH + 0.02, z]}>
+          <boxGeometry args={[roadLenX * 0.96, 0.03, 0.2]} />
+          <meshStandardMaterial color={paint} roughness={0.8} flatShading />
+        </mesh>,
+      )
       for (const side of [-1, 1] as const) {
         result.push(
           <mesh
@@ -277,14 +314,12 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
           <meshStandardMaterial color={asphalt} roughness={0.95} flatShading />
         </mesh>,
       )
-      for (let dz = zMin + 4; dz < zMax; dz += 6) {
-        result.push(
-          <mesh key={`dash-v-${x}-${dz}`} position={[x, base + asphaltH + 0.02, dz]}>
-            <boxGeometry args={[0.22, 0.03, 2.4]} />
-            <meshStandardMaterial color={paint} roughness={0.8} flatShading />
-          </mesh>,
-        )
-      }
+      result.push(
+        <mesh key={`line-v-${x}`} position={[x, base + asphaltH + 0.02, midZ]}>
+          <boxGeometry args={[0.2, 0.03, roadLenZ * 0.96]} />
+          <meshStandardMaterial color={paint} roughness={0.8} flatShading />
+        </mesh>,
+      )
       for (const side of [-1, 1] as const) {
         result.push(
           <mesh
@@ -299,26 +334,45 @@ function CityStreets({ getHeight }: { getHeight: (x: number, z: number) => numbe
       }
     }
 
-    // Zebra crosswalks at every major intersection
-    for (const x of xs) {
-      for (const z of zs) {
-        if (x < -20 || x > 200 || z < 0 || z > 180) continue
-        if ((x / step + z / step) % 2 !== 0) continue
-        const base = getHeight(x, z) + asphaltH + 0.025
-        for (let k = 0; k < 6; k++) {
-          result.push(
-            <mesh key={`xw-n-${x}-${z}-${k}`} position={[x - 2.5 + k * 1.0, base, z + 5.2]}>
-              <boxGeometry args={[0.55, 0.025, 2.2]} />
-              <meshStandardMaterial color={paint} roughness={0.85} flatShading />
-            </mesh>,
-          )
-          result.push(
-            <mesh key={`xw-e-${x}-${z}-${k}`} position={[x + 5.2, base, z - 2.5 + k * 1.0]}>
-              <boxGeometry args={[2.2, 0.025, 0.55]} />
-              <meshStandardMaterial color={paint} roughness={0.85} flatShading />
-            </mesh>,
-          )
-        }
+    // Zebra crosswalks at key intersections only (4 approaches × 5 stripes)
+    const hubs = [
+      [0, 44],
+      [44, 44],
+      [66, 66],
+      [110, 66],
+      [44, 110],
+      [110, 110],
+      [132, 132],
+      [66, 154],
+    ] as const
+    for (const [x, z] of hubs) {
+      const base = getHeight(x, z) + asphaltH + 0.025
+      for (let k = 0; k < 5; k++) {
+        const o = -2.0 + k * 1.0
+        result.push(
+          <mesh key={`xw-n-${x}-${z}-${k}`} position={[x + o, base, z + 5.1]}>
+            <boxGeometry args={[0.55, 0.025, 2.0]} />
+            <meshStandardMaterial color={paint} roughness={0.85} flatShading />
+          </mesh>,
+        )
+        result.push(
+          <mesh key={`xw-s-${x}-${z}-${k}`} position={[x + o, base, z - 5.1]}>
+            <boxGeometry args={[0.55, 0.025, 2.0]} />
+            <meshStandardMaterial color={paint} roughness={0.85} flatShading />
+          </mesh>,
+        )
+        result.push(
+          <mesh key={`xw-e-${x}-${z}-${k}`} position={[x + 5.1, base, z + o]}>
+            <boxGeometry args={[2.0, 0.025, 0.55]} />
+            <meshStandardMaterial color={paint} roughness={0.85} flatShading />
+          </mesh>,
+        )
+        result.push(
+          <mesh key={`xw-w-${x}-${z}-${k}`} position={[x - 5.1, base, z + o]}>
+            <boxGeometry args={[2.0, 0.025, 0.55]} />
+            <meshStandardMaterial color={paint} roughness={0.85} flatShading />
+          </mesh>,
+        )
       }
     }
 
@@ -352,18 +406,17 @@ function ParkBench({ position, yaw = 0 }: { position: [number, number, number]; 
 function StreetLamp({ position }: { position: [number, number, number] }) {
   return (
     <group position={position}>
-      <mesh castShadow position={[0, 2.2, 0]}>
-        <cylinderGeometry args={[0.06, 0.08, 4.4, 8]} />
-        <meshStandardMaterial color="#212529" metalness={0.6} roughness={0.4} />
+      <mesh position={[0, 2.0, 0]}>
+        <cylinderGeometry args={[0.07, 0.09, 4.0, 6]} />
+        <meshStandardMaterial color="#868e96" roughness={0.55} flatShading />
       </mesh>
-      <mesh position={[0, 4.5, 0]}>
-        <sphereGeometry args={[0.22, 10, 10]} />
-        <meshStandardMaterial
-          color="#ffe066"
-          emissive="#ffe066"
-          emissiveIntensity={0.55}
-          roughness={0.4}
-        />
+      <mesh position={[0.55, 4.05, 0]} rotation={[0, 0, -0.9]}>
+        <boxGeometry args={[0.08, 1.1, 0.08]} />
+        <meshStandardMaterial color="#868e96" roughness={0.55} flatShading />
+      </mesh>
+      <mesh position={[1.05, 3.55, 0]}>
+        <boxGeometry args={[0.45, 0.14, 0.28]} />
+        <meshStandardMaterial color="#ffe066" emissive="#ffe066" emissiveIntensity={0.45} roughness={0.5} flatShading />
       </mesh>
     </group>
   )
@@ -387,7 +440,7 @@ export function CityScene({ config }: CitySceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="city" size={1280} segments={96} />
+      <DetailedTerrain config={config} biome="city" size={1280} segments={48} />
       <HorizonRing color="#8ecae6" y={0} />
       <CityToyTown getHeight={config.getHeight} />
       <CityStreets getHeight={config.getHeight} />

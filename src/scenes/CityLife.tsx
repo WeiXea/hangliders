@@ -18,10 +18,12 @@ import {
   getLiveParkedVehicles,
   isLaneClaimed,
 } from '../game/trafficRegistry'
-import { VehicleMesh, type VehicleKind } from '../game/VehicleModels'
+import type { VehicleKind } from '../game/VehicleModels'
+import { ToyVehicleMesh } from '../game/ToyVehicleModels'
 
 export type { VehicleKind }
-export { VehicleMesh }
+/** Player / remote / traffic — boxy toy cars (cheap + matches city look). */
+export { ToyVehicleMesh as VehicleMesh }
 
 type Lane = {
   axis: 'x' | 'z'
@@ -37,14 +39,14 @@ type Lane = {
 
 /** Lanes sit in the real 22m street grid (not through buildings). */
 const LANES: Lane[] = [
-  { axis: 'x', fixed: 0, min: -50, max: 230, dir: 1, speed: 11, kind: 'car', offset: 0, color: '#2a6f97' },
-  { axis: 'x', fixed: 44, min: -40, max: 220, dir: 1, speed: 8, kind: 'bus', offset: 80 },
-  { axis: 'x', fixed: 66, min: -50, max: 230, dir: -1, speed: 13, kind: 'police', offset: 20 },
-  { axis: 'x', fixed: 110, min: -50, max: 230, dir: -1, speed: 10, kind: 'taxi', offset: 60 },
-  { axis: 'z', fixed: 22, min: -10, max: 200, dir: -1, speed: 11, kind: 'car', offset: 90, color: '#bc4749' },
-  { axis: 'z', fixed: 66, min: -10, max: 200, dir: -1, speed: 10, kind: 'fire', offset: 70 },
-  { axis: 'z', fixed: 110, min: -10, max: 200, dir: 1, speed: 9, kind: 'taxi', offset: 110 },
-  { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 8, kind: 'bus', offset: 25 },
+  { axis: 'x', fixed: 0, min: -50, max: 230, dir: 1, speed: 16, kind: 'car', offset: 0, color: '#2a6f97' },
+  { axis: 'x', fixed: 44, min: -40, max: 220, dir: 1, speed: 12, kind: 'bus', offset: 80 },
+  { axis: 'x', fixed: 66, min: -50, max: 230, dir: -1, speed: 20, kind: 'police', offset: 20 },
+  { axis: 'x', fixed: 110, min: -50, max: 230, dir: -1, speed: 17, kind: 'taxi', offset: 60 },
+  { axis: 'z', fixed: 22, min: -10, max: 200, dir: -1, speed: 16, kind: 'car', offset: 90, color: '#bc4749' },
+  { axis: 'z', fixed: 66, min: -10, max: 200, dir: -1, speed: 15, kind: 'fire', offset: 70 },
+  { axis: 'z', fixed: 110, min: -10, max: 200, dir: 1, speed: 15, kind: 'taxi', offset: 110 },
+  { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 12, kind: 'bus', offset: 25 },
 ]
 
 const LANE_HALF_WIDTH = 5.5
@@ -338,7 +340,7 @@ function TrafficLayer() {
     <group ref={group}>
       {LANES.map((lane, i) => (
         <group key={i}>
-          <VehicleMesh kind={lane.kind} color={lane.color} />
+          <ToyVehicleMesh kind={lane.kind} color={lane.color} />
         </group>
       ))}
     </group>
@@ -415,7 +417,7 @@ function ParkedCarsLayer() {
     <group ref={group}>
       {parkedList.map((p) => (
         <group key={p.id}>
-          <VehicleMesh kind={p.kind} color={p.color} />
+          <ToyVehicleMesh kind={p.kind} color={p.color} />
           <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[2.4, 2.85, 28]} />
             <meshStandardMaterial

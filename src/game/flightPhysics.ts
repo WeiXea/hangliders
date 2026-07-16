@@ -67,8 +67,8 @@ const PITCH_DAMP = 2.6
 const ROLL_DAMP = 3.1
 const MAX_PITCH = 0.48
 const MAX_ROLL = 0.7
-const WALK_SPEED = 4.2
-const WALK_SPRINT = 8.8
+const WALK_SPEED = 6.8
+const WALK_SPRINT = 12.5
 const GRAVITY = 22
 const CHUTE_SINK = 3.6
 const CHUTE_OPEN_SINK = 18
@@ -829,7 +829,7 @@ export function tickFlight(
   if (next.phase === 'driving') {
     const kind = (next.vehicleKind ?? 'car') as VehicleKind
     const maxSpd = vehicleMaxSpeed(kind)
-    const accel = vehicleAccel(kind) * 1.35
+    const accel = vehicleAccel(kind) * 1.55
     const brake = vehicleBrake(kind)
     next.stallWarning = false
 
