@@ -168,14 +168,14 @@ function calcScore(
 
 export const useGameStore = create<GameStore>((set, get) => ({
   screen: 'home',
-  biome: 'city',
+  biome: 'tankfarm',
   mode: 'free',
   cameraMode: 'chase',
   flight: { ...INITIAL_FLIGHT },
   input: { ...INITIAL_INPUT },
-  rings: initRings('city'),
+  rings: initRings('tankfarm'),
   xcTask: null,
-  parkedGliders: initParkedGliders(BIOME_CONFIGS.city),
+  parkedGliders: initParkedGliders(BIOME_CONFIGS.tankfarm),
   stats: null,
   simTime: 0,
   tiltSupported: isTiltSupported(),

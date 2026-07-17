@@ -7,7 +7,7 @@ import { handleNetMessage, sendHello, setRoomSession } from '../game/netSync'
 import type { Biome, GameMode } from '../types/game'
 import styles from './HomeScreen.module.css'
 
-const BIOMES: Biome[] = ['city', 'tankfarm', 'beach', 'mountains']
+const BIOMES: Biome[] = ['tankfarm', 'city', 'beach', 'mountains']
 
 export function HomeScreen() {
   const biome = useGameStore((s) => s.biome)
@@ -211,14 +211,18 @@ export function HomeScreen() {
               <div className={styles.biomePicker}>
                 {BIOMES.map((b) => {
                   const cfg = BIOME_CONFIGS[b]
+                  if (!cfg) return null
                   return (
                     <button
                       key={b}
                       type="button"
-                      className={`${styles.biomeBtn} ${biome === b ? styles.biomeActive : ''}`}
+                      className={`${styles.biomeBtn} ${biome === b ? styles.biomeActive : ''} ${b === 'tankfarm' ? styles.biomeNew : ''}`}
                       onClick={() => setBiome(b)}
                     >
-                      <span className={styles.biomeName}>{cfg.name}</span>
+                      <span className={styles.biomeName}>
+                        {cfg.name}
+                        {b === 'tankfarm' ? ' · NEW' : ''}
+                      </span>
                       <span className={styles.biomeTag}>{cfg.tagline}</span>
                     </button>
                   )

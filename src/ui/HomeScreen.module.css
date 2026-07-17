@@ -2,9 +2,11 @@
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .heroBg {
@@ -95,6 +97,11 @@
 .biomeActive {
   background: rgba(255, 255, 255, 0.16);
   border-color: rgba(255, 209, 102, 0.5);
+}
+
+.biomeNew {
+  border-color: rgba(244, 162, 97, 0.65);
+  background: rgba(244, 162, 97, 0.14);
 }
 
 .biomeName {
