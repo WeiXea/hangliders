@@ -303,7 +303,8 @@ export function HomeScreen() {
             )}
             {biome === 'tankfarm' && (
               <p className={styles.cityExploreHint}>
-                <b>Tank Farm</b> — Step 1: Poly Haven HDRI sky + industrial yard. More tanks/props next.
+                <b>Tank Farm</b> — Free Flight starts walking in the yard. WASD between tanks; mount a
+                glider to fly.
               </p>
             )}
           </>

@@ -22,6 +22,7 @@ import {
   resolvePropPush,
 } from './obstacles'
 import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos, interiorEntryPos, nearestElevatorBuilding, elevatorStreetPos, elevatorRoofPos, CITY_STREET_DECK } from './cityBuildings'
+import { resolveTankfarmPush, sampleTankfarmSupport } from './tankfarmWorld'
 import { sampleRocketLaunchSupport } from './rocketPad'
 import {
   clampInTunnel,
@@ -205,6 +206,10 @@ function supportY(
   x: number,
   z: number,
 ): { y: number; onRoof: boolean } {
+  if (config.id === 'tankfarm') {
+    const s = sampleTankfarmSupport(x, z, config.getHeight)
+    return { y: s.y, onRoof: s.onDeck }
+  }
   if (config.id !== 'city') {
     return { y: config.getHeight(x, z), onRoof: false }
   }
@@ -656,6 +661,10 @@ export function tickFlight(
         const garagePush = resolveGaragePush(next.position.x, next.position.z)
         next.position.x = garagePush.x
         next.position.z = garagePush.z
+      } else if (config.id === 'tankfarm') {
+        const pushed = resolveTankfarmPush(next.position, config.getHeight, 0.45)
+        next.position.x = pushed.x
+        next.position.z = pushed.z
       }
       const props = resolvePropPush(config.id, next.position, config.getHeight, 0.42)
       next.position.x = props.x
