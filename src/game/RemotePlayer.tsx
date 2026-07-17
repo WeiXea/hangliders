@@ -116,7 +116,7 @@ export function RemotePlayer() {
         {showWing && (
           <group>
             <GliderModel hidePilot staticModel />
-            <group position={[0, -1.45, 0.1]}>
+            <group position={[0, -1.15, 0.05]}>
               <AnimatedPilot mode="prone" suitColor="#3d5a80" />
             </group>
           </group>
