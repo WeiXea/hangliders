@@ -105,6 +105,7 @@ type WingGrid = {
   cols: number
 }
 
+/** Delta sail: narrow nose at +Z (flight forward), wide trailing edge at −Z. */
 function createDeltaWingGeometry(): WingGrid {
   const rows = 20
   const cols = 32
@@ -116,7 +117,8 @@ function createDeltaWingGeometry(): WingGrid {
   for (let i = 0; i <= rows; i++) {
     const t = i / rows
     const halfSpan = span * (0.1 + 0.9 * t)
-    const z = -3.7 + t * 7.4
+    // t=0 nose (+Z), t=1 trailing edge (−Z)
+    const z = 3.7 - t * 7.4
     const y = 0.82 * (1 - t * 0.3) + Math.sin(t * Math.PI) * 0.24
     for (let j = 0; j <= cols; j++) {
       const s = j / cols
@@ -142,13 +144,20 @@ function createDeltaWingGeometry(): WingGrid {
   return { geo, rows, cols }
 }
 
+/** Swept leading edges: left tip → nose → right tip. */
 function createLeadingEdgeCurve(): THREE.CatmullRomCurve3 {
+  const span = 10.2
   const points: THREE.Vector3[] = []
-  for (let i = 0; i <= 36; i++) {
-    const s = i / 36
-    points.push(
-      new THREE.Vector3((s - 0.5) * 10.2, 0.98 + Math.abs(s - 0.5) * 0.38, 3.55),
-    )
+  for (let i = 0; i <= 40; i++) {
+    const s = i / 40
+    // 0 = left tip, 0.5 = nose, 1 = right tip
+    const side = s <= 0.5 ? (0.5 - s) * 2 : (s - 0.5) * 2
+    const t = side
+    const halfSpan = span * (0.1 + 0.9 * t)
+    const z = 3.7 - t * 7.4
+    const y = 0.98 * (1 - t * 0.28) + Math.abs(s - 0.5) * 0.08
+    const x = s <= 0.5 ? -halfSpan : halfSpan
+    points.push(new THREE.Vector3(x, y, z))
   }
   return new THREE.CatmullRomCurve3(points)
 }
@@ -249,32 +258,34 @@ export function GliderModel({
         />
       </mesh>
 
-      <mesh castShadow position={[0, 0.92, 3.58]}>
+      {/* Nose plate at the pointy tip (+Z = forward) */}
+      <mesh castShadow position={[0, 0.92, 3.55]}>
         <sphereGeometry args={[0.16, 16, 14]} />
         <meshPhysicalMaterial color="#f8f9fa" metalness={0.4} roughness={0.28} clearcoat={0.5} />
       </mesh>
 
       <mesh castShadow>
-        <tubeGeometry args={[edgeCurve, 48, 0.078, 12, false]} />
+        <tubeGeometry args={[edgeCurve, 64, 0.078, 12, false]} />
         <meshPhysicalMaterial color="#1a1c22" roughness={0.25} metalness={0.92} clearcoat={0.45} />
       </mesh>
 
-      <mesh position={[0, 0.55, 0.35]} rotation={[0, 0, Math.PI / 2]} castShadow>
+      {/* Crossbar mid-chord */}
+      <mesh position={[0, 0.55, -0.2]} rotation={[0, 0, Math.PI / 2]} castShadow>
         <cylinderGeometry args={[0.042, 0.042, 9.5, 12]} />
         <meshPhysicalMaterial color="#1a1c22" roughness={0.25} metalness={0.92} />
       </mesh>
 
-      <mesh position={[0, 1.35, 0.15]} castShadow>
+      <mesh position={[0, 1.35, 0.1]} castShadow>
         <cylinderGeometry args={[0.028, 0.032, 1.2, 10]} />
         <meshPhysicalMaterial color="#cfd4da" roughness={0.2} metalness={0.9} />
       </mesh>
-      <Tube from={[0, 1.95, 0.15]} to={[4.4, 0.65, 1.1]} radius={0.007} chrome />
-      <Tube from={[0, 1.95, 0.15]} to={[-4.4, 0.65, 1.1]} radius={0.007} chrome />
-      <Tube from={[0, 1.95, 0.15]} to={[0, 0.7, 3.1]} radius={0.007} chrome />
+      <Tube from={[0, 1.95, 0.1]} to={[4.4, 0.65, -1.2]} radius={0.007} chrome />
+      <Tube from={[0, 1.95, 0.1]} to={[-4.4, 0.65, -1.2]} radius={0.007} chrome />
+      <Tube from={[0, 1.95, 0.1]} to={[0, 0.7, 3.2]} radius={0.007} chrome />
 
       {[-3.5, -1.75, 0, 1.75, 3.5].map((x) => (
-        <mesh key={x} position={[x, 0.62, 0.85]} rotation={[0.1, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.009, 0.009, 7.2, 5]} />
+        <mesh key={x} position={[x, 0.62, -0.4]} rotation={[0.05, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.009, 0.009, 6.4, 5]} />
           <meshStandardMaterial color="#ced4da" metalness={0.55} roughness={0.4} />
         </mesh>
       ))}
@@ -282,23 +293,24 @@ export function GliderModel({
       {[-1, 1].map((side) => (
         <Tube
           key={`fw${side}`}
-          from={[side * 4.6, 0.55, 1.1]}
-          to={[side * 0.55, -0.55, 0.15]}
+          from={[side * 4.6, 0.55, -1.2]}
+          to={[side * 0.55, -0.55, 0.25]}
           radius={0.01}
           chrome
         />
       ))}
 
-      <mesh position={[0, 0.18, 0.2]} castShadow>
+      <mesh position={[0, 0.18, 0.35]} castShadow>
         <torusGeometry args={[0.085, 0.018, 8, 16]} />
         <meshPhysicalMaterial color="#d4a017" metalness={0.9} roughness={0.2} />
       </mesh>
-      <mesh position={[0, -0.05, 0.2]} castShadow>
+      <mesh position={[0, -0.05, 0.35]} castShadow>
         <cylinderGeometry args={[0.012, 0.012, 0.35, 8]} />
         <meshStandardMaterial color="#212529" roughness={0.5} />
       </mesh>
 
-      <group ref={barRef} position={[0, -0.55, 0.15]}>
+      {/* Control bar — pilot hangs here facing the nose */}
+      <group ref={barRef} position={[0, -0.55, 0.35]}>
         <Tube from={[-0.02, 0.72, -0.05]} to={[-0.55, 0.02, 0.02]} radius={0.026} />
         <Tube from={[0.02, 0.72, -0.05]} to={[0.55, 0.02, 0.02]} radius={0.026} />
         <mesh rotation={[0, 0, Math.PI / 2]} position={[0, 0, 0.02]} castShadow>

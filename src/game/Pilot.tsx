@@ -254,27 +254,31 @@ function chutePose(t: number, swing: number, flare: boolean): FullPose {
   }
 }
 
-/** Arms reach up to the control bar; body hangs below the wing. */
+/**
+ * Hang-glider flight pose: body nearly horizontal (belly down, head +Z),
+ * arms up to the control bar, legs trailing aft.
+ */
 function pronePose(): FullPose {
   return {
     L: {
-      thigh: 0.2,
-      shin: 0.35,
-      upperArm: -2.55,
-      foreArm: 0.15,
-      shoulderZ: 0.2,
+      thigh: 0.08,
+      shin: 0.12,
+      upperArm: -2.65,
+      foreArm: 0.35,
+      shoulderZ: 0.28,
     },
     R: {
-      thigh: 0.18,
-      shin: 0.32,
-      upperArm: -2.55,
-      foreArm: 0.15,
-      shoulderZ: -0.2,
+      thigh: 0.06,
+      shin: 0.1,
+      upperArm: -2.65,
+      foreArm: 0.35,
+      shoulderZ: -0.28,
     },
     bob: 0,
     sway: 0,
-    lean: 0.35,
-    rootX: 0.15,
+    lean: 0.12,
+    /** ~82° — horizontal under the wing, head toward the nose */
+    rootX: 1.43,
     rootZ: 0,
   }
 }
@@ -1058,11 +1062,11 @@ export function AnimatedPilot({
   )
 }
 
-/** Hang-glider prone pilot — shifted so the head stays under the sail. */
+/** Hang-glider prone pilot — hips under the bar, head toward the nose (+Z). */
 export function PilotFigure({ standing = false }: { standing?: boolean }) {
   if (standing) return <AnimatedPilot mode="stand" />
   return (
-    <group position={[0, -1.45, 0.1]}>
+    <group position={[0, -1.15, 0.05]}>
       <AnimatedPilot mode="prone" />
     </group>
   )

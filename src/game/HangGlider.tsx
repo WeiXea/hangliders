@@ -351,16 +351,16 @@ export function HangGlider() {
             )}
             {tandemRole === 'passenger' && (
               <>
-                <group position={[-0.35, -1.45, 0.1]}>
+                <group position={[-0.35, -1.15, 0.05]}>
                   <AnimatedPilot mode="prone" suitColor="#3d5a80" />
                 </group>
-                <group position={[0.35, -1.45, 0.15]}>
+                <group position={[0.35, -1.15, 0.1]}>
                   <AnimatedPilot mode="prone" />
                 </group>
               </>
             )}
             {showTandemPassenger && (
-              <group position={[0.45, -1.45, 0.15]}>
+              <group position={[0.45, -1.15, 0.1]}>
                 <AnimatedPilot mode="prone" suitColor="#3d5a80" />
               </group>
             )}
