@@ -1,15 +1,19 @@
-import { useRef } from 'react'
+import { Suspense, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import * as THREE from 'three'
 import {
   CITY_GARAGES,
+  ROAD_TUNNEL_DIP,
+  ROAD_TUNNEL_RAMP,
   ROAD_TUNNELS,
   SECRET_PASSAGES,
   TUNNEL_SEGMENTS,
   secretDoorWorldPos,
+  type RoadTunnel,
 } from '../game/cityUnderground'
-import { getBuildingById } from '../game/cityBuildings'
+import { CITY_STREET_DECK, getBuildingById } from '../game/cityBuildings'
+import { useCityUrbanMaps } from '../game/cityUrbanMats'
 
 function PulseBeacon({ color, height = 8 }: { color: string; height?: number }) {
   const ref = useRef<THREE.MeshStandardMaterial>(null)
@@ -171,86 +175,187 @@ function SecretDoorMarker({
   )
 }
 
-/** Lit road underpass — walls + ceiling only, open both ends for drive-through. */
+/**
+ * Dipped underpass: ramps at both mouths, flat floor below street,
+ * overpass deck on top so cars go under and come out the other end.
+ */
 function RoadUnderpass({
   tunnel,
-  y,
+  getHeight,
 }: {
-  tunnel: (typeof ROAD_TUNNELS)[number]
-  y: number
+  tunnel: RoadTunnel
+  getHeight: (x: number, z: number) => number
 }) {
+  const urban = useCityUrbanMaps()
+  const streetY = getHeight(tunnel.x, tunnel.z) + CITY_STREET_DECK
   const len = tunnel.length
   const w = tunnel.halfW * 2
-  const h = 5.2
+  const dip = ROAD_TUNNEL_DIP
+  const ramp = ROAD_TUNNEL_RAMP
   const yaw = tunnel.axis === 'z' ? 0 : Math.PI / 2
-  const wallT = 0.55
+  const wallT = 0.7
+  const clearH = 4.4
+  const deckTop = streetY + 0.35
+
+  const floorGeo = useMemo(() => {
+    const segs = 24
+    const geo = new THREE.PlaneGeometry(w, len, 1, segs)
+    geo.rotateX(-Math.PI / 2)
+    const pos = geo.attributes.position
+    const half = len * 0.5
+    const flatEnd = half - ramp
+    for (let i = 0; i < pos.count; i++) {
+      const z = pos.getZ(i)
+      const along = Math.abs(z)
+      let d = dip
+      if (along > flatEnd) {
+        const u = Math.max(0, Math.min(1, (half - along) / ramp))
+        d = dip * (u * u * (3 - 2 * u))
+      }
+      pos.setY(i, -d)
+    }
+    geo.computeVertexNormals()
+    return geo
+  }, [w, len, dip, ramp])
+
   return (
-    <group position={[tunnel.x, y, tunnel.z]} rotation={[0, yaw, 0]}>
-      {/* Side walls */}
+    <group position={[tunnel.x, streetY, tunnel.z]} rotation={[0, yaw, 0]}>
+      {/* Dipped asphalt roadbed */}
+      <mesh geometry={floorGeo} receiveShadow>
+        <meshStandardMaterial
+          map={urban.asphalt.map}
+          normalMap={urban.asphalt.normalMap}
+          roughnessMap={urban.asphalt.roughnessMap}
+          color="#5a5e64"
+          roughness={0.95}
+          metalness={0.04}
+        />
+      </mesh>
+      {/* Center line */}
+      <mesh position={[0, -dip + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[0.22, len - ramp * 1.2]} />
+        <meshStandardMaterial color="#ffd60a" emissive="#ffd60a" emissiveIntensity={0.4} />
+      </mesh>
+
+      {/* Side walls from dipped floor up to deck */}
       {([-1, 1] as const).map((s) => (
-        <mesh key={s} castShadow position={[s * (w * 0.5 + wallT * 0.5), h * 0.5, 0]}>
-          <boxGeometry args={[wallT, h, len]} />
-          <meshStandardMaterial color="#495057" roughness={0.82} metalness={0.15} />
+        <mesh
+          key={`wall-${s}`}
+          castShadow
+          receiveShadow
+          position={[s * (w * 0.5 + wallT * 0.5), -dip * 0.5 + clearH * 0.15, 0]}
+        >
+          <boxGeometry args={[wallT, dip + clearH, len]} />
+          <meshStandardMaterial
+            map={urban.facade.map}
+            normalMap={urban.facade.normalMap}
+            color="#8a8680"
+            roughness={0.88}
+            metalness={0.08}
+          />
         </mesh>
       ))}
-      {/* Ceiling */}
-      <mesh castShadow position={[0, h, 0]}>
-        <boxGeometry args={[w + wallT * 2, 0.45, len]} />
-        <meshStandardMaterial color="#343a40" roughness={0.8} />
-      </mesh>
-      {/* Road paint inside */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
-        <planeGeometry args={[0.28, len * 0.92]} />
-        <meshStandardMaterial color="#ffd60a" emissive="#ffd60a" emissiveIntensity={0.35} />
-      </mesh>
-      {/* Ceiling fluorescents — emissive panels + 2 real lights (perf) */}
-      {Array.from({ length: 4 }, (_, i) => {
-        const oz = -len * 0.35 + (i * len * 0.7) / 3
+
+      {/* Structural ribs */}
+      {Array.from({ length: 7 }, (_, i) => {
+        const oz = -len * 0.4 + (i * len * 0.8) / 6
         return (
-          <mesh key={i} position={[0, h - 0.28, oz]}>
-            <boxGeometry args={[w * 0.55, 0.1, 1.8]} />
-            <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={1.4} />
+          <mesh key={`rib-${i}`} position={[0, -dip + clearH * 0.55, oz]}>
+            <boxGeometry args={[w + wallT * 2.2, 0.35, 0.45]} />
+            <meshStandardMaterial
+              map={urban.plate.map}
+              metalnessMap={urban.plate.metalnessMap}
+              color="#4a4842"
+              roughness={0.45}
+              metalness={0.85}
+            />
           </mesh>
         )
       })}
-      <pointLight position={[0, h - 0.9, -len * 0.25]} intensity={2.0} color="#fff3bf" distance={16} />
-      <pointLight position={[0, h - 0.9, len * 0.25]} intensity={2.0} color="#fff3bf" distance={16} />
-      {/* Mouth frames — lintel + pillars only (drive path stays open) */}
+
+      {/* Overpass deck — street continues on top */}
+      <mesh castShadow receiveShadow position={[0, deckTop - streetY, 0]}>
+        <boxGeometry args={[w + wallT * 2.5, 0.55, len]} />
+        <meshStandardMaterial
+          map={urban.asphalt.map}
+          color="#4a4e54"
+          roughness={0.92}
+          metalness={0.05}
+        />
+      </mesh>
+      {/* Deck edge railings */}
       {([-1, 1] as const).map((s) => (
-        <group key={s} position={[0, 0, s * (len * 0.5)]}>
+        <mesh key={`rail-${s}`} position={[s * (w * 0.5 + 0.9), deckTop - streetY + 0.55, 0]}>
+          <boxGeometry args={[0.18, 0.9, len]} />
+          <meshStandardMaterial
+            map={urban.plate.map}
+            metalnessMap={urban.plate.metalnessMap}
+            color="#3a3832"
+            roughness={0.4}
+            metalness={0.9}
+          />
+        </mesh>
+      ))}
+
+      {/* Fluorescent strips (emissive only — no point lights) */}
+      {Array.from({ length: 5 }, (_, i) => {
+        const oz = -len * 0.35 + (i * len * 0.7) / 4
+        return (
+          <mesh key={`lamp-${i}`} position={[0, -dip + clearH - 0.35, oz]}>
+            <boxGeometry args={[w * 0.5, 0.08, 1.6]} />
+            <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={1.6} />
+          </mesh>
+        )
+      })}
+
+      {/* Portal mouths */}
+      {([-1, 1] as const).map((s) => (
+        <group key={`mouth-${s}`} position={[0, 0, s * (len * 0.5)]}>
           {([-1, 1] as const).map((side) => (
-            <mesh key={side} position={[side * (w * 0.5 + 0.35), h * 0.5, s * 0.2]}>
-              <boxGeometry args={[0.7, h, 0.7]} />
-              <meshStandardMaterial color="#212529" roughness={0.7} />
+            <mesh
+              key={side}
+              castShadow
+              position={[side * (w * 0.5 + 0.4), -dip * 0.25 + 1.2, s * 0.35]}
+            >
+              <boxGeometry args={[0.85, dip + clearH * 0.7, 0.85]} />
+              <meshStandardMaterial
+                map={urban.plate.map}
+                metalnessMap={urban.plate.metalnessMap}
+                color="#2a2824"
+                roughness={0.5}
+                metalness={0.8}
+              />
             </mesh>
           ))}
-          <mesh position={[0, h + 0.2, s * 0.2]}>
-            <boxGeometry args={[w + 2.2, 0.7, 0.7]} />
-            <meshStandardMaterial color="#ffd60a" emissive="#ffd60a" emissiveIntensity={0.55} />
+          <mesh position={[0, deckTop - streetY + 0.45, s * 0.35]}>
+            <boxGeometry args={[w + 2.4, 0.65, 0.8]} />
+            <meshStandardMaterial color="#ffd60a" emissive="#ffd60a" emissiveIntensity={0.5} />
           </mesh>
-          <Text
-            position={[0, h + 1.2, s * 0.65]}
-            rotation={[0, s > 0 ? Math.PI : 0, 0]}
-            fontSize={0.5}
-            color="#ffd60a"
-            anchorX="center"
-            outlineWidth={0.04}
-            outlineColor="#000"
-          >
-            {tunnel.label.toUpperCase()}
-          </Text>
-          <Text
-            position={[0, h + 0.6, s * 0.65]}
-            rotation={[0, s > 0 ? Math.PI : 0, 0]}
-            fontSize={0.26}
-            color="#e9ecef"
-            anchorX="center"
-          >
-            DRIVE THROUGH
-          </Text>
+          <Suspense fallback={null}>
+            <Text
+              position={[0, deckTop - streetY + 1.35, s * 0.7]}
+              rotation={[0, s > 0 ? Math.PI : 0, 0]}
+              fontSize={0.45}
+              color="#ffd60a"
+              anchorX="center"
+              outlineWidth={0.035}
+              outlineColor="#000"
+            >
+              {tunnel.label.toUpperCase()}
+            </Text>
+            <Text
+              position={[0, deckTop - streetY + 0.85, s * 0.7]}
+              rotation={[0, s > 0 ? Math.PI : 0, 0]}
+              fontSize={0.24}
+              color="#e9ecef"
+              anchorX="center"
+            >
+              UNDERPASS
+            </Text>
+          </Suspense>
         </group>
       ))}
-      <PulseBeacon color="#ffd60a" height={11} />
+      <PulseBeacon color="#ffd60a" height={9} />
     </group>
   )
 }
@@ -273,7 +378,7 @@ function DowntownGuideSign({ y }: { y: number }) {
         Cyan pavilion = metro walk (E)
       </Text>
       <Text position={[0, 3.7, 0.1]} fontSize={0.2} color="#ffd60a" anchorX="center" maxWidth={5.4}>
-        Yellow tube = road tunnel · drive through
+        Yellow underpass = drive under · out the other end
       </Text>
       <Text position={[0, 3.3, 0.1]} fontSize={0.18} color="#e9ecef" anchorX="center" maxWidth={5.4}>
         Green mat = shops · yellow bay = garage
@@ -300,7 +405,7 @@ export function CityFeatureMarkers({
     <>
       <DowntownGuideSign y={getHeight(18, 10) + 0.12} />
       {ROAD_TUNNELS.map((t) => (
-        <RoadUnderpass key={`road-${t.id}`} tunnel={t} y={getHeight(t.x, t.z) + 0.12} />
+        <RoadUnderpass key={`road-${t.id}`} tunnel={t} getHeight={getHeight} />
       ))}
       {metros.map((seg) => (
         <MetroEntrance

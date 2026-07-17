@@ -61,33 +61,15 @@ export const CITY_GARAGES: CityGarage[] = [
   { id: 2, x: 148, z: 148, width: 14, depth: 12, yaw: 0, label: 'Harbor Garage' },
 ]
 
-/** Surface road underpasses — cars drive straight through (lit tube on the street). */
-export type RoadTunnel = {
-  id: number
-  x: number
-  z: number
-  /** Travel axis: cars move along this world axis */
-  axis: 'x' | 'z'
-  length: number
-  halfW: number
-  label: string
-}
-
-export const ROAD_TUNNELS: RoadTunnel[] = [
-  { id: 0, x: 44, z: 120, axis: 'z', length: 40, halfW: 5.8, label: 'Central Underpass' },
-  { id: 1, x: 100, z: 66, axis: 'x', length: 44, halfW: 5.8, label: 'Midtown Underpass' },
-]
-
-export function inRoadTunnel(x: number, z: number): RoadTunnel | null {
-  for (const t of ROAD_TUNNELS) {
-    if (t.axis === 'z') {
-      if (Math.abs(x - t.x) <= t.halfW && Math.abs(z - t.z) <= t.length * 0.5) return t
-    } else if (Math.abs(z - t.z) <= t.halfW && Math.abs(x - t.x) <= t.length * 0.5) {
-      return t
-    }
-  }
-  return null
-}
+export {
+  ROAD_TUNNELS,
+  ROAD_TUNNEL_DIP,
+  ROAD_TUNNEL_RAMP,
+  inRoadTunnel,
+  roadTunnelAlong,
+  roadTunnelFloorY,
+  type RoadTunnel,
+} from './cityRoadTunnels'
 
 export type TunnelSegment = {
   id: number

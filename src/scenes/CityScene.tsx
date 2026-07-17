@@ -270,7 +270,7 @@ export function CityScene({ config }: CitySceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="city" size={1280} segments={64} />
+      <DetailedTerrain config={config} biome="city" size={1280} segments={40} />
       <HorizonRing color="#6b8cae" y={0} />
       {/* Grass lots under Kenney structures */}
       <CityToyTown getHeight={config.getHeight} urban={urban} lite />

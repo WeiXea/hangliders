@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { VehicleKind } from './VehicleModels'
+import { CITY_VEHICLE_SCALE } from './cityScale'
 
 const CAR_BASE = '/models/kenney/cars'
 
@@ -64,8 +65,9 @@ export function KenneyVehicleMesh({
     return clone
   }, [scene, kind, color])
 
-  // Kenney Car Kit faces +Z — same forward as our traffic groups
-  return <primitive object={root} />
+  // Kenney Car Kit faces +Z — same forward as our traffic groups.
+  // Scaled up so cars fill 11 m lanes next to a real-size pilot.
+  return <primitive object={root} scale={CITY_VEHICLE_SCALE} />
 }
 
 export function preloadKenneyVehicles() {

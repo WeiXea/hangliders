@@ -82,12 +82,12 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
         intensity={city ? 2.55 : 2.45}
         color={city ? '#fff1d6' : '#ffe0b8'}
         castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-far={city ? 380 : 650}
-        shadow-camera-left={city ? -140 : -240}
-        shadow-camera-right={city ? 140 : 240}
-        shadow-camera-top={city ? 140 : 240}
-        shadow-camera-bottom={city ? -140 : -240}
+        shadow-mapSize={[city ? 512 : 1024, city ? 512 : 1024]}
+        shadow-camera-far={city ? 280 : 650}
+        shadow-camera-left={city ? -100 : -240}
+        shadow-camera-right={city ? 100 : 240}
+        shadow-camera-top={city ? 100 : 240}
+        shadow-camera-bottom={city ? -100 : -240}
         shadow-bias={-0.0002}
         shadow-normalBias={0.035}
       />
@@ -112,19 +112,11 @@ export function FlightPostFX() {
       </EffectComposer>
     )
   }
-  // Mesh-heavy / HDRI biomes — skip bloom (and SMAA on tank farm)
-  if (biome === 'city') {
+  // Mesh-heavy biomes — vignette only (no SMAA / bloom)
+  if (biome === 'city' || biome === 'tankfarm') {
     return (
       <EffectComposer multisampling={0}>
-        <SMAA />
-        <Vignette offset={0.3} darkness={0.28} />
-      </EffectComposer>
-    )
-  }
-  if (biome === 'tankfarm') {
-    return (
-      <EffectComposer multisampling={0}>
-        <Vignette offset={0.28} darkness={0.3} />
+        <Vignette offset={0.28} darkness={biome === 'city' ? 0.26 : 0.3} />
       </EffectComposer>
     )
   }

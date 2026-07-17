@@ -209,16 +209,17 @@ export function vehicleEngineProfile(kind: TrafficKind): {
 }
 
 export function vehicleRadius(kind: TrafficKind): number {
+  // Match CITY_VEHICLE_SCALE (~1.38) so collisions fit the larger meshes
   switch (kind) {
     case 'bus':
-      return 3.4
+      return 4.2
     case 'fire':
-      return 3.0
+      return 3.7
     case 'police':
     case 'taxi':
     case 'car':
     default:
-      return 1.85
+      return 2.35
   }
 }
 

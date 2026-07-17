@@ -2,6 +2,9 @@ import { Suspense, useMemo, type ReactElement } from 'react'
 import { Text, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { CITY_BUILDINGS, buildingDepth, type CityBuilding } from '../game/cityBuildings'
+import { inRoadTunnel } from '../game/cityRoadTunnels'
+import { CITY_BUILDING_HEIGHT_BIAS } from '../game/cityScale'
+import { useCityUrbanMaps } from '../game/cityUrbanMats'
 
 const ROAD = '/models/kenney/roads'
 const COMM = '/models/kenney/commercial'
@@ -15,11 +18,14 @@ function KenneyModel({
   position,
   rotation = [0, 0, 0],
   scale = 1,
+  shadows = true,
 }: {
   url: string
   position: [number, number, number]
   rotation?: [number, number, number]
   scale?: number | [number, number, number]
+  /** Road tiles skip shadows — huge city FPS win */
+  shadows?: boolean
 }) {
   const { scene } = useGLTF(url)
   const root = useMemo(() => {
@@ -27,12 +33,12 @@ function KenneyModel({
     clone.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh
-        mesh.castShadow = true
-        mesh.receiveShadow = true
+        mesh.castShadow = shadows
+        mesh.receiveShadow = shadows
       }
     })
     return clone
-  }, [scene])
+  }, [scene, shadows])
   return <primitive object={root} position={position} rotation={rotation} scale={scale} />
 }
 
@@ -88,7 +94,7 @@ function KenneyBuilding({
     const sy = building.height / Math.max(0.2, size.y)
     // Uniform-ish scale so proportions stay Kenney; prefer width/depth fit, stretch height lightly
     const s = Math.min(sx, sz) * 0.98
-    const sY = Math.max(s * 0.85, sy * 0.92)
+    const sY = Math.max(s * 0.85, sy * 0.92) * CITY_BUILDING_HEIGHT_BIAS
     clone.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh
@@ -149,10 +155,11 @@ function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => numbe
     const xSet = new Set(xs)
     const zSet = new Set(zs)
 
-    // Intersections
+    // Intersections (skip underpass footprints — dipped tunnels own that asphalt)
     for (const x of xs) {
       for (const z of zs) {
         if (x < -40 || x > 210 || z < 0 || z > 180) continue
+        if (inRoadTunnel(x, z)) continue
         const y = getHeight(x, z) + 0.02
         const url =
           (x + z) % 44 === 0
@@ -164,6 +171,7 @@ function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => numbe
             url={url}
             position={[x, y, z]}
             scale={TILE}
+            shadows={false}
           />,
         )
       }
@@ -175,6 +183,7 @@ function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => numbe
         const x0 = xs[i]!
         const x1 = xs[i + 1]!
         const mid = (x0 + x1) / 2
+        if (inRoadTunnel(mid, z)) continue
         const y = getHeight(mid, z) + 0.02
         result.push(
           <KenneyModel
@@ -183,6 +192,7 @@ function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => numbe
             position={[mid, y, z]}
             rotation={[0, Math.PI / 2, 0]}
             scale={TILE}
+            shadows={false}
           />,
         )
       }
@@ -194,8 +204,8 @@ function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => numbe
         const z0 = zs[i]!
         const z1 = zs[i + 1]!
         const mid = (z0 + z1) / 2
-        // Avoid double-covering if somehow also horizontal — grid is orthogonal so fine
         if (zSet.has(mid) && xSet.has(x)) continue
+        if (inRoadTunnel(x, mid)) continue
         const y = getHeight(x, mid) + 0.02
         result.push(
           <KenneyModel
@@ -204,6 +214,7 @@ function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => numbe
             position={[x, y, mid]}
             rotation={[0, 0, 0]}
             scale={TILE}
+            shadows={false}
           />,
         )
       }
@@ -218,6 +229,7 @@ function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => numbe
       [110, 110],
     ] as const
     for (const [x, z] of hubs) {
+      if (inRoadTunnel(x, z)) continue
       const y = getHeight(x, z)
       result.push(
         <KenneyModel
@@ -225,6 +237,7 @@ function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => numbe
           url={`${ROAD}/road-crossing.glb`}
           position={[x, y + 0.03, z + 4]}
           scale={TILE * 0.55}
+          shadows={false}
         />,
       )
       result.push(
@@ -233,6 +246,7 @@ function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => numbe
           url={`${ROAD}/light-curved.glb`}
           position={[x + 5.5, y, z + 5.5]}
           scale={1.4}
+          shadows={false}
         />,
       )
     }
@@ -315,6 +329,7 @@ function BoxFallback({
   groundY: number
 }) {
   const depth = buildingDepth(building)
+  const urban = useCityUrbanMaps()
   return (
     <mesh
       castShadow
@@ -322,7 +337,14 @@ function BoxFallback({
       position={[building.x, groundY + building.height / 2, building.z]}
     >
       <boxGeometry args={[building.width, building.height, depth]} />
-      <meshStandardMaterial color={building.color} roughness={0.85} />
+      <meshStandardMaterial
+        map={urban.facade.map}
+        normalMap={urban.facade.normalMap}
+        roughnessMap={urban.facade.roughnessMap}
+        color={building.color}
+        roughness={0.82}
+        metalness={0.08}
+      />
     </mesh>
   )
 }

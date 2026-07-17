@@ -569,7 +569,7 @@ export function FlightHUD() {
       {driving && (
         <div className={styles.coach}>
           {inRoadTunnel(flight.position.x, flight.position.z)
-            ? `${inRoadTunnel(flight.position.x, flight.position.z)?.label ?? 'Underpass'} — keep driving straight to the other end`
+            ? `${inRoadTunnel(flight.position.x, flight.position.z)?.label ?? 'Underpass'} — under the deck · climb out the other end`
             : 'Drive · ↑ gas · ↓ brake · A/D steer · yellow tubes = drive-through tunnels · E exit when stopped'}
         </div>
       )}

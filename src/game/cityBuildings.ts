@@ -1,4 +1,5 @@
 /** Shared city building defs — visuals and collision must stay in sync. */
+import { roadTunnelFloorY } from './cityRoadTunnels'
 
 /** Raised street deck above downtown terrain (roads, walkers, traffic). */
 export const CITY_STREET_DECK = 0.12
@@ -115,22 +116,27 @@ export function horizInBuilding(
   return Math.abs(x - b.x) <= halfW && Math.abs(z - b.z) <= halfD
 }
 
-/** Terrain or rooftop under (x,z) — for landing / walking. */
+/** Terrain, underpass floor, or rooftop under (x,z) — for landing / walking / driving. */
 export function sampleCitySupport(
   x: number,
   z: number,
   getHeight: (x: number, z: number) => number,
 ): { y: number; buildingId: number; onRoof: boolean } {
   const terrain = getHeight(x, z)
-  let best = terrain + CITY_STREET_DECK + (onSidewalk(x, z) ? 0.04 : 0)
+  // Prefer dipped road-tunnel floor when inside an underpass
+  const tunnelY = roadTunnelFloorY(x, z, getHeight, CITY_STREET_DECK)
+  let best =
+    tunnelY ?? terrain + CITY_STREET_DECK + (onSidewalk(x, z) ? 0.04 : 0)
   let buildingId = -1
-  for (const b of CITY_BUILDINGS) {
-    if (!b.roofLandable) continue
-    if (!horizInBuilding(x, z, b, -0.15)) continue
-    const roof = buildingRoofY(b, getHeight)
-    if (roof > best + 0.5) {
-      best = roof
-      buildingId = b.id
+  if (tunnelY == null) {
+    for (const b of CITY_BUILDINGS) {
+      if (!b.roofLandable) continue
+      if (!horizInBuilding(x, z, b, -0.15)) continue
+      const roof = buildingRoofY(b, getHeight)
+      if (roof > best + 0.5) {
+        best = roof
+        buildingId = b.id
+      }
     }
   }
   return {
