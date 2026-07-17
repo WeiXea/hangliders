@@ -11,6 +11,7 @@ import { BeachScene } from '../scenes/BeachScene'
 import { MountainScene } from '../scenes/MountainScene'
 import { CityScene } from '../scenes/CityScene'
 import { MoonScene } from '../scenes/MoonScene'
+import { TankFarmScene } from '../scenes/TankFarmScene'
 import { ChallengeRings, LandingZone } from '../scenes/ChallengeObjects'
 import { FlightPostFX } from '../scenes/SharedSky'
 import { ThermalMarkers } from '../scenes/ThermalMarkers'
@@ -29,6 +30,8 @@ function BiomeWorld() {
       return <CityScene config={config} />
     case 'moon':
       return <MoonScene config={config} />
+    case 'tankfarm':
+      return <TankFarmScene config={config} />
     default:
       return <BeachScene config={config} />
   }

@@ -72,6 +72,14 @@ function cityHeight(x: number, z: number): number {
   return Math.max(0, park + hill + riverBank + plaza)
 }
 
+/** Flat industrial yard with gentle undulation — tanks added in later steps. */
+function tankfarmHeight(x: number, z: number): number {
+  const und =
+    Math.sin(x * 0.02) * Math.cos(z * 0.018) * 0.6 +
+    Math.sin(x * 0.055 + z * 0.04) * 0.25
+  return 2.2 + und
+}
+
 function moonHeight(x: number, z: number): number {
   const crater = Math.max(0, 1 - Math.hypot(x * 0.08, z * 0.08)) * -3
   const ripples = Math.sin(x * 0.15) * Math.cos(z * 0.13) * 1.2
@@ -210,5 +218,32 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
     challengeRings: [],
     landingZone: { center: { x: 0, y: 0, z: 0 }, radius: 40 },
     parkedGliders: [],
+  },
+  tankfarm: {
+    id: 'tankfarm',
+    name: 'Tank Farm',
+    tagline: 'Abandoned industrial yard',
+    launchPosition: { x: 0, y: 0, z: 40 },
+    launchYaw: Math.PI * 0.15,
+    windStrength: 0.55,
+    thermalStrength: 0.5,
+    fogColor: '#8a8478',
+    fogNear: 90,
+    fogFar: 700,
+    skyTurbidity: 6,
+    skyRayleigh: 0.7,
+    sunPosition: [90, 70, 40],
+    getHeight: tankfarmHeight,
+    challengeRings: [
+      { x: 40, y: 42, z: 90 },
+      { x: 100, y: 48, z: 140 },
+      { x: 160, y: 44, z: 80 },
+      { x: 60, y: 40, z: 200 },
+    ],
+    landingZone: { center: { x: 20, y: 0, z: 220 }, radius: 32 },
+    parkedGliders: [
+      { x: -12, z: 28, yaw: 0.3 },
+      { x: 18, z: 55, yaw: -0.4 },
+    ],
   },
 }

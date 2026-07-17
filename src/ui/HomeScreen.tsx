@@ -7,7 +7,7 @@ import { handleNetMessage, sendHello, setRoomSession } from '../game/netSync'
 import type { Biome, GameMode } from '../types/game'
 import styles from './HomeScreen.module.css'
 
-const BIOMES: Biome[] = ['city', 'beach', 'mountains']
+const BIOMES: Biome[] = ['city', 'tankfarm', 'beach', 'mountains']
 
 export function HomeScreen() {
   const biome = useGameStore((s) => s.biome)
@@ -295,6 +295,11 @@ export function HomeScreen() {
               <p className={styles.cityExploreHint}>
                 <b>Urban Skyline</b> (selected) — Kenney cars, roads, and buildings. Free Flight starts
                 downtown. Hard-refresh if you still see the old boxy city.
+              </p>
+            )}
+            {biome === 'tankfarm' && (
+              <p className={styles.cityExploreHint}>
+                <b>Tank Farm</b> — Step 1: Poly Haven HDRI sky + industrial yard. More tanks/props next.
               </p>
             )}
           </>

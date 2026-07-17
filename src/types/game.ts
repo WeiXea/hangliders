@@ -1,4 +1,4 @@
-export type Biome = 'beach' | 'mountains' | 'city' | 'moon'
+export type Biome = 'beach' | 'mountains' | 'city' | 'moon' | 'tankfarm'
 export type GameMode = 'free' | 'challenge' | 'xc'
 export type Screen = 'home' | 'flight' | 'result'
 export type CraftType = 'glider' | 'helicopter' | 'jet' | 'rocket'

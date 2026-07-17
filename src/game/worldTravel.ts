@@ -88,6 +88,7 @@ export const MAP_REGIONS: {
   { id: 'beach', label: 'Beach', x: 6, y: 38, w: 34, h: 40, color: '#4cc9f0' },
   { id: 'city', label: 'City', x: 48, y: 38, w: 46, h: 40, color: '#e9c46a' },
   { id: 'moon', label: 'Moon', x: 72, y: 6, w: 26, h: 22, color: '#adb5bd' },
+  { id: 'tankfarm', label: 'Tank Farm', x: 6, y: 6, w: 20, h: 22, color: '#8a8478' },
 ]
 
 export const MAP_POIS: {
@@ -109,4 +110,5 @@ export const MAP_POIS: {
   { biome: 'beach', label: 'Launch', u: 40, v: 55 },
   { biome: 'mountains', label: 'Peaks', u: 50, v: 40 },
   { biome: 'moon', label: 'Landing Site', u: 50, v: 52 },
+  { biome: 'tankfarm', label: 'Yard Launch', u: 45, v: 55 },
 ]

@@ -43,6 +43,15 @@ export function getThermals(biomeId: string): Thermal[] {
       { x: 280, z: 140, radius: 30, strength: 2.7, y0: 14, y1: 98 },
     ]
   }
+  if (biomeId === 'tankfarm') {
+    return [
+      { x: 70, z: 90, radius: 34, strength: 3.4, y0: 14, y1: 120 },
+      { x: 150, z: 130, radius: 40, strength: 3.8, y0: 16, y1: 130 },
+      { x: 40, z: 180, radius: 30, strength: 3.0, y0: 12, y1: 110 },
+      { x: 190, z: 70, radius: 32, strength: 3.2, y0: 14, y1: 115 },
+      { x: 110, z: 210, radius: 36, strength: 3.5, y0: 15, y1: 125 },
+    ]
+  }
   // beach — coastal thermals off cliffs/dunes
   return [
     { x: 20, z: 50, radius: 34, strength: 3.2, y0: 12, y1: 105 },
