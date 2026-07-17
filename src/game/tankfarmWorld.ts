@@ -29,19 +29,18 @@ export type FarmBox = {
 
 /** Launch ~(32, 58). Dense ring so the first view is full of tanks. */
 export const FARM_TANKS: FarmTank[] = [
-  { id: 0, x: 18, z: 68, radius: 6.5, height: 14, color: '#9a9488' },
-  { id: 1, x: 46, z: 66, radius: 5.5, height: 12, color: '#a89f90' },
-  { id: 2, x: 32, z: 86, radius: 8, height: 18, color: '#7a756c' },
-  { id: 3, x: 10, z: 54, radius: 5, height: 11, color: '#8a8478' },
-  { id: 4, x: 54, z: 50, radius: 5.2, height: 11, color: '#918a7c' },
-  { id: 5, x: 52, z: 92, radius: 7, height: 16, color: '#6e6960' },
-  { id: 6, x: 12, z: 92, radius: 6.5, height: 15, color: '#807a70' },
-  { id: 7, x: 70, z: 72, radius: 6.5, height: 15, color: '#858078' },
-  { id: 8, x: -2, z: 72, radius: 5.8, height: 13, color: '#6a655c' },
-  { id: 9, x: 38, z: 110, radius: 7.5, height: 17, color: '#756f66' },
-  { id: 10, x: 22, z: 110, radius: 6, height: 14, color: '#7c766c' },
-  /** Collision for the giant beacon at (32, 72) */
-  { id: 11, x: 32, z: 72, radius: 5.2, height: 24, color: '#e8e0d0' },
+  { id: 0, x: 18, z: 68, radius: 6.5, height: 14, color: '#c8c0b4' },
+  { id: 1, x: 46, z: 66, radius: 5.5, height: 12, color: '#d0c8ba' },
+  { id: 2, x: 32, z: 86, radius: 8, height: 18, color: '#b8b0a4' },
+  { id: 3, x: 10, z: 54, radius: 5, height: 11, color: '#c4bcb0' },
+  { id: 4, x: 54, z: 50, radius: 5.2, height: 11, color: '#cac2b4' },
+  { id: 5, x: 52, z: 92, radius: 7, height: 16, color: '#a8a094' },
+  { id: 6, x: 12, z: 92, radius: 6.5, height: 15, color: '#b0a898' },
+  { id: 7, x: 70, z: 72, radius: 6.5, height: 15, color: '#b8b2a6' },
+  { id: 8, x: -2, z: 72, radius: 5.8, height: 13, color: '#a0988c' },
+  { id: 9, x: 38, z: 110, radius: 7.5, height: 17, color: '#aea690' },
+  { id: 10, x: 22, z: 110, radius: 6, height: 14, color: '#b4ac9e' },
+  { id: 11, x: 32, z: 72, radius: 5.5, height: 22, color: '#d2cab8' },
 ]
 
 export const FARM_PLATFORMS: FarmPlatform[] = [
