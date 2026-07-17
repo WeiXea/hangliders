@@ -28,33 +28,36 @@ export type FarmBox = {
   h: number
 }
 
-/** Dense yard clustered around the launch so you walk between tanks, not stare at sky. */
+/**
+ * Launch is ~(32, 58). Tanks sit in a ring around the player so the yard
+ * fills the first view — not a distant sky photo.
+ */
 export const FARM_TANKS: FarmTank[] = [
-  { id: 0, x: 18, z: 72, radius: 8, height: 16, color: '#6e6a62' },
-  { id: 1, x: 42, z: 68, radius: 6.5, height: 14, color: '#7a756c' },
-  { id: 2, x: 64, z: 88, radius: 9, height: 20, color: '#656158' },
-  { id: 3, x: 28, z: 100, radius: 7, height: 15, color: '#736e66' },
-  { id: 4, x: 52, z: 110, radius: 8.5, height: 18, color: '#6a655e' },
-  { id: 5, x: 80, z: 70, radius: 7.5, height: 17, color: '#78736b' },
-  { id: 6, x: -8, z: 80, radius: 6, height: 13, color: '#5f5b54' },
-  { id: 7, x: 95, z: 105, radius: 10, height: 22, color: '#6d6860' },
-  { id: 8, x: 12, z: 130, radius: 7.2, height: 16, color: '#716c64' },
-  { id: 9, x: 48, z: 145, radius: 8, height: 19, color: '#68635c' },
-  { id: 10, x: 75, z: 135, radius: 6.8, height: 15, color: '#7c776e' },
-  { id: 11, x: -20, z: 110, radius: 5.5, height: 12, color: '#5a564f' },
+  { id: 0, x: 18, z: 70, radius: 7, height: 15, color: '#8a8478' },
+  { id: 1, x: 48, z: 68, radius: 6, height: 13, color: '#9a9080' },
+  { id: 2, x: 32, z: 88, radius: 9, height: 20, color: '#6e6a60' },
+  { id: 3, x: 8, z: 55, radius: 5.5, height: 12, color: '#7a756c' },
+  { id: 4, x: 58, z: 52, radius: 5.8, height: 12, color: '#857f72' },
+  { id: 5, x: 55, z: 95, radius: 8, height: 18, color: '#656158' },
+  { id: 6, x: 10, z: 95, radius: 7.5, height: 16, color: '#736e66' },
+  { id: 7, x: 75, z: 75, radius: 7, height: 17, color: '#78736b' },
+  { id: 8, x: -5, z: 75, radius: 6.2, height: 14, color: '#5f5b54' },
+  { id: 9, x: 40, z: 115, radius: 8.5, height: 19, color: '#6a655e' },
+  { id: 10, x: 20, z: 115, radius: 6.5, height: 15, color: '#716c64' },
+  { id: 11, x: 65, z: 110, radius: 7.2, height: 16, color: '#6d6860' },
 ]
 
 export const FARM_PLATFORMS: FarmPlatform[] = [
-  { id: 0, x: 30, z: 85, w: 14, d: 4, deckH: 5.2 },
-  { id: 1, x: 55, z: 95, w: 18, d: 3.5, deckH: 6.5 },
-  { id: 2, x: 40, z: 120, w: 12, d: 4, deckH: 4.8 },
+  { id: 0, x: 32, z: 78, w: 16, d: 4.5, deckH: 5.5 },
+  { id: 1, x: 48, z: 82, w: 14, d: 3.8, deckH: 6.2 },
+  { id: 2, x: 22, z: 100, w: 12, d: 4, deckH: 4.8 },
 ]
 
 export const FARM_BOXES: FarmBox[] = [
-  { id: 0, x: 5, z: 55, w: 8, d: 6, h: 4 },
-  { id: 1, x: 70, z: 55, w: 10, d: 5, h: 3.5 },
-  { id: 2, x: 100, z: 85, w: 7, d: 7, h: 5 },
-  { id: 3, x: -15, z: 60, w: 6, d: 9, h: 3 },
+  { id: 0, x: 25, z: 50, w: 6, d: 5, h: 3.5 },
+  { id: 1, x: 42, z: 48, w: 7, d: 4.5, h: 3 },
+  { id: 2, x: 70, z: 58, w: 8, d: 6, h: 4 },
+  { id: 3, x: 5, z: 62, w: 5, d: 8, h: 3.2 },
 ]
 
 export function sampleTankfarmSupport(

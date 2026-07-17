@@ -224,7 +224,8 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
     name: 'Tank Farm',
     tagline: 'Walk the industrial yard',
     launchPosition: { x: 32, y: 0, z: 58 },
-    launchYaw: 0.2,
+    /** Face the big center tank at (32, 88) */
+    launchYaw: 0,
     windStrength: 0.55,
     thermalStrength: 0.5,
     fogColor: '#7a7468',
