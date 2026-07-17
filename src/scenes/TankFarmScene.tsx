@@ -17,8 +17,8 @@ function IndustrialGround({
   asphalt: TankfarmSurfaces['asphalt']
 }) {
   const geometry = useMemo(() => {
-    const size = 420
-    const segments = 64
+    const size = 360
+    const segments = 32
     const geo = new THREE.PlaneGeometry(size, size, segments, segments)
     geo.rotateX(-Math.PI / 2)
     const pos = geo.attributes.position
@@ -39,7 +39,7 @@ function IndustrialGround({
         color="#c8c2b6"
         roughness={0.95}
         metalness={0.04}
-        envMapIntensity={0.55}
+        envMapIntensity={0.45}
       />
     </mesh>
   )
@@ -71,13 +71,10 @@ function YardRoads({
           <planeGeometry args={[w, d]} />
           <meshStandardMaterial
             map={asphalt.map}
-            normalMap={asphalt.normalMap}
-            roughnessMap={asphalt.roughnessMap}
-            normalScale={asphalt.normalScale}
             color="#6a655c"
             roughness={0.98}
             metalness={0.02}
-            envMapIntensity={0.4}
+            envMapIntensity={0.35}
           />
         </mesh>
       ))}
@@ -85,6 +82,7 @@ function YardRoads({
   )
 }
 
+/** Lean tank: body + cap only (no torus / ladder / multi-maps per part). */
 function StorageTank({
   tank,
   groundY,
@@ -97,82 +95,33 @@ function StorageTank({
   const { radius: r, height: h } = tank
   const usePlate = tank.id % 2 === 1
   const mat = usePlate ? surfaces.plate : surfaces.rusty
-  const metalness = usePlate ? 0.85 : 0.72
-  const metalnessMap = usePlate ? surfaces.plate.metalnessMap : undefined
   return (
     <group position={[tank.x, groundY, tank.z]}>
       <mesh castShadow receiveShadow position={[0, h * 0.5, 0]}>
-        <cylinderGeometry args={[r, r * 1.02, h, 40]} />
+        <cylinderGeometry args={[r, r * 1.02, h, 20]} />
         <meshStandardMaterial
           map={mat.map}
           normalMap={mat.normalMap}
           roughnessMap={mat.roughnessMap}
-          metalnessMap={metalnessMap}
-          normalScale={mat.normalScale}
           color={tank.color}
           roughness={0.55}
-          metalness={metalness}
-          envMapIntensity={1.35}
-        />
-      </mesh>
-      <mesh castShadow position={[0, h + 0.12, 0]}>
-        <torusGeometry args={[r * 0.92, 0.2, 8, 36]} />
-        <meshStandardMaterial
-          map={surfaces.plate.map}
-          normalMap={surfaces.plate.normalMap}
-          roughnessMap={surfaces.plate.roughnessMap}
-          metalnessMap={surfaces.plate.metalnessMap}
-          color="#5a564e"
-          roughness={0.45}
-          metalness={0.9}
-          envMapIntensity={1.4}
+          metalness={usePlate ? 0.82 : 0.68}
+          envMapIntensity={1.1}
         />
       </mesh>
       <mesh castShadow position={[0, h, 0]}>
-        <sphereGeometry args={[r * 0.92, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.48]} />
+        <sphereGeometry args={[r * 0.92, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.48]} />
         <meshStandardMaterial
           map={mat.map}
-          normalMap={mat.normalMap}
-          roughnessMap={mat.roughnessMap}
-          metalnessMap={metalnessMap}
           color={tank.color}
           roughness={0.5}
-          metalness={metalness}
-          envMapIntensity={1.4}
+          metalness={usePlate ? 0.82 : 0.68}
+          envMapIntensity={1.15}
         />
       </mesh>
-      <mesh castShadow position={[0, h + r * 0.28, 0]}>
-        <cylinderGeometry args={[0.35, 0.4, 1.4, 10]} />
-        <meshStandardMaterial
-          map={surfaces.plate.map}
-          metalnessMap={surfaces.plate.metalnessMap}
-          color="#3a3832"
-          roughness={0.4}
-          metalness={0.95}
-          envMapIntensity={1.2}
-        />
-      </mesh>
-      <mesh castShadow position={[r + 0.18, h * 0.48, 0]}>
-        <boxGeometry args={[0.2, h * 0.9, 0.75]} />
-        <meshStandardMaterial
-          map={surfaces.plate.map}
-          metalnessMap={surfaces.plate.metalnessMap}
-          color="#2e2c28"
-          roughness={0.5}
-          metalness={0.85}
-        />
-      </mesh>
-      <mesh receiveShadow position={[0, 0.28, 0]}>
-        <cylinderGeometry args={[r * 1.12, r * 1.18, 0.55, 28]} />
-        <meshStandardMaterial
-          map={surfaces.rusty.map}
-          normalMap={surfaces.rusty.normalMap}
-          roughnessMap={surfaces.rusty.roughnessMap}
-          color="#4a463e"
-          roughness={0.85}
-          metalness={0.35}
-          envMapIntensity={0.7}
-        />
+      <mesh receiveShadow position={[0, 0.25, 0]}>
+        <cylinderGeometry args={[r * 1.1, r * 1.14, 0.5, 16]} />
+        <meshStandardMaterial color="#4a463e" roughness={0.9} metalness={0.25} />
       </mesh>
     </group>
   )
@@ -200,21 +149,14 @@ function PipeRun({
   const len = Math.hypot(dx, dz)
   const yaw = Math.atan2(dx, dz)
   return (
-    <mesh
-      castShadow
-      position={[(x0 + x1) / 2, y, (z0 + z1) / 2]}
-      rotation={[0, yaw, Math.PI / 2]}
-    >
-      <cylinderGeometry args={[r, r, len, 12]} />
+    <mesh position={[(x0 + x1) / 2, y, (z0 + z1) / 2]} rotation={[0, yaw, Math.PI / 2]}>
+      <cylinderGeometry args={[r, r, len, 8]} />
       <meshStandardMaterial
         map={surfaces.plate.map}
-        normalMap={surfaces.plate.normalMap}
-        roughnessMap={surfaces.plate.roughnessMap}
-        metalnessMap={surfaces.plate.metalnessMap}
         color="#6a655c"
-        roughness={0.42}
-        metalness={0.9}
-        envMapIntensity={1.25}
+        roughness={0.45}
+        metalness={0.85}
+        envMapIntensity={1.0}
       />
     </mesh>
   )
@@ -223,47 +165,31 @@ function PipeRun({
 function Catwalk({
   platform,
   groundY,
-  surfaces,
 }: {
   platform: (typeof FARM_PLATFORMS)[number]
   groundY: number
-  surfaces: TankfarmSurfaces
 }) {
   const y = groundY + platform.deckH
   return (
     <group position={[platform.x, 0, platform.z]}>
       <mesh castShadow receiveShadow position={[0, y, 0]}>
         <boxGeometry args={[platform.w, 0.22, platform.d]} />
-        <meshStandardMaterial
-          map={surfaces.plate.map}
-          normalMap={surfaces.plate.normalMap}
-          metalnessMap={surfaces.plate.metalnessMap}
-          color="#4a4842"
-          roughness={0.55}
-          metalness={0.8}
-          envMapIntensity={1.1}
-        />
+        <meshStandardMaterial color="#4a4842" roughness={0.55} metalness={0.75} />
       </mesh>
       {([-1, 1] as const).map((s) => (
-        <mesh key={s} castShadow position={[0, y + 0.95, s * (platform.d * 0.5 - 0.12)]}>
+        <mesh key={s} position={[0, y + 0.95, s * (platform.d * 0.5 - 0.12)]}>
           <boxGeometry args={[platform.w, 0.08, 0.08]} />
-          <meshStandardMaterial color="#8a7a3a" roughness={0.45} metalness={0.7} />
+          <meshStandardMaterial color="#8a7a3a" roughness={0.5} metalness={0.65} />
         </mesh>
       ))}
       {([-1, 1] as const).flatMap((sx) =>
         ([-1, 1] as const).map((sz) => (
           <mesh
             key={`${sx}-${sz}`}
-            castShadow
             position={[sx * platform.w * 0.4, y * 0.5, sz * platform.d * 0.35]}
           >
             <boxGeometry args={[0.2, y, 0.2]} />
-            <meshStandardMaterial
-              map={surfaces.rusty.map}
-              color="#3a3832"
-              roughness={0.6}
-              metalness={0.75}
-            />
+            <meshStandardMaterial color="#3a3832" roughness={0.65} metalness={0.7} />
           </mesh>
         )),
       )}
@@ -286,23 +212,15 @@ function Shed({
         <boxGeometry args={[box.w, box.h, box.d]} />
         <meshStandardMaterial
           map={surfaces.rusty.map}
-          normalMap={surfaces.rusty.normalMap}
-          roughnessMap={surfaces.rusty.roughnessMap}
           color="#8a8070"
           roughness={0.82}
           metalness={0.25}
-          envMapIntensity={0.7}
+          envMapIntensity={0.55}
         />
       </mesh>
-      <mesh castShadow position={[0, box.h + 0.35, 0]}>
+      <mesh position={[0, box.h + 0.35, 0]}>
         <boxGeometry args={[box.w * 1.08, 0.35, box.d * 1.08]} />
-        <meshStandardMaterial
-          map={surfaces.plate.map}
-          metalnessMap={surfaces.plate.metalnessMap}
-          color="#3d3a35"
-          roughness={0.55}
-          metalness={0.7}
-        />
+        <meshStandardMaterial color="#3d3a35" roughness={0.6} metalness={0.65} />
       </mesh>
     </group>
   )
@@ -323,12 +241,7 @@ function WalkableYard({ getHeight }: { getHeight: (x: number, z: number) => numb
         />
       ))}
       {FARM_PLATFORMS.map((p) => (
-        <Catwalk
-          key={p.id}
-          platform={p}
-          groundY={getHeight(p.x, p.z)}
-          surfaces={surfaces}
-        />
+        <Catwalk key={p.id} platform={p} groundY={getHeight(p.x, p.z)} />
       ))}
       {FARM_BOXES.map((b) => (
         <Shed key={b.id} box={b} groundY={getHeight(b.x, b.z)} surfaces={surfaces} />
@@ -373,29 +286,30 @@ function WalkableYard({ getHeight }: { getHeight: (x: number, z: number) => numb
 export function TankFarmScene({ config }: { config: BiomeConfig }) {
   return (
     <>
-      <fog attach="fog" args={['#8a8070', 140, 520]} />
-      <ambientLight intensity={0.22} color="#e8dcc4" />
+      <fog attach="fog" args={['#8a8070', 120, 420]} />
+      <ambientLight intensity={0.28} color="#e8dcc4" />
       <directionalLight
         position={[70, 95, 35]}
-        intensity={1.35}
+        intensity={1.25}
         color="#fff1d0"
         castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-far={220}
-        shadow-camera-left={-90}
-        shadow-camera-right={90}
-        shadow-camera-top={90}
-        shadow-camera-bottom={-90}
-        shadow-bias={-0.00025}
+        shadow-mapSize={[512, 512]}
+        shadow-camera-far={160}
+        shadow-camera-left={-60}
+        shadow-camera-right={60}
+        shadow-camera-top={60}
+        shadow-camera-bottom={-60}
+        shadow-bias={-0.0003}
       />
-      <hemisphereLight args={['#d8cbb0', '#3a3530', 0.35]} />
+      <hemisphereLight args={['#d8cbb0', '#3a3530', 0.4]} />
       <Suspense fallback={null}>
+        {/* 1k HDR — same look, ~15× lighter than the 4k EXR */}
         <Environment
-          files="/env/tankfarm_4k.exr"
+          files="/env/tankfarm_1k.hdr"
           background
-          backgroundBlurriness={0.08}
+          backgroundBlurriness={0.1}
           backgroundIntensity={0.95}
-          environmentIntensity={1.35}
+          environmentIntensity={1.15}
         />
       </Suspense>
       <Suspense fallback={null}>

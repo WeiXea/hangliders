@@ -8,7 +8,7 @@ const HDRI: Record<Biome, string> = {
   mountains: '/env/mountains_1k.hdr',
   city: '/env/city_1k.hdr',
   moon: '/env/mountains_1k.hdr',
-  tankfarm: '/env/tankfarm_4k.exr',
+  tankfarm: '/env/tankfarm_1k.hdr',
 }
 
 export function biomeHdriPath(biome: Biome): string {

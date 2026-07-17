@@ -25,51 +25,57 @@ export type TankfarmSurfaces = {
   }
 }
 
-/** Poly Haven CC0 PBR sets for the walkable Tank Farm yard. */
+/** 1k Poly Haven PBR — keeps Tank Farm playable on integrated GPUs. */
 export function useTankfarmSurfaces(): TankfarmSurfaces {
   const maps = useTexture({
-    asphaltDiff: '/textures/tankfarm/asphalt_02_diff_2k.jpg',
-    asphaltNor: '/textures/tankfarm/asphalt_02_nor_gl_2k.jpg',
-    asphaltRough: '/textures/tankfarm/asphalt_02_rough_2k.jpg',
-    rustyDiff: '/textures/tankfarm/rusty_metal_diff_2k.jpg',
-    rustyNor: '/textures/tankfarm/rusty_metal_nor_gl_2k.jpg',
-    rustyRough: '/textures/tankfarm/rusty_metal_rough_2k.jpg',
-    plateDiff: '/textures/tankfarm/metal_plate_diff_2k.jpg',
-    plateNor: '/textures/tankfarm/metal_plate_nor_gl_2k.jpg',
-    plateRough: '/textures/tankfarm/metal_plate_rough_2k.jpg',
-    plateMetal: '/textures/tankfarm/metal_plate_metal_2k.jpg',
+    asphaltDiff: '/textures/tankfarm/asphalt_02_diff_1k.jpg',
+    asphaltNor: '/textures/tankfarm/asphalt_02_nor_gl_1k.jpg',
+    asphaltRough: '/textures/tankfarm/asphalt_02_rough_1k.jpg',
+    rustyDiff: '/textures/tankfarm/rusty_metal_diff_1k.jpg',
+    rustyNor: '/textures/tankfarm/rusty_metal_nor_gl_1k.jpg',
+    rustyRough: '/textures/tankfarm/rusty_metal_rough_1k.jpg',
+    plateDiff: '/textures/tankfarm/metal_plate_diff_1k.jpg',
+    plateNor: '/textures/tankfarm/metal_plate_nor_gl_1k.jpg',
+    plateRough: '/textures/tankfarm/metal_plate_rough_1k.jpg',
+    plateMetal: '/textures/tankfarm/metal_plate_metal_1k.jpg',
   })
 
   return useMemo(() => {
-    prepMap(maps.asphaltDiff, 18, THREE.SRGBColorSpace)
-    prepMap(maps.asphaltNor, 18)
-    prepMap(maps.asphaltRough, 18)
-    prepMap(maps.rustyDiff, 3.2, THREE.SRGBColorSpace)
-    prepMap(maps.rustyNor, 3.2)
-    prepMap(maps.rustyRough, 3.2)
-    prepMap(maps.plateDiff, 2.4, THREE.SRGBColorSpace)
-    prepMap(maps.plateNor, 2.4)
-    prepMap(maps.plateRough, 2.4)
-    prepMap(maps.plateMetal, 2.4)
+    for (const t of Object.values(maps)) {
+      t.anisotropy = 4
+      t.generateMipmaps = true
+      t.minFilter = THREE.LinearMipmapLinearFilter
+      t.magFilter = THREE.LinearFilter
+    }
+    prepMap(maps.asphaltDiff, 14, THREE.SRGBColorSpace)
+    prepMap(maps.asphaltNor, 14)
+    prepMap(maps.asphaltRough, 14)
+    prepMap(maps.rustyDiff, 2.6, THREE.SRGBColorSpace)
+    prepMap(maps.rustyNor, 2.6)
+    prepMap(maps.rustyRough, 2.6)
+    prepMap(maps.plateDiff, 2.0, THREE.SRGBColorSpace)
+    prepMap(maps.plateNor, 2.0)
+    prepMap(maps.plateRough, 2.0)
+    prepMap(maps.plateMetal, 2.0)
     return {
       asphalt: {
         map: maps.asphaltDiff,
         normalMap: maps.asphaltNor,
         roughnessMap: maps.asphaltRough,
-        normalScale: new THREE.Vector2(1.15, 1.15),
+        normalScale: new THREE.Vector2(1.0, 1.0),
       },
       rusty: {
         map: maps.rustyDiff,
         normalMap: maps.rustyNor,
         roughnessMap: maps.rustyRough,
-        normalScale: new THREE.Vector2(1.4, 1.4),
+        normalScale: new THREE.Vector2(1.15, 1.15),
       },
       plate: {
         map: maps.plateDiff,
         normalMap: maps.plateNor,
         roughnessMap: maps.plateRough,
         metalnessMap: maps.plateMetal,
-        normalScale: new THREE.Vector2(1.25, 1.25),
+        normalScale: new THREE.Vector2(1.1, 1.1),
       },
     }
   }, [maps])

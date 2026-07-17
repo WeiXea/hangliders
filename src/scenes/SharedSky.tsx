@@ -112,12 +112,19 @@ export function FlightPostFX() {
       </EffectComposer>
     )
   }
-  // City is mesh-heavy — skip bloom there for smoother frames
+  // Mesh-heavy / HDRI biomes — skip bloom (and SMAA on tank farm)
   if (biome === 'city') {
     return (
       <EffectComposer multisampling={0}>
         <SMAA />
         <Vignette offset={0.3} darkness={0.28} />
+      </EffectComposer>
+    )
+  }
+  if (biome === 'tankfarm') {
+    return (
+      <EffectComposer multisampling={0}>
+        <Vignette offset={0.28} darkness={0.3} />
       </EffectComposer>
     )
   }
