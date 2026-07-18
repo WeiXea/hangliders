@@ -70,13 +70,16 @@ export function GameCanvas() {
         powerPreference: 'high-performance',
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure:
-          biome === 'moon' ? 0.85 : biome === 'city' ? 1.08 : biome === 'tankfarm' ? 1.15 : 1.05,
+          biome === 'moon' ? 0.85 : biome === 'city' ? 1.28 : biome === 'tankfarm' ? 1.15 : 1.05,
         stencil: false,
       }}
       performance={{ min: liteGpu ? 0.35 : 0.5 }}
       style={{ width: '100%', height: '100%' }}
     >
-      <color attach="background" args={[biome === 'moon' ? '#000004' : '#87b8e8']} />
+      <color
+        attach="background"
+        args={[biome === 'moon' ? '#000004' : biome === 'city' ? '#a8c8ea' : '#87b8e8']}
+      />
       {liteGpu && <AdaptiveDpr pixelated />}
       <Suspense fallback={null}>
         <BiomeWorld />
@@ -93,7 +96,6 @@ export function GameCanvas() {
             <FlightParticles />
           </>
         )}
-        {biome === 'city' && <ThermalMarkers />}
         <FlightSimulator />
         <FlightPostFX />
       </Suspense>

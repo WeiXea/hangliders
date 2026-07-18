@@ -79,11 +79,11 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
   const city = config?.id === 'city'
   return (
     <>
-      <ambientLight intensity={city ? 0.42 : 0.24} color={city ? '#b8c4d4' : '#ffd6a5'} />
+      <ambientLight intensity={city ? 0.78 : 0.24} color={city ? '#e4ecf5' : '#ffd6a5'} />
       <directionalLight
         position={[sx, sy, sz]}
-        intensity={city ? 1.85 : 2.45}
-        color={city ? '#fff1d6' : '#ffe0b8'}
+        intensity={city ? 2.4 : 2.45}
+        color={city ? '#fff8ea' : '#ffe0b8'}
         castShadow={!city}
         shadow-mapSize={[1024, 1024]}
         shadow-camera-far={650}
@@ -94,8 +94,8 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
         shadow-bias={-0.0002}
         shadow-normalBias={0.035}
       />
-      <directionalLight position={[-70, 55, -40]} intensity={city ? 0.45 : 0.38} color="#9ec9e8" />
-      <hemisphereLight args={[city ? '#9eb6d4' : '#ffc97a', city ? '#3d4a38' : '#4a6741', city ? 0.55 : 0.55]} />
+      <directionalLight position={[-70, 55, -40]} intensity={city ? 0.7 : 0.38} color="#b8d8f0" />
+      <hemisphereLight args={[city ? '#c5d6ea' : '#ffc97a', city ? '#7a8a78' : '#4a6741', city ? 0.72 : 0.55]} />
       {!city && (
         <mesh position={[sx * 0.4, sy * 0.4, sz * 0.4]}>
           <sphereGeometry args={[18, 16, 16]} />
