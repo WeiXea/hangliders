@@ -139,6 +139,7 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     tunnelSegment: -1,
     garageId: -1,
     craftType: 'glider',
+    jetVtol: false,
     vehicleId: -1,
     vehicleKind: null,
     rocketMission: null,
@@ -306,6 +307,7 @@ export function beginWalking(next: FlightState, config: BiomeConfig): FlightStat
     tunnelSegment: -1,
     garageId: -1,
     craftType: 'glider',
+    jetVtol: false,
     vehicleId: -1,
     vehicleKind: null,
     rocketMission: null,
@@ -738,6 +740,7 @@ export function tickFlight(
             ...next,
             phase: 'jet',
             craftType: 'jet',
+            jetVtol: false,
             position: { x: target.x, y: gy + JET_REST_CLEARANCE, z: target.z },
             yaw: target.yaw,
             pitch: 0,
@@ -1022,60 +1025,87 @@ export function tickFlight(
     return { flight: collideWorld(next, config), parked }
   }
 
-  // --- F-35 jet ---
+  // --- F-35 jet (fast cruise + aerobatics + VTOL) ---
   if (next.phase === 'jet') {
     next.craftType = 'jet'
     next.airtime += dt
     next.stallWarning = false
 
     const onDeck = next.altitude < 0.35
-    const JET_MAX = 95
-    const ROTATE_SPD = 42
-
-    // Throttle: ↑/W / + = thrust, − = cut (W does not dive — pitch is ↓ only)
+    const vtol = next.jetVtol
+    const JET_MAX = vtol ? 58 : 280
+    const ROTATE_SPD = 36
     const throttle = input.pitchDown || input.speedUp
-    const cut = input.speedDown && !throttle
-    if (throttle) next.airspeed = Math.min(JET_MAX, next.airspeed + (onDeck ? 22 : 28) * dt)
-    else if (cut) next.airspeed = Math.max(0, next.airspeed - 22 * dt)
-    else next.airspeed = Math.max(0, next.airspeed - (onDeck ? 8 : 3.5) * dt)
+    const cut = input.speedDown && !input.pitchDown
 
-    next.stallWarning = !onDeck && next.airspeed < 28 && next.altitude > 8
-
-    // Yaw on ground; in air bank steers (with slight yaw)
-    if (onDeck) {
-      if (input.bankLeft) next.yaw += 1.1 * dt
-      if (input.bankRight) next.yaw -= 1.1 * dt
-      next.roll = lerp(next.roll, 0, Math.min(1, 6 * dt))
-      // Rotate for takeoff once fast enough (↓ Climb)
-      if (input.pitchUp && next.airspeed >= ROTATE_SPD) {
-        next.pitch = lerp(next.pitch, 0.28, Math.min(1, 4 * dt))
-      } else {
-        next.pitch = lerp(next.pitch, 0, Math.min(1, 5 * dt))
-      }
+    if (vtol) {
+      // Hover / vertical takeoff & landing
+      if (input.bankLeft) next.yaw += 1.45 * dt
+      if (input.bankRight) next.yaw -= 1.45 * dt
+      let climb = -0.8
+      if (input.pitchUp) climb = 13
+      else if (cut) climb = -10
+      if (throttle) next.airspeed = Math.min(JET_MAX, next.airspeed + 20 * dt)
+      else next.airspeed = Math.max(0, next.airspeed - 12 * dt)
+      next.pitch = lerp(next.pitch, throttle ? -0.14 : input.pitchUp ? 0.1 : 0, Math.min(1, 5 * dt))
+      next.roll = lerp(next.roll, 0, Math.min(1, 5 * dt))
+      next.velocity.x = Math.sin(next.yaw) * next.airspeed
+      next.velocity.z = Math.cos(next.yaw) * next.airspeed
+      next.velocity.y = onDeck && !input.pitchUp ? 0 : climb
+      if (onDeck && input.pitchUp) next.velocity.y = Math.max(next.velocity.y, 5)
     } else {
-      if (input.bankLeft) {
-        next.roll = Math.min(1.05, next.roll + 1.6 * dt)
-        next.yaw += next.roll * 1.35 * dt
-      } else if (input.bankRight) {
-        next.roll = Math.max(-1.05, next.roll - 1.6 * dt)
-        next.yaw += next.roll * 1.35 * dt
+      // Conventional + afterburner sprint
+      if (throttle) {
+        next.airspeed = Math.min(JET_MAX, next.airspeed + (onDeck ? 30 : 48) * dt)
+      } else if (cut) {
+        next.airspeed = Math.max(0, next.airspeed - 32 * dt)
       } else {
-        next.roll = lerp(next.roll, 0, Math.min(1, 2.2 * dt))
+        next.airspeed = Math.max(0, next.airspeed - (onDeck ? 10 : 1.8) * dt)
       }
-      // ↓ = nose up / climb; release settles slightly nose-down
-      if (input.pitchUp) next.pitch = Math.min(0.55, next.pitch + 0.95 * dt)
-      else next.pitch = lerp(next.pitch, -0.06, Math.min(1, 1.2 * dt))
+
+      if (onDeck) {
+        if (input.bankLeft) next.yaw += 1.15 * dt
+        if (input.bankRight) next.yaw -= 1.15 * dt
+        next.roll = lerp(next.roll, 0, Math.min(1, 6 * dt))
+        if (input.pitchUp && next.airspeed >= ROTATE_SPD) {
+          next.pitch = lerp(next.pitch, 0.3, Math.min(1, 4 * dt))
+        } else {
+          next.pitch = lerp(next.pitch, 0, Math.min(1, 5 * dt))
+        }
+      } else {
+        // Barrel rolls — full 360°
+        if (input.bankLeft) next.roll += 3.4 * dt
+        else if (input.bankRight) next.roll -= 3.4 * dt
+        else {
+          const upright = Math.cos(next.roll) > 0.55 && Math.abs(Math.sin(next.pitch)) < 0.75
+          if (upright) next.roll = lerp(next.roll, 0, Math.min(1, 1.15 * dt))
+        }
+        while (next.roll > Math.PI) next.roll -= Math.PI * 2
+        while (next.roll < -Math.PI) next.roll += Math.PI * 2
+
+        // ↓ pull (loops) · − high up pushes for flips (near ground − only cuts speed)
+        if (input.pitchUp) next.pitch += 1.9 * dt
+        else if (cut && !throttle && next.altitude > 45) next.pitch -= 1.55 * dt
+        else {
+          const upright = Math.cos(next.roll) > 0.5 && Math.abs(next.pitch) < 0.85
+          if (upright) next.pitch = lerp(next.pitch, -0.04, Math.min(1, 0.85 * dt))
+        }
+        while (next.pitch > Math.PI) next.pitch -= Math.PI * 2
+        while (next.pitch < -Math.PI) next.pitch += Math.PI * 2
+
+        next.yaw += Math.sin(next.roll) * Math.cos(next.pitch) * 1.3 * dt
+      }
+
+      const climbRate = Math.sin(next.pitch) * next.airspeed
+      next.velocity.x = Math.sin(next.yaw) * Math.cos(next.pitch) * next.airspeed
+      next.velocity.z = Math.cos(next.yaw) * Math.cos(next.pitch) * next.airspeed
+      next.velocity.y = onDeck && next.airspeed < ROTATE_SPD ? 0 : climbRate
+      if (onDeck && next.airspeed >= ROTATE_SPD && next.pitch > 0.12) {
+        next.velocity.y = Math.max(next.velocity.y, 7)
+      }
     }
 
-    const climbRate = Math.sin(next.pitch) * next.airspeed
-    next.velocity.x = Math.sin(next.yaw) * Math.cos(next.pitch) * next.airspeed
-    next.velocity.z = Math.cos(next.yaw) * Math.cos(next.pitch) * next.airspeed
-    next.velocity.y = onDeck && next.airspeed < ROTATE_SPD ? 0 : climbRate
-
-    // Lift leave runway when nose up at rotate speed
-    if (onDeck && next.airspeed >= ROTATE_SPD && next.pitch > 0.12) {
-      next.velocity.y = Math.max(next.velocity.y, 6)
-    }
+    next.stallWarning = !vtol && !onDeck && next.airspeed < 32 && next.altitude > 10
 
     next.position.x += next.velocity.x * dt
     next.position.y += next.velocity.y * dt
@@ -1095,46 +1125,50 @@ export function tickFlight(
       const sink = -next.velocity.y
       next.velocity.y = 0
       next.altitude = 0
-      // Crash only on very hot / high-sink arrivals
-      if (!onDeck && (next.airspeed > 78 || sink > 16)) {
+      const hotCrash = vtol
+        ? sink > 14 && !input.pitchUp
+        : next.airspeed > 140 || sink > 22
+      if (!onDeck && hotCrash) {
         next.phase = 'crashed'
         next.airspeed = 0
         return { flight: next, parked }
       }
-      // Soft touchdown bleeds speed
       if (!onDeck && next.airspeed > 8) {
-        next.airspeed *= 0.45
+        next.airspeed *= vtol ? 0.25 : 0.4
         next.pitch = 0
-        next.roll = next.roll * 0.3
+        next.roll *= 0.25
       }
-      const idle = next.airspeed < 3.5
+      const idle = next.airspeed < 3.5 && (!vtol || !input.pitchUp)
       if (idle && (input.land || input.interact || input.jump)) {
         parked = parkMountedGlider(next, parked, config)
         next = beginWalking(next, config)
+        next.jetVtol = false
         return { flight: next, parked }
       }
     }
 
-    // Approach help: near ground, ↓ nose-up acts as flare and kills sink
-    if (next.altitude > 0.5 && next.altitude < 35 && input.pitchUp) {
-      next.velocity.y = Math.max(next.velocity.y, next.altitude < 15 ? -2.5 : -5)
-      if (next.altitude < 18) next.airspeed = Math.max(16, next.airspeed - 14 * dt)
+    // Conventional flare (skip in VTOL — ↓ is climb)
+    if (!vtol && next.altitude > 0.5 && next.altitude < 40 && input.pitchUp) {
+      const upright = Math.cos(next.roll) > 0.4
+      if (upright) {
+        next.velocity.y = Math.max(next.velocity.y, next.altitude < 18 ? -2.8 : -6)
+        if (next.altitude < 20) next.airspeed = Math.max(18, next.airspeed - 16 * dt)
+      }
     }
 
-    // Eject
     if (input.jump && next.altitude >= 12) {
       parked = parkMountedGlider(next, parked, config)
       next.phase = 'freefall'
       next.mountedId = -1
       next.craftType = 'glider'
+      next.jetVtol = false
       next.chuteDeployed = false
       next.chuteInflation = 0
       return { flight: next, parked }
     }
 
-    // Stall warning at low airspeed aloft
-    next.stallWarning = !onDeck && next.airspeed < 28
-
+    // High jet skips facade crash — only collide near roofs / low
+    if (next.altitude > 55) return { flight: next, parked }
     return { flight: collideWorld(next, config), parked }
   }
 

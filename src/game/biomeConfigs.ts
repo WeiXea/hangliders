@@ -57,19 +57,20 @@ function mountainHeight(x: number, z: number): number {
 }
 
 function cityHeight(x: number, z: number): number {
-  // Downtown + municipal airfield share one flat deck
-  const downtown = x > -170 && x < 250 && z > -30 && z < 220
+  // Wide metro flat for long jet runs (airfield → suburbs → coastal belt)
+  const downtown = x > -520 && x < 640 && z > -380 && z < 520
   if (downtown) {
     const micro =
       Math.sin(x * 0.11) * Math.cos(z * 0.09) * 0.04 +
       Math.sin((x + z) * 0.05) * 0.03
     return Math.max(0, 0.12 + micro)
   }
-  const park = Math.sin(x * 0.038) * 3.5 + Math.cos(z * 0.034) * 2.8
-  const hill = Math.max(0, Math.sin((x + 50) * 0.018)) * 10
-  const riverBank = z < -40 ? 1.1 : 0
-  const plaza = Math.max(0, Math.sin(x * 0.07) * Math.cos(z * 0.06) - 0.55) * -1.2
-  return Math.max(0, park + hill + riverBank + plaza)
+  const park = Math.sin(x * 0.028) * 4.2 + Math.cos(z * 0.024) * 3.4
+  const hill = Math.max(0, Math.sin((x + 50) * 0.012)) * 14
+  const riverBank = z < -120 ? 1.4 : 0
+  const plaza = Math.max(0, Math.sin(x * 0.05) * Math.cos(z * 0.045) - 0.55) * -1.2
+  const ridges = Math.sin(x * 0.006 + z * 0.005) * 6
+  return Math.max(0, park + hill + riverBank + plaza + ridges)
 }
 
 /** Flat industrial yard with gentle undulation — tanks added in later steps. */
@@ -163,8 +164,8 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
     windStrength: 0.4,
     thermalStrength: 0.38,
     fogColor: '#c5d6e8',
-    fogNear: 140,
-    fogFar: 1100,
+    fogNear: 280,
+    fogFar: 4200,
     skyTurbidity: 3.2,
     skyRayleigh: 1.05,
     sunPosition: [140, 140, 70],

@@ -314,10 +314,20 @@ export function ScatterRocks({
 }
 
 /** Distant horizon ring so the world never looks empty at altitude */
-export function HorizonRing({ color = '#7cb518', y = -2 }: { color?: string; y?: number }) {
+export function HorizonRing({
+  color = '#7cb518',
+  y = -2,
+  inner = 1400,
+  outer = 2800,
+}: {
+  color?: string
+  y?: number
+  inner?: number
+  outer?: number
+}) {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 200]}>
-      <ringGeometry args={[900, 1750, 72]} />
+      <ringGeometry args={[inner, outer, 72]} />
       <meshStandardMaterial color={color} roughness={1} metalness={0} side={THREE.DoubleSide} />
     </mesh>
   )

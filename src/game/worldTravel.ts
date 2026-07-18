@@ -21,14 +21,14 @@ export const BIOME_GATES: BiomeGate[] = [
     from: 'city',
     to: 'beach',
     label: 'Coastal Cliffs',
-    test: (p, alt) => p.x < -480 && alt > 55,
+    test: (p, alt) => p.x < -1400 && alt > 55,
     spawn: { x: 180, z: 40, yaw: -Math.PI / 2, alt: 90 },
   },
   {
     from: 'city',
     to: 'mountains',
     label: 'Alpine Ridge',
-    test: (p, alt) => p.z < -420 && alt > 55,
+    test: (p, alt) => p.z < -1200 && alt > 55,
     spawn: { x: 40, z: 160, yaw: 0, alt: 110 },
   },
   {

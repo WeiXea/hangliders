@@ -44,8 +44,15 @@ export function HangGlider() {
     const attDamp = 1 - Math.exp(-7.5 * delta)
     const posDamp = 1 - Math.exp(-12 * delta)
     const yawDamp = 1 - Math.exp(-7 * delta)
-    smoothPitch.current = THREE.MathUtils.lerp(smoothPitch.current, pitch, attDamp)
-    smoothRoll.current = THREE.MathUtils.lerp(smoothRoll.current, roll, attDamp)
+    // Unwrap pitch/roll for jet aerobatics so lerps don't snap mid-loop
+    let dp = pitch - smoothPitch.current
+    while (dp > Math.PI) dp -= Math.PI * 2
+    while (dp < -Math.PI) dp += Math.PI * 2
+    smoothPitch.current += dp * attDamp
+    let dr = roll - smoothRoll.current
+    while (dr > Math.PI) dr -= Math.PI * 2
+    while (dr < -Math.PI) dr += Math.PI * 2
+    smoothRoll.current += dr * attDamp
     let dy = yaw - smoothYaw.current
     while (dy > Math.PI) dy -= Math.PI * 2
     while (dy < -Math.PI) dy += Math.PI * 2
@@ -164,18 +171,20 @@ export function HangGlider() {
         targetFov = 60
       }
     } else if (ph === 'jet') {
+      const spd = flight.airspeed
+      const zoom = Math.min(1, spd / 220)
       if (cameraMode === 'fpv') {
         eye.set(0, 0.85, 1.6)
         lookAt.set(0, 0.2, 40)
-        targetFov = 72
+        targetFov = 72 + zoom * 18
       } else if (cameraMode === 'side') {
-        eye.set(22, 6, -4)
+        eye.set(22 + zoom * 8, 6, -4)
         lookAt.set(0, 0, 10)
-        targetFov = 55
+        targetFov = 55 + zoom * 8
       } else {
-        eye.set(0, 8, -28)
+        eye.set(0, 8 + zoom * 4, -28 - zoom * 16)
         lookAt.set(0, -1, 18)
-        targetFov = 58
+        targetFov = 58 + zoom * 14
       }
     } else if (ph === 'rocket' || ph === 'rocketCapsule') {
       const alt = flight.rocketMission?.displayAltM ?? flight.altitude
@@ -296,12 +305,19 @@ export function HangGlider() {
   const showTandemPassenger = peerConnected && tandemRole === 'pilot' && showWing
   const vehicleKind = useGameStore((s) => s.flight.vehicleKind)
   const vehicleId = useGameStore((s) => s.flight.vehicleId)
-  const jetBurn = useGameStore((s) =>
-    s.flight.phase === 'jet' ? Math.min(1, s.flight.airspeed / 95) : 0,
-  )
+  const jetBurn = useGameStore((s) => {
+    if (s.flight.phase !== 'jet') return 0
+    const spd = Math.min(1, s.flight.airspeed / 240)
+    return s.flight.jetVtol ? Math.max(0.35, spd) : spd
+  })
   const jetGearDown = useGameStore(
-    (s) => s.flight.phase !== 'jet' || s.flight.altitude < 8,
+    (s) =>
+      s.flight.phase !== 'jet' ||
+      s.flight.jetVtol ||
+      s.flight.altitude < 10 ||
+      s.flight.airspeed < 40,
   )
+  const jetVtol = useGameStore((s) => s.flight.phase === 'jet' && s.flight.jetVtol)
   const driveColor =
     vehicleId >= 0
       ? getTrafficSnapshots().find((v) => v.id === vehicleId)?.color
@@ -317,7 +333,11 @@ export function HangGlider() {
         )}
         {showJet && (
           <group>
-            <JetModel afterburner={Math.max(0.15, jetBurn)} gearDown={jetGearDown} />
+            <JetModel
+              afterburner={Math.max(0.12, jetBurn)}
+              gearDown={jetGearDown}
+              vtol={jetVtol}
+            />
           </group>
         )}
         {showRocket && (

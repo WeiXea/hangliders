@@ -108,6 +108,8 @@ export interface FlightState {
   garageId: number
   /** Active craft while mounted (glider default) */
   craftType: CraftType
+  /** Jet: hover / vertical takeoff-landing mode */
+  jetVtol: boolean
   /** City traffic vehicle currently driven (-1 = none) */
   vehicleId: number
   vehicleKind: VehicleKind | null
@@ -218,6 +220,7 @@ export const INITIAL_FLIGHT: FlightState = {
   tunnelSegment: -1,
   garageId: -1,
   craftType: 'glider',
+  jetVtol: false,
   vehicleId: -1,
   vehicleKind: null,
   rocketMission: null,

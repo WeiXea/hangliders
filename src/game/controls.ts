@@ -111,6 +111,17 @@ export function useKeyboardControls() {
         return
       }
 
+      if (e.code === 'KeyG') {
+        e.preventDefault()
+        const { flight } = useGameStore.getState()
+        if (flight.phase === 'jet') {
+          useGameStore.setState({
+            flight: { ...flight, jetVtol: !flight.jetVtol },
+          })
+        }
+        return
+      }
+
       if (e.code === 'KeyM') {
         e.preventDefault()
         const { mapOpen, setMapOpen } = useGameStore.getState()

@@ -184,14 +184,13 @@ export function CityScene({ config }: CitySceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="city" size={700} segments={16} />
-      <HorizonRing color="#6b8cae" y={0} />
-      {/* Flat lawn only — skip turbines / parking / solar in lite */}
+      <DetailedTerrain config={config} biome="city" size={3200} segments={28} />
+      <HorizonRing color="#6b8cae" y={0} inner={1800} outer={3600} />
       <mesh
         position={[90, config.getHeight(90, 90) - 0.02, 90]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
-        <planeGeometry args={[280, 220]} />
+        <planeGeometry args={[480, 400]} />
         <meshStandardMaterial color={urban.lawnTint} roughness={0.96} />
       </mesh>
       <CityStreets getHeight={config.getHeight} urban={urban} />
@@ -203,10 +202,10 @@ export function CityScene({ config }: CitySceneProps) {
       <RocketTower elevatorY={rocketElevY} />
       <OceanSurface
         y={-0.55}
-        scale={[420, 80]}
+        scale={[1600, 420]}
         deep="#023e8a"
         shallow="#48cae4"
-        position={[40, 0, -50]}
+        position={[40, 0, -280]}
         followAxis="none"
       />
     </>

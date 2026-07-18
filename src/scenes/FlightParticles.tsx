@@ -24,6 +24,95 @@ export function FlightParticles() {
   )
 }
 
+const JET_FX_N = 72
+
+/** Afterburner / VTOL exhaust trail — mounted even in city lite. */
+export function JetExhaust() {
+  const points = useRef<THREE.Points>(null)
+  const mat = useRef<THREE.PointsMaterial>(null)
+  const life = useRef(new Float32Array(JET_FX_N))
+  const vel = useRef(new Float32Array(JET_FX_N * 3))
+  const acc = useRef(0)
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(JET_FX_N * 3), 3))
+    return g
+  }, [])
+
+  useFrame((_, dt) => {
+    const pts = points.current
+    if (!pts) return
+    const { flight } = useGameStore.getState()
+    const pos = pts.geometry.attributes.position as THREE.BufferAttribute
+    const arr = pos.array as Float32Array
+    const L = life.current
+    const V = vel.current
+    const jet = flight.phase === 'jet'
+    const burn = jet ? Math.min(1, flight.airspeed / 200 + (flight.jetVtol ? 0.4 : 0)) : 0
+
+    if (mat.current) {
+      mat.current.color.set(flight.jetVtol ? '#4cc9f0' : '#ff9f1c')
+      mat.current.opacity = 0.35 + burn * 0.45
+      mat.current.size = 0.35 + burn * 0.55
+    }
+
+    if (jet && burn > 0.05) {
+      acc.current += dt * (18 + burn * 40)
+      const fx = Math.sin(flight.yaw) * Math.cos(flight.pitch)
+      const fy = Math.sin(flight.pitch)
+      const fz = Math.cos(flight.yaw) * Math.cos(flight.pitch)
+      while (acc.current > 1) {
+        acc.current -= 1
+        const slot = Math.floor(Math.random() * JET_FX_N)
+        L[slot] = 0.25 + Math.random() * 0.35 * burn
+        const side = (Math.random() - 0.5) * 0.4
+        const back = flight.jetVtol ? 0.2 : 5.2
+        arr[slot * 3] = flight.position.x - fx * back + Math.cos(flight.yaw) * side
+        arr[slot * 3 + 1] = flight.position.y + 0.55 - (flight.jetVtol ? 1.4 : fy * back)
+        arr[slot * 3 + 2] = flight.position.z - fz * back - Math.sin(flight.yaw) * side
+        if (flight.jetVtol) {
+          V[slot * 3] = (Math.random() - 0.5) * 2
+          V[slot * 3 + 1] = -8 - Math.random() * 6
+          V[slot * 3 + 2] = (Math.random() - 0.5) * 2
+        } else {
+          V[slot * 3] = -fx * (12 + burn * 30) + (Math.random() - 0.5) * 3
+          V[slot * 3 + 1] = -fy * (12 + burn * 20) + (Math.random() - 0.5) * 2
+          V[slot * 3 + 2] = -fz * (12 + burn * 30) + (Math.random() - 0.5) * 3
+        }
+      }
+    }
+
+    for (let i = 0; i < JET_FX_N; i++) {
+      if (L[i] <= 0) {
+        arr[i * 3 + 1] = -999
+        continue
+      }
+      L[i] -= dt
+      arr[i * 3] += V[i * 3] * dt
+      arr[i * 3 + 1] += V[i * 3 + 1] * dt
+      arr[i * 3 + 2] += V[i * 3 + 2] * dt
+      V[i * 3] *= 0.96
+      V[i * 3 + 1] *= 0.96
+      V[i * 3 + 2] *= 0.96
+    }
+    pos.needsUpdate = true
+  })
+
+  return (
+    <points ref={points} geometry={geo} frustumCulled={false}>
+      <pointsMaterial
+        ref={mat}
+        color="#ff9f1c"
+        size={0.5}
+        transparent
+        opacity={0.5}
+        depthWrite={false}
+        sizeAttenuation
+      />
+    </points>
+  )
+}
+
 function DustBurst() {
   const points = useRef<THREE.Points>(null)
   const life = useRef(new Float32Array(DUST_N))

@@ -92,19 +92,19 @@ export function startWindAudio(
       : chute
         ? 0.035
         : jet
-          ? 0.09
+          ? 0.12
           : heli
             ? 0.06
             : flying
               ? 0.045
               : 0.02
-    const level = Math.min(0.28, base + airspeed * (jet ? 0.0022 : 0.0035) + bankBoost + liftBoost)
+    const level = Math.min(0.38, base + airspeed * (jet ? 0.00135 : 0.0035) + bankBoost + liftBoost)
     const freq = fall
       ? 380 + airspeed * 8
       : chute
         ? 180 + airspeed * 5
         : jet
-          ? 90 + airspeed * 4
+          ? 70 + airspeed * 2.8
           : heli
             ? 140 + airspeed * 6
             : flying

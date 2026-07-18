@@ -699,11 +699,13 @@ export function FlightHUD() {
 
       {jet && (
         <div className={styles.coach}>
-          {flight.altitude < 0.4
-            ? flight.airspeed < 3.5
-              ? 'JET · ↑ throttle to ~150 km/h · ↓ take off · tap Land? for how to land · E exit'
-              : `TAKEOFF · keep ↑ until ${Math.round(42 * 3.6)}+ km/h · hold ↓ to lift off`
-            : 'JET · ↑ throttle · − slow · ↓ climb/flare · A/D turn · tap Land? anytime'}
+          {flight.jetVtol
+            ? 'VTOL · ↓ climb · − descend · ↑ forward · A/D yaw · G back to jet · E exit when idle'
+            : flight.altitude < 0.4
+              ? flight.airspeed < 3.5
+                ? 'JET · ↑ throttle · ↓ rotate · G = VTOL · A/D roll in air · long sky west/north'
+                : `TAKEOFF · keep ↑ until ${Math.round(36 * 3.6)}+ km/h · hold ↓ to lift off`
+              : 'JET · ↑ throttle · A/D barrel roll · ↓ loop · − high = push · G = VTOL'}
         </div>
       )}
 
@@ -791,20 +793,24 @@ export function FlightHUD() {
             </button>
           </div>
           <ol className={styles.landSteps}>
-            <li className={flight.airspeed * 3.6 <= 160 ? styles.landDone : undefined}>
-              1. Hold <b>−</b> (Cut) until speed &lt; <b>160 km/h</b>
+            <li className={flight.jetVtol ? styles.landDone : flight.airspeed * 3.6 <= 220 ? styles.landDone : undefined}>
+              1. Hold <b>−</b> until &lt; <b>220 km/h</b> — or press <b>G</b> for VTOL hover
               <span className={styles.landNow}> · now {Math.round(flight.airspeed * 3.6)}</span>
             </li>
-            <li>2. Point at the runway · keep nose almost level</li>
-            <li className={flight.altitude < 20 && flight.altitude > 0.4 ? styles.landActive : undefined}>
-              3. Near the ground hold <b>↓</b> (Flare pad)
+            <li>
+              2. {flight.jetVtol ? 'Hold − to descend gently' : 'Point at the runway · keep nose almost level'}
             </li>
-            <li>4. After touchdown keep holding <b>−</b> until almost stopped</li>
+            <li className={flight.altitude < 20 && flight.altitude > 0.4 ? styles.landActive : undefined}>
+              3. {flight.jetVtol ? 'Touch down slow · no hard sink' : 'Near the ground hold ↓ (Flare)'}
+            </li>
+            <li>4. After touchdown hold <b>−</b> until almost stopped</li>
             <li className={jetCanExit ? styles.landActive : undefined}>
               5. Press <b>E</b> / Exit to get out
             </li>
           </ol>
-          <p className={styles.landHint}>↑ is throttle, not climb. ↓ is climb / flare.</p>
+          <p className={styles.landHint}>
+            ↑ throttle · ↓ pull/loop · A/D roll · G VTOL · fly west/north for beach & mountains
+          </p>
         </div>
       )}
 
@@ -957,7 +963,9 @@ export function FlightHUD() {
                 walking || driving
                   ? 'Fwd'
                   : jet
-                    ? 'Throttle'
+                    ? flight.jetVtol
+                      ? 'Forward'
+                      : 'Throttle'
                     : freefall || parachuting
                       ? 'Brake'
                       : heli
@@ -978,7 +986,9 @@ export function FlightHUD() {
                     : driving
                       ? 'Brake'
                       : jet
-                        ? 'Flare'
+                        ? flight.jetVtol
+                          ? 'Climb'
+                          : 'Pull'
                         : freefall || parachuting
                           ? 'Sink'
                           : heli
@@ -1089,7 +1099,7 @@ export function FlightHUD() {
               />
               <ControlPad
                 label="−"
-                sub={driving ? 'Brake' : jet ? 'Cut' : 'Slow'}
+                sub={driving ? 'Brake' : jet ? (flight.jetVtol ? 'Descend' : 'Cut') : 'Slow'}
                 action="speedDown"
                 className={styles.padSpeed}
                 active={input.speedDown}
@@ -1098,6 +1108,19 @@ export function FlightHUD() {
           )}
           {walking && (
             <ControlPad label="Sprint" sub="Shift" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
+          )}
+          {jet && (
+            <button
+              type="button"
+              className={`${styles.pad} ${styles.padLand}`}
+              onClick={() => {
+                const { flight: f } = useGameStore.getState()
+                useGameStore.setState({ flight: { ...f, jetVtol: !f.jetVtol } })
+              }}
+            >
+              <span className={styles.padLabel}>{flight.jetVtol ? 'JET' : 'VTOL'}</span>
+              <span className={styles.padSub}>G</span>
+            </button>
           )}
           {jet && (
             <button

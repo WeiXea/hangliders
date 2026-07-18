@@ -17,7 +17,7 @@ import { ChallengeRings, LandingZone } from '../scenes/ChallengeObjects'
 import { FlightPostFX } from '../scenes/SharedSky'
 import { ThermalMarkers } from '../scenes/ThermalMarkers'
 import { RidgeLiftMarkers } from '../scenes/RidgeLiftMarkers'
-import { FlightParticles } from '../scenes/FlightParticles'
+import { FlightParticles, JetExhaust } from '../scenes/FlightParticles'
 import { XCTurnpoints } from '../scenes/XCObjects'
 
 function BiomeWorld() {
@@ -62,7 +62,7 @@ export function GameCanvas() {
         position: [camX, camY, camZ],
         fov: 58,
         near: 0.1,
-        far: biome === 'moon' ? 6000 : biome === 'city' ? 900 : 1800,
+        far: biome === 'moon' ? 6000 : biome === 'city' ? 4500 : 1800,
       }}
       gl={{
         antialias: !liteGpu,
@@ -96,6 +96,7 @@ export function GameCanvas() {
             <FlightParticles />
           </>
         )}
+        <JetExhaust />
         <FlightSimulator />
         <FlightPostFX />
       </Suspense>

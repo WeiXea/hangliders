@@ -24,7 +24,7 @@ export function WorldMap() {
 
   const region = MAP_REGIONS.find((r) => r.id === biome)
   // Normalize local position into the active region card
-  const size = biome === 'city' ? 1280 : 2800
+  const size = biome === 'city' ? 3200 : 2800
   const u = Math.min(0.92, Math.max(0.08, (flight.position.x + size / 2) / size))
   const v = Math.min(0.92, Math.max(0.08, (flight.position.z + size / 2) / size))
   const px = region ? region.x + u * region.w : 50

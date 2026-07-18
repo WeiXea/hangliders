@@ -130,13 +130,17 @@ export function JetModel({
   staticModel = false,
   afterburner = 0,
   gearDown = true,
+  vtol = false,
 }: {
   staticModel?: boolean
   afterburner?: number
   gearDown?: boolean
+  vtol?: boolean
 }) {
   const nozzle = useRef<THREE.MeshStandardMaterial>(null)
   const fan = useRef<THREE.Group>(null)
+  const burnA = useRef<THREE.Mesh>(null)
+  const burnB = useRef<THREE.Mesh>(null)
   const panelMap = useMemo(() => getJetPanelTexture(), [])
   const skin = usePaintSkinMaps(2.5)
   const normalScale = useMemo(() => new THREE.Vector2(0.7, 0.7), [])
@@ -183,10 +187,17 @@ export function JetModel({
 
   useFrame((state, dt) => {
     if (staticModel) return
-    if (fan.current) fan.current.rotation.z += dt * Math.PI * 2 * (10 + afterburner * 16)
+    const t = state.clock.elapsedTime
+    if (fan.current) fan.current.rotation.z += dt * Math.PI * 2 * (10 + afterburner * 22)
     if (nozzle.current) {
       nozzle.current.emissiveIntensity =
-        0.2 + afterburner * 1.8 + Math.sin(state.clock.elapsedTime * 28) * 0.12 * afterburner
+        0.25 + afterburner * 2.4 + Math.sin(t * 32) * 0.18 * afterburner
+    }
+    if (burnA.current) {
+      burnA.current.scale.set(1, 1, 1 + afterburner * 1.8 + Math.sin(t * 40) * 0.12)
+    }
+    if (burnB.current) {
+      burnB.current.scale.setScalar(0.85 + afterburner * 0.4 + Math.sin(t * 55) * 0.08)
     }
   })
 
@@ -322,19 +333,76 @@ export function JetModel({
         </mesh>
       </group>
 
-      {!staticModel && afterburner > 0.08 && (
-        <mesh position={[0, 0.55, -5.4 - afterburner * 0.7]} scale={[1, 1, 1 + afterburner * 1.3]}>
-          <coneGeometry args={[0.28, 2 + afterburner * 2.2, 14]} />
-          <meshStandardMaterial
-            color="#ffd60a"
-            emissive="#ff6b35"
-            emissiveIntensity={1 + afterburner}
-            transparent
-            opacity={0.35 + afterburner * 0.35}
-            depthWrite={false}
-            roughness={1}
-          />
-        </mesh>
+      {!staticModel && afterburner > 0.06 && (
+        <group>
+          <mesh
+            ref={burnA}
+            position={[0, 0.55, -5.5 - afterburner * 1.1]}
+            rotation={[Math.PI / 2, 0, 0]}
+          >
+            <coneGeometry args={[0.32 + afterburner * 0.12, 2.4 + afterburner * 3.2, 16]} />
+            <meshStandardMaterial
+              color="#ffd60a"
+              emissive="#ff6b35"
+              emissiveIntensity={1.2 + afterburner * 1.6}
+              transparent
+              opacity={0.4 + afterburner * 0.4}
+              depthWrite={false}
+              roughness={1}
+            />
+          </mesh>
+          <mesh ref={burnB} position={[0, 0.55, -6.2 - afterburner * 1.4]}>
+            <sphereGeometry args={[0.22 + afterburner * 0.18, 12, 10]} />
+            <meshStandardMaterial
+              color="#fff3bf"
+              emissive="#ff9f1c"
+              emissiveIntensity={1.5 + afterburner}
+              transparent
+              opacity={0.35 + afterburner * 0.3}
+              depthWrite={false}
+            />
+          </mesh>
+          {/* Shock diamonds */}
+          {[0, 1, 2].map((i) => (
+            <mesh
+              key={`sd${i}`}
+              position={[0, 0.55, -5.1 - i * (0.55 + afterburner * 0.25)]}
+              rotation={[Math.PI / 2, 0, 0]}
+            >
+              <coneGeometry args={[0.14 - i * 0.02, 0.35, 8]} />
+              <meshStandardMaterial
+                color="#ffe66d"
+                emissive="#ffd60a"
+                emissiveIntensity={0.8 + afterburner}
+                transparent
+                opacity={0.25 + afterburner * 0.2}
+                depthWrite={false}
+              />
+            </mesh>
+          ))}
+        </group>
+      )}
+
+      {/* VTOL lift nozzles under belly */}
+      {!staticModel && vtol && (
+        <group>
+          {([-0.55, 0.55] as const).map((sx) => (
+            <group key={`vt${sx}`} position={[sx, 0.12, 0.2]}>
+              <mesh rotation={[Math.PI, 0, 0]}>
+                <coneGeometry args={[0.35, 1.8 + afterburner, 12]} />
+                <meshStandardMaterial
+                  color="#4cc9f0"
+                  emissive="#00b4d8"
+                  emissiveIntensity={1.4 + afterburner}
+                  transparent
+                  opacity={0.45}
+                  depthWrite={false}
+                />
+              </mesh>
+              <pointLight position={[0, -1.2, 0]} intensity={2.2} distance={12} color="#48cae4" />
+            </group>
+          ))}
+        </group>
       )}
 
       {([-1, 1] as const).map((s) => (
