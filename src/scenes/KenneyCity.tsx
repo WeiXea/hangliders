@@ -7,7 +7,6 @@ import { useCityUrbanMaps } from '../game/cityUrbanMats'
 
 const COMM = '/models/kenney/commercial'
 const RETRO = '/models/kenney/retro'
-const ROAD = '/models/kenney/roads'
 
 function KenneyModel({
   url,
