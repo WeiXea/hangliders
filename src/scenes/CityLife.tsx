@@ -40,18 +40,16 @@ type Lane = {
 }
 
 /** Lanes sit in the real 22m street grid (not through buildings). */
+/** Fewer NPC cars = smoother city. Keep lanes that hit both underpasses. */
 const LANES: Lane[] = [
-  { axis: 'x', fixed: 0, min: -50, max: 230, dir: 1, speed: 16, kind: 'car', offset: 0, color: '#2a6f97' },
-  { axis: 'x', fixed: 44, min: -40, max: 220, dir: 1, speed: 12, kind: 'bus', offset: 80 },
-  /** Midtown Underpass (z=66) — cars dive under and climb out */
+  { axis: 'x', fixed: 44, min: -40, max: 220, dir: 1, speed: 14, kind: 'bus', offset: 80 },
+  /** Midtown Underpass (z=66) */
   { axis: 'x', fixed: 66, min: -50, max: 230, dir: -1, speed: 18, kind: 'police', offset: 20 },
-  { axis: 'x', fixed: 110, min: -50, max: 230, dir: -1, speed: 17, kind: 'taxi', offset: 60 },
-  { axis: 'z', fixed: 22, min: -10, max: 200, dir: -1, speed: 16, kind: 'car', offset: 90, color: '#bc4749' },
-  /** Central Underpass (x=44) — north–south through traffic */
+  { axis: 'x', fixed: 110, min: -50, max: 230, dir: -1, speed: 16, kind: 'taxi', offset: 60 },
+  /** Central Underpass (x=44) */
   { axis: 'z', fixed: 44, min: -10, max: 200, dir: 1, speed: 15, kind: 'car', offset: 55, color: '#6a994e' },
-  { axis: 'z', fixed: 66, min: -10, max: 200, dir: -1, speed: 15, kind: 'fire', offset: 70 },
-  { axis: 'z', fixed: 110, min: -10, max: 200, dir: 1, speed: 15, kind: 'taxi', offset: 110 },
-  { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 12, kind: 'bus', offset: 25 },
+  { axis: 'z', fixed: 110, min: -10, max: 200, dir: 1, speed: 14, kind: 'taxi', offset: 110 },
+  { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 12, kind: 'fire', offset: 25 },
 ]
 
 const LANE_HALF_WIDTH = 5.5
@@ -460,7 +458,7 @@ type Ped = {
 
 const SKINS = ['#e0a882', '#c68642', '#8d5524', '#f1c27d', '#d4a574']
 
-const PEDS: Ped[] = Array.from({ length: 14 }, (_, i) => ({
+const PEDS: Ped[] = Array.from({ length: 6 }, (_, i) => ({
   // Walk sidewalks beside the 22m grid
   x0: -40 + (i % 7) * 38 + ((i % 2) * 7 - 3.5),
   z0: 8 + Math.floor(i / 7) * 88 + ((i % 2) * 7 - 3.5),

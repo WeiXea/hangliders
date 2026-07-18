@@ -8,6 +8,7 @@ export function SharedSky({ config }: { config: BiomeConfig }) {
   const [sx, sy, sz] = config.sunPosition
   const turbidity = config.skyTurbidity * 1.08
   const rayleigh = config.skyRayleigh * 0.95
+  const city = config.id === 'city'
   return (
     <>
       <Sky
@@ -20,12 +21,15 @@ export function SharedSky({ config }: { config: BiomeConfig }) {
         mieCoefficient={0.005}
         mieDirectionalG={0.9}
       />
-      <Environment
-        files={biomeHdriPath(config.id)}
-        environmentIntensity={config.id === 'city' ? 1.15 : 0.88}
-        background={false}
-      />
-      <CloudLayers config={config} />
+      {/* City skips HDRI + clouds — biggest GPU win after ditching road GLBs */}
+      {!city && (
+        <Environment
+          files={biomeHdriPath(config.id)}
+          environmentIntensity={0.88}
+          background={false}
+        />
+      )}
+      {!city && <CloudLayers config={config} />}
       <fog
         attach="fog"
         args={[config.fogColor, config.fogNear * 0.7, config.fogFar * 1.12]}
@@ -75,28 +79,29 @@ export function SharedLighting({ config }: { config?: BiomeConfig }) {
   const city = config?.id === 'city'
   return (
     <>
-      {/* SoftShadows removed — caused shimmer / “landscape changing” on large flats */}
-      <ambientLight intensity={city ? 0.22 : 0.24} color={city ? '#b8c4d4' : '#ffd6a5'} />
+      <ambientLight intensity={city ? 0.42 : 0.24} color={city ? '#b8c4d4' : '#ffd6a5'} />
       <directionalLight
         position={[sx, sy, sz]}
-        intensity={city ? 2.55 : 2.45}
+        intensity={city ? 1.85 : 2.45}
         color={city ? '#fff1d6' : '#ffe0b8'}
-        castShadow
-        shadow-mapSize={[city ? 512 : 1024, city ? 512 : 1024]}
-        shadow-camera-far={city ? 280 : 650}
-        shadow-camera-left={city ? -100 : -240}
-        shadow-camera-right={city ? 100 : 240}
-        shadow-camera-top={city ? 100 : 240}
-        shadow-camera-bottom={city ? -100 : -240}
+        castShadow={!city}
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-far={650}
+        shadow-camera-left={-240}
+        shadow-camera-right={240}
+        shadow-camera-top={240}
+        shadow-camera-bottom={-240}
         shadow-bias={-0.0002}
         shadow-normalBias={0.035}
       />
-      <directionalLight position={[-70, 55, -40]} intensity={city ? 0.35 : 0.38} color="#9ec9e8" />
-      <hemisphereLight args={[city ? '#9eb6d4' : '#ffc97a', city ? '#3d4a38' : '#4a6741', city ? 0.45 : 0.55]} />
-      <mesh position={[sx * 0.4, sy * 0.4, sz * 0.4]}>
-        <sphereGeometry args={[18, 16, 16]} />
-        <meshBasicMaterial color="#ffe8c8" transparent opacity={0.14} depthWrite={false} />
-      </mesh>
+      <directionalLight position={[-70, 55, -40]} intensity={city ? 0.45 : 0.38} color="#9ec9e8" />
+      <hemisphereLight args={[city ? '#9eb6d4' : '#ffc97a', city ? '#3d4a38' : '#4a6741', city ? 0.55 : 0.55]} />
+      {!city && (
+        <mesh position={[sx * 0.4, sy * 0.4, sz * 0.4]}>
+          <sphereGeometry args={[18, 16, 16]} />
+          <meshBasicMaterial color="#ffe8c8" transparent opacity={0.14} depthWrite={false} />
+        </mesh>
+      )}
     </>
   )
 }
@@ -112,11 +117,12 @@ export function FlightPostFX() {
       </EffectComposer>
     )
   }
-  // Mesh-heavy biomes — vignette only (no SMAA / bloom)
-  if (biome === 'city' || biome === 'tankfarm') {
+  // City: skip post entirely. Tank farm: light vignette only.
+  if (biome === 'city') return null
+  if (biome === 'tankfarm') {
     return (
       <EffectComposer multisampling={0}>
-        <Vignette offset={0.28} darkness={biome === 'city' ? 0.26 : 0.3} />
+        <Vignette offset={0.28} darkness={0.3} />
       </EffectComposer>
     )
   }

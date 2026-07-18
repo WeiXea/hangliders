@@ -51,21 +51,28 @@ export function GameCanvas() {
       ? flight.position.z - 18
       : config.launchPosition.z - 15
 
+  const liteGpu = biome === 'city' || biome === 'tankfarm'
+
   return (
     <Canvas
-      shadows
-      dpr={biome === 'tankfarm' || biome === 'city' ? 1 : [1, 1.25]}
-      camera={{ position: [camX, camY, camZ], fov: 58, near: 0.1, far: biome === 'moon' ? 6000 : 1800 }}
+      shadows={biome !== 'city'}
+      dpr={liteGpu ? 1 : [1, 1.25]}
+      camera={{
+        position: [camX, camY, camZ],
+        fov: 58,
+        near: 0.1,
+        far: biome === 'moon' ? 6000 : biome === 'city' ? 900 : 1800,
+      }}
       gl={{
-        antialias: biome !== 'tankfarm' && biome !== 'city',
+        antialias: !liteGpu,
         alpha: false,
         powerPreference: 'high-performance',
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure:
-          biome === 'moon' ? 0.85 : biome === 'city' ? 1.12 : biome === 'tankfarm' ? 1.15 : 1.05,
+          biome === 'moon' ? 0.85 : biome === 'city' ? 1.08 : biome === 'tankfarm' ? 1.15 : 1.05,
         stencil: false,
       }}
-      performance={{ min: biome === 'tankfarm' || biome === 'city' ? 0.4 : 0.5 }}
+      performance={{ min: liteGpu ? 0.35 : 0.5 }}
       style={{ width: '100%', height: '100%' }}
     >
       <color attach="background" args={[biome === 'moon' ? '#000004' : '#87b8e8']} />
@@ -74,12 +81,16 @@ export function GameCanvas() {
         <HangGlider />
         <RemotePlayer />
         <ParkedGliders />
-        <ChallengeRings />
-        <LandingZone />
-        <XCTurnpoints />
-        <ThermalMarkers />
-        <RidgeLiftMarkers />
-        <FlightParticles />
+        {biome !== 'city' && (
+          <>
+            <ChallengeRings />
+            <LandingZone />
+            <XCTurnpoints />
+            <ThermalMarkers />
+            <RidgeLiftMarkers />
+            <FlightParticles />
+          </>
+        )}
         <FlightSimulator />
         <FlightPostFX />
       </Suspense>

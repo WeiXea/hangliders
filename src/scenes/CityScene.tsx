@@ -270,11 +270,10 @@ export function CityScene({ config }: CitySceneProps) {
     <>
       <SharedSky config={config} />
       <SharedLighting config={config} />
-      <DetailedTerrain config={config} biome="city" size={1280} segments={40} />
+      <DetailedTerrain config={config} biome="city" size={900} segments={24} />
       <HorizonRing color="#6b8cae" y={0} />
-      {/* Grass lots under Kenney structures */}
       <CityToyTown getHeight={config.getHeight} urban={urban} lite />
-      {/* Asphalt underlay — Kenney road tiles sit on top */}
+      {/* PBR asphalt grid (Kenney road GLBs removed for FPS) */}
       <CityStreets getHeight={config.getHeight} urban={urban} />
       <KenneyCity getHeight={config.getHeight} />
       <CityFeatureMarkers getHeight={config.getHeight} />

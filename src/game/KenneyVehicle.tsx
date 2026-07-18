@@ -46,8 +46,8 @@ export function KenneyVehicleMesh({
     clone.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh
-        mesh.castShadow = true
-        mesh.receiveShadow = true
+        mesh.castShadow = false
+        mesh.receiveShadow = false
         const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
         for (const m of mats) {
           if (!m) continue

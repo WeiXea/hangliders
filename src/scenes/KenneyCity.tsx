@@ -98,8 +98,9 @@ function KenneyBuilding({
     clone.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh
-        mesh.castShadow = true
-        mesh.receiveShadow = true
+        // Buildings: no shadows — city shadow maps were thrashing the GPU
+        mesh.castShadow = false
+        mesh.receiveShadow = false
       }
     })
     // Shift so base sits on ground (Kenney pivots at y=0 already)
@@ -260,58 +261,24 @@ function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => numbe
 function KenneyProps({ getHeight }: { getHeight: (x: number, z: number) => number }) {
   const props = useMemo(() => {
     const items: ReactElement[] = []
-    const trees = [
-      `${RETRO}/tree-large.glb`,
-      `${RETRO}/tree-small.glb`,
-      `${RETRO}/tree-pine-large.glb`,
-      `${RETRO}/tree-park-large.glb`,
-    ]
-    const spots: [number, number][] = [
-      [-48, 20],
-      [-45, 28],
-      [-50, 40],
-      [200, 30],
-      [208, 45],
-      [215, 60],
-      [30, -6],
-      [70, -6],
-      [120, -6],
-      [-30, 130],
-      [-38, 140],
-      [18, 68],
-      [140, 100],
-    ]
-    spots.forEach(([x, z], i) => {
-      items.push(
-        <KenneyModel
-          key={`tree-${i}`}
-          url={trees[i % trees.length]!}
-          position={[x, getHeight(x, z), z]}
-          scale={1.6 + (i % 3) * 0.15}
-          rotation={[0, (i * 0.7) % (Math.PI * 2), 0]}
-        />,
-      )
-    })
-
-    // Retro clutter
-    const clutter: [string, number, number, number][] = [
-      [`${RETRO}/detail-dumpster-closed.glb`, 24, 38, 1.2],
-      [`${RETRO}/detail-dumpster-open.glb`, 80, 70, 1.2],
+    // Keep a handful of landmarks only (was 20+ GLBs)
+    const sparse: [string, number, number, number][] = [
+      [`${RETRO}/tree-large.glb`, -48, 28, 1.7],
+      [`${RETRO}/tree-park-large.glb`, 208, 45, 1.8],
+      [`${RETRO}/detail-light-traffic.glb`, 44, 44, 1.5],
+      [`${RETRO}/detail-light-traffic.glb`, 110, 66, 1.5],
       [`${RETRO}/detail-bench.glb`, 48, 50, 1.3],
-      [`${RETRO}/detail-light-traffic.glb`, 40, 40, 1.5],
-      [`${RETRO}/detail-light-traffic.glb`, 62, 62, 1.5],
-      [`${RETRO}/detail-barrier-type-a.glb`, 100, 70, 1.4],
       [`${COMM}/detail-awning.glb`, 10, 34, 2.2],
-      [`${COMM}/detail-parasol-a.glb`, 14, 34, 1.8],
     ]
-    clutter.forEach(([url, x, z, s], i) => {
+    sparse.forEach(([url, x, z, s], i) => {
       items.push(
         <KenneyModel
           key={`prop-${i}`}
           url={url}
           position={[x, getHeight(x, z), z]}
           scale={s}
-          rotation={[0, i * 0.4, 0]}
+          rotation={[0, i * 0.5, 0]}
+          shadows={false}
         />,
       )
     })
@@ -349,13 +316,13 @@ function BoxFallback({
   )
 }
 
-/** Kenney visual city layer — roads, buildings, street props (CC0). */
+/**
+ * Kenney visual city layer — buildings only.
+ * Road GLB tiles (~300 clones) are skipped; CityStreets PBR asphalt carries the grid.
+ */
 export function KenneyCity({ getHeight }: { getHeight: (x: number, z: number) => number }) {
   return (
     <group>
-      <Suspense fallback={null}>
-        <KenneyRoads getHeight={getHeight} />
-      </Suspense>
       {CITY_BUILDINGS.map((b) => (
         <Suspense
           key={b.id}
@@ -364,6 +331,7 @@ export function KenneyCity({ getHeight }: { getHeight: (x: number, z: number) =>
           <KenneyBuilding building={b} groundY={getHeight(b.x, b.z)} />
         </Suspense>
       ))}
+      {/* Sparse props only — full KenneyRoads / dense props were the FPS killer */}
       <Suspense fallback={null}>
         <KenneyProps getHeight={getHeight} />
       </Suspense>
