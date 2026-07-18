@@ -12,6 +12,27 @@ import { getTrafficSnapshots } from './trafficRegistry'
 import { SkateboardModel } from './SkateboardModel'
 import { skateboardColor } from './skateboardRegistry'
 
+function RemoteSkateRider({ boardColor }: { boardColor?: string }) {
+  const skate = useGameStore((s) => s.remoteFlight?.skate)
+  const spinX = skate?.boardSpinX ?? 0
+  const spinY = skate?.boardSpinY ?? 0
+  const spinZ = skate?.boardSpinZ ?? 0
+  const crouch = skate?.crouch ?? 0
+  return (
+    <group>
+      <group rotation={[spinX, spinY, spinZ]} position={[0, crouch * 0.06, 0]}>
+        <SkateboardModel color={boardColor} />
+      </group>
+      <group
+        position={[0, 0.04 - crouch * 0.28, crouch * 0.05]}
+        rotation={[crouch * 0.35, 0, 0]}
+      >
+        <AnimatedPilot mode="stand" suitColor="#3d5a80" motionSpeed={0} />
+      </group>
+    </group>
+  )
+}
+
 /** Ghosted second player. Hidden while riding tandem together. */
 export function RemotePlayer() {
   const group = useRef<THREE.Group>(null)
@@ -107,12 +128,7 @@ export function RemotePlayer() {
           </group>
         )}
         {showSkate && (
-          <group>
-            <SkateboardModel color={boardColor} />
-            <group position={[0, 0.04, 0]}>
-              <AnimatedPilot mode="stand" suitColor="#3d5a80" motionSpeed={0} />
-            </group>
-          </group>
+          <RemoteSkateRider boardColor={boardColor} />
         )}
         {showJet && (
           <group>

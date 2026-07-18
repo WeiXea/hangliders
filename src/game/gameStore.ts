@@ -352,7 +352,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
       }
       travelBanner =
-        'Skate Path — ↑ push · A/D carve · Space ollie · weave the course · E hop off · mount a glider to fly'
+        'Skate — hold Space crouch, release to ollie · pop+A/D/S/Shift for flips · grind rails · combo!'
     }
     if (biome === 'city') {
       if (mode === 'free') {

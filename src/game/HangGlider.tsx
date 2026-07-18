@@ -14,6 +14,31 @@ import { getTrafficSnapshots } from './trafficRegistry'
 import { SkateboardModel } from './SkateboardModel'
 import { skateboardColor } from './skateboardRegistry'
 
+function SkateRider({ boardColor }: { boardColor?: string }) {
+  const skate = useGameStore((s) => s.flight.skate)
+  const crouch = skate.crouch
+  const bail = skate.trick === 'bail' || skate.bailT > 0
+  const pilotY = 0.04 - crouch * 0.28
+  const pilotScale = 1 - crouch * 0.08
+  return (
+    <group>
+      <group
+        rotation={[skate.boardSpinX, skate.boardSpinY, skate.boardSpinZ]}
+        position={[0, crouch * 0.06, 0]}
+      >
+        <SkateboardModel color={boardColor} />
+      </group>
+      <group
+        position={[0, pilotY, crouch * 0.05]}
+        scale={[pilotScale, pilotScale * (1 - crouch * 0.12), pilotScale]}
+        rotation={bail ? [0.4, 0, skate.boardSpinZ * 0.3] : [crouch * 0.35, 0, 0]}
+      >
+        <AnimatedPilot mode="stand" motionSpeed={0} />
+      </group>
+    </group>
+  )
+}
+
 export function HangGlider() {
   const groupRef = useRef<THREE.Group>(null)
   const bodyRef = useRef<THREE.Group>(null)
@@ -360,14 +385,7 @@ export function HangGlider() {
             <VehicleMesh kind={vehicleKind} color={driveColor} />
           </group>
         )}
-        {showSkate && (
-          <group>
-            <SkateboardModel color={boardColor} />
-            <group position={[0, 0.04, 0]}>
-              <AnimatedPilot mode="stand" motionSpeed={0} />
-            </group>
-          </group>
-        )}
+        {showSkate && <SkateRider boardColor={boardColor} />}
         {showSkate && <GliderContactShadow />}
         {showJet && (
           <group>

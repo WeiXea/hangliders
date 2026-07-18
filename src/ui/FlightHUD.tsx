@@ -595,7 +595,33 @@ export function FlightHUD() {
 
       {skating && (
         <div className={styles.coach}>
-          Skate · ↑ push · ↓ brake · A/D carve · Space ollie · E hop off when slow
+          Hold Space crouch → release ollie · pop+A kickflip · pop+D heelflip · pop+S shuvit ·
+          pop+Shift 360 · land on rails to grind · hold S for manual · 1–4 late flips in air
+        </div>
+      )}
+
+      {skating && flight.skate.trickFlash > 0 && flight.skate.lastTrick && (
+        <div className={styles.trickFlash}>
+          <span className={styles.trickName}>{flight.skate.lastTrick}</span>
+          {flight.skate.combo > 1 && (
+            <span className={styles.trickCombo}>x{flight.skate.combo}</span>
+          )}
+        </div>
+      )}
+
+      {skating && (
+        <div className={styles.skateScore}>
+          <span>{flight.skate.score.toLocaleString()} pts</span>
+          {flight.skate.combo > 0 && (
+            <span className={styles.skateComboMeter}>
+              combo {flight.skate.combo} · {flight.skate.comboTimer.toFixed(1)}s
+            </span>
+          )}
+          {flight.skate.crouch > 0.05 && (
+            <span className={styles.skateCrouch}>
+              ollie {Math.round(flight.skate.crouch * 100)}%
+            </span>
+          )}
         </div>
       )}
 
@@ -1172,7 +1198,22 @@ export function FlightHUD() {
             <ControlPad label="Sprint" sub="Shift" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
           )}
           {skating && (
-            <ControlPad label="Ollie" sub="Space" action="jump" className={styles.padAction} active={input.jump} />
+            <>
+              <ControlPad
+                label="Ollie"
+                sub="Hold"
+                action="jump"
+                className={styles.padAction}
+                active={input.skateCrouch || input.jump}
+              />
+              <ControlPad
+                label="Flip"
+                sub="1–4"
+                action="emoteWave"
+                className={styles.padAction}
+                active={input.emoteWave || input.emoteDance}
+              />
+            </>
           )}
           {jet && (
             <button

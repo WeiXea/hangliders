@@ -313,8 +313,9 @@ export function HomeScreen() {
             )}
             {biome === 'skatepath' && (
               <p className={styles.cityExploreHint}>
-                <b>Skate Path</b> — Free Flight starts on a skateboard. Push with ↑, carve with A/D,
-                ollie with Space. Hop off with E near green-ring boards; mount a glider anytime.
+                <b>Skate Path</b> — Real skate session: hold Space to crouch, release to ollie. Add
+                A/D/S/Shift on the pop for kickflips, heelflips, shuvits, and 360s. Grind the rails,
+                manual with S, stack combos. E hops off when slow.
               </p>
             )}
           </>

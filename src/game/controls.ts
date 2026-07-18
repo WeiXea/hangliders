@@ -43,11 +43,11 @@ const RELEASE_MAP: Record<string, Partial<InputState>> = {
   KeyA: { bankLeft: false },
   ArrowRight: { bankRight: false },
   KeyD: { bankRight: false },
-  Space: { takeOff: false, jump: false },
+  Space: { takeOff: false, jump: false, skateCrouch: false },
   KeyL: { land: false },
   KeyF: { deployChute: false },
   KeyE: { interact: false, lookRight: false },
-  KeyJ: { jump: false },
+  KeyJ: { jump: false, skateCrouch: false },
   Minus: { speedDown: false },
   NumpadSubtract: { speedDown: false },
   Equal: { speedUp: false },
@@ -143,13 +143,15 @@ export function useKeyboardControls() {
       if (e.code === 'Space') {
         e.preventDefault()
         const phase = useGameStore.getState().flight.phase
-        if (
+        if (phase === 'skating') {
+          setInput({ skateCrouch: true, jump: true })
+          pulseAction('jump')
+        } else if (
           phase === 'walking' ||
           phase === 'flying' ||
           phase === 'helicopter' ||
           phase === 'jet' ||
-          phase === 'driving' ||
-          phase === 'skating'
+          phase === 'driving'
         ) {
           pulseAction('jump')
           setInput({ jump: true })
@@ -164,8 +166,14 @@ export function useKeyboardControls() {
       }
       if (e.code === 'KeyJ') {
         e.preventDefault()
-        pulseAction('jump')
-        setInput({ jump: true })
+        const phase = useGameStore.getState().flight.phase
+        if (phase === 'skating') {
+          setInput({ skateCrouch: true, jump: true })
+          pulseAction('jump')
+        } else {
+          pulseAction('jump')
+          setInput({ jump: true })
+        }
         return
       }
       if (e.code === 'KeyF') {
@@ -509,19 +517,26 @@ export function useTouchControl(
       e.preventDefault()
       if (isPulseKey(action)) pulseAction(action)
       setInput({ [action]: true })
+      // Skate ollie charge uses held crouch alongside jump pad
+      if (action === 'jump' && useGameStore.getState().flight.phase === 'skating') {
+        setInput({ skateCrouch: true })
+      }
     },
     onPointerUp: (e: React.PointerEvent) => {
       e.preventDefault()
       // One-shots stay until the sim frame clears them
       if (!isPulseKey(action)) setInput({ [action]: false })
+      if (action === 'jump') setInput({ skateCrouch: false })
     },
     onPointerLeave: (e: React.PointerEvent) => {
       e.preventDefault()
       if (!isPulseKey(action)) setInput({ [action]: false })
+      if (action === 'jump') setInput({ skateCrouch: false })
     },
     onPointerCancel: (e: React.PointerEvent) => {
       e.preventDefault()
       if (!isPulseKey(action)) setInput({ [action]: false })
+      if (action === 'jump') setInput({ skateCrouch: false })
     },
   }
 }

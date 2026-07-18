@@ -1,11 +1,6 @@
 import type { Biome, Vec3 } from '../types/game'
 import { buildingWallCrash } from './cityBuildings'
-import {
-  SKATE_BARRIERS,
-  SKATE_BOXES,
-  SKATE_CONES,
-  SKATE_RAILS,
-} from './skatepathWorld'
+import { SKATE_BARRIERS, SKATE_BOXES, SKATE_CONES } from './skatepathWorld'
 
 /** Vertical solid obstacle — cylinder standing on the ground */
 export interface Obstacle {
@@ -100,14 +95,6 @@ const SKATE_BOX_OBS: BoxObstacle[] = [
     halfD: b.d * 0.5,
     y0: 0,
     height: b.h,
-  })),
-  ...SKATE_RAILS.map((r) => ({
-    x: r.x,
-    z: r.z,
-    halfW: 0.14,
-    halfD: r.length * 0.5,
-    y0: 0,
-    height: r.height,
   })),
 ]
 

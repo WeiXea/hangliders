@@ -318,6 +318,83 @@
   backdrop-filter: blur(10px);
 }
 
+.trickFlash {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 14;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  animation: trickPop 0.35s ease-out;
+}
+
+.trickName {
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(28px, 6vw, 42px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow:
+    0 0 24px rgba(255, 180, 40, 0.7),
+    0 4px 16px rgba(0, 0, 0, 0.55);
+}
+
+.trickCombo {
+  font-family: 'Outfit', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffd60a;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.skateScore {
+  position: absolute;
+  top: max(72px, calc(env(safe-area-inset-top) + 60px));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 12;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-family: 'Outfit', sans-serif;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+}
+
+.skateScore > span:first-child {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.skateComboMeter {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffd60a;
+}
+
+.skateCrouch {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7bed9f;
+}
+
+@keyframes trickPop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 .landCard {
   position: absolute;
   top: max(108px, calc(env(safe-area-inset-top) + 96px));

@@ -29,6 +29,22 @@ import {
   nearestSkateboard,
   setTakenSkateboardId,
 } from './skateboardRegistry'
+import {
+  INITIAL_SKATE,
+  alongRail,
+  awardTrick,
+  consumeOllieRelease,
+  findGrindRail,
+  flipComplete,
+  isFlipTrick,
+  railEnded,
+  resetSkateInputEdge,
+  startTrick,
+  tickBoardAnim,
+  trickLabel,
+} from './skateTricks'
+import { playWhoosh } from './audio'
+import { SKATE_RAILS } from './skatepathWorld'
 import { sampleRocketLaunchSupport } from './rocketPad'
 import {
   clampInTunnel,
@@ -149,13 +165,14 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     vehicleId: -1,
     vehicleKind: null,
     skateboardId: -1,
+    skate: { ...INITIAL_SKATE },
     rocketMission: null,
   }
 }
 
-const SKATE_MAX_SPEED = 15
-const SKATE_ACCEL = 11
-const SKATE_BRAKE = 16
+const SKATE_MAX_SPEED = 18
+const SKATE_ACCEL = 13
+const SKATE_BRAKE = 14
 const SKATE_DECK = 0.16
 const SKATE_BOARD_RANGE = 5.5
 
@@ -296,12 +313,14 @@ function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
     vehicleId: -1,
     vehicleKind: null,
     skateboardId: -1,
+    skate: { ...INITIAL_SKATE },
   }
 }
 
 export function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
   setTakenVehicleId(-1)
   setTakenSkateboardId(-1)
+  resetSkateInputEdge()
   const support = supportY(config, next.position.x, next.position.z)
   return {
     ...next,
@@ -331,6 +350,7 @@ export function beginWalking(next: FlightState, config: BiomeConfig): FlightStat
     vehicleId: -1,
     vehicleKind: null,
     skateboardId: -1,
+    skate: { ...INITIAL_SKATE },
     rocketMission: null,
   }
 }
@@ -341,6 +361,7 @@ export function beginSkating(
   board: { id: number; x: number; z: number; yaw: number },
 ): FlightState {
   setTakenSkateboardId(board.id)
+  resetSkateInputEdge()
   const gy = supportY(config, board.x, board.z).y
   return {
     ...next,
@@ -348,12 +369,17 @@ export function beginSkating(
     skateboardId: board.id,
     vehicleId: -1,
     vehicleKind: null,
+    skate: { ...INITIAL_SKATE },
     position: { x: board.x, y: gy + SKATE_DECK, z: board.z },
     yaw: board.yaw,
     pitch: 0,
     roll: 0,
-    airspeed: 0,
-    velocity: { x: 0, y: 0, z: 0 },
+    airspeed: 2.5,
+    velocity: {
+      x: Math.sin(board.yaw) * 2.5,
+      y: 0,
+      z: Math.cos(board.yaw) * 2.5,
+    },
     altitude: 0,
     mountedId: -1,
     landAction: 'none',
@@ -905,40 +931,100 @@ export function tickFlight(
     return { flight: next, parked }
   }
 
-  // --- Skateboard on Skate Path ---
+  // --- Skateboard — tricks, grinds, manuals ---
   if (next.phase === 'skating') {
     next.stallWarning = false
-    const steerScale = 1.55 / (1 + Math.abs(next.airspeed) * 0.07)
+    let skate = { ...next.skate }
+    if (skate.bailT > 0) skate.bailT = Math.max(0, skate.bailT - dt)
+
     const steerInput = (input.bankLeft ? 1 : 0) + (input.bankRight ? -1 : 0)
-    if (steerInput !== 0) {
-      if (Math.abs(next.airspeed) > 0.2) {
-        next.yaw += steerInput * steerScale * Math.sign(next.airspeed) * dt
+    const gas = input.pitchDown || input.speedUp
+    const braking = input.pitchUp || input.speedDown
+    const grinding = skate.trick === 'grind'
+    const bailed = skate.trick === 'bail' || skate.bailT > 0
+    const manualing = skate.trick === 'manual' || skate.trick === 'noseManual'
+
+    // --- Grind lock ---
+    if (grinding) {
+      const rail = SKATE_RAILS.find((r) => r.id === skate.grindRailId)
+      if (!rail || railEnded(rail, next.position.z) || input.skateCrouch || input.jump) {
+        const name = Math.abs(next.airspeed) > 8 ? 'Boardslide' : '50-50 Grind'
+        skate = awardTrick({ ...skate, trick: 'none', grindRailId: -1 }, name)
+        if (input.skateCrouch || input.jump) {
+          next.velocity.y = 5.5
+          skate = startTrick(skate, 'ollie')
+          playWhoosh(0.1, 90, 0.12)
+        }
       } else {
-        next.yaw += steerInput * 1.6 * dt
+        next.position.x = lerp(next.position.x, rail.x, Math.min(1, 14 * dt))
+        next.position.z = alongRail(rail, next.position.z + Math.cos(next.yaw) * next.airspeed * dt)
+        const topY = config.getHeight(rail.x, rail.z) + rail.height + 0.06
+        next.position.y = topY
+        next.velocity.y = 0
+        next.airspeed = Math.max(3, next.airspeed - 1.2 * dt)
+        next.velocity.x = Math.sin(next.yaw) * next.airspeed
+        next.velocity.z = Math.cos(next.yaw) * next.airspeed
+        // Slight steer on rail
+        if (steerInput !== 0) next.yaw += steerInput * 0.35 * dt
+        skate = tickBoardAnim(skate, dt)
+        next.pitch = lerp(next.pitch, 0.05, Math.min(1, 8 * dt))
+        next.roll = lerp(next.roll, steerInput * 0.12, Math.min(1, 8 * dt))
+        next.altitude = 0.02
+        next.distance += Math.abs(next.airspeed) * dt
+        next.airtime += dt
+        next.skate = skate
+        return { flight: next, parked }
       }
     }
 
-    const gas = input.pitchDown || input.speedUp
-    const braking = input.pitchUp || input.speedDown
-    if (gas && !braking) {
-      if (next.airspeed >= -0.4) {
-        const pull =
-          SKATE_ACCEL * (1.2 - 0.4 * Math.min(1, Math.max(0, next.airspeed) / SKATE_MAX_SPEED))
-        next.airspeed = Math.min(SKATE_MAX_SPEED, next.airspeed + pull * dt)
-      } else {
-        next.airspeed = Math.min(0, next.airspeed + SKATE_BRAKE * dt)
+    // Steering (carved, speed-weighted)
+    if (!bailed && !manualing) {
+      const steerScale = 1.85 / (1 + Math.abs(next.airspeed) * 0.055)
+      if (steerInput !== 0) {
+        if (Math.abs(next.airspeed) > 0.35) {
+          next.yaw += steerInput * steerScale * Math.sign(next.airspeed || 1) * dt
+        } else {
+          next.yaw += steerInput * 1.8 * dt
+        }
       }
-    } else if (braking) {
-      if (next.airspeed > 0.08) {
-        next.airspeed = Math.max(0, next.airspeed - SKATE_BRAKE * dt)
+    } else if (manualing) {
+      // Balance: A/D keeps manual alive, drift yaw slowly
+      next.yaw += steerInput * 0.55 * dt
+      if (Math.abs(steerInput) < 0.5) {
+        skate.trickT += dt
+        if (skate.trickT > 2.8) {
+          // Lost balance
+          skate = { ...startTrick(skate, 'bail'), bailT: 1.1 }
+          next.airspeed *= 0.35
+          playWhoosh(0.15, 60, 0.2)
+        }
       } else {
-        next.airspeed = Math.max(-SKATE_MAX_SPEED * 0.28, next.airspeed - SKATE_ACCEL * 0.55 * dt)
+        skate.trickT = Math.max(0, skate.trickT - dt * 0.8)
+      }
+    }
+
+    // Push / brake / coast — realistic roll resistance
+    if (!bailed) {
+      if (gas && !braking && !manualing) {
+        const pull =
+          SKATE_ACCEL *
+          (1.15 - 0.35 * Math.min(1, Math.max(0, next.airspeed) / SKATE_MAX_SPEED))
+        next.airspeed = Math.min(SKATE_MAX_SPEED, next.airspeed + pull * dt)
+      } else if (braking && !manualing) {
+        if (next.airspeed > 0.08) {
+          next.airspeed = Math.max(0, next.airspeed - SKATE_BRAKE * dt)
+        } else {
+          next.airspeed = Math.max(-SKATE_MAX_SPEED * 0.22, next.airspeed - SKATE_ACCEL * 0.5 * dt)
+        }
+      } else {
+        // Low rolling resistance — you keep speed
+        const drag = 0.28 + Math.abs(next.airspeed) * 0.035
+        if (next.airspeed > 0) next.airspeed = Math.max(0, next.airspeed - drag * dt)
+        else if (next.airspeed < 0) next.airspeed = Math.min(0, next.airspeed + drag * 1.1 * dt)
+        if (Math.abs(next.airspeed) < 0.08) next.airspeed = 0
       }
     } else {
-      const drag = 0.7 + Math.abs(next.airspeed) * 0.08
-      if (next.airspeed > 0) next.airspeed = Math.max(0, next.airspeed - drag * dt)
-      else if (next.airspeed < 0) next.airspeed = Math.min(0, next.airspeed + drag * 1.1 * dt)
-      if (Math.abs(next.airspeed) < 0.12) next.airspeed = 0
+      next.airspeed *= Math.exp(-2.2 * dt)
     }
 
     next.velocity.x = Math.sin(next.yaw) * next.airspeed
@@ -946,45 +1032,185 @@ export function tickFlight(
 
     support = supportY(config, next.position.x, next.position.z)
     groundY = support.y
-    const onDeck = next.position.y <= groundY + SKATE_DECK + 0.12
+    const onGround = next.position.y <= groundY + SKATE_DECK + 0.14 && next.velocity.y <= 0.4
+    const airborne = !onGround
 
-    if (onDeck && input.jump) {
-      next.velocity.y = 7.2
-      next.position.y = groundY + SKATE_DECK + 0.02
+    // Crouch charge + ollie on release; mid-air directional flips
+    if (!bailed && onGround && skate.trick !== 'grind') {
+      const crouching = input.skateCrouch || input.jump
+      if (crouching) {
+        skate.crouch = Math.min(1, skate.crouch + dt / 0.38)
+        consumeOllieRelease(true)
+      } else {
+        const popped = consumeOllieRelease(false)
+        if (popped && skate.crouch > 0.12) {
+          const pop = 4.2 + skate.crouch * 6.2
+          next.velocity.y = pop
+          next.position.y = groundY + SKATE_DECK + 0.04
+          next.airspeed = Math.min(SKATE_MAX_SPEED, next.airspeed + 0.8 + skate.crouch * 1.4)
+          // Direction held on pop → flip; plain release → ollie
+          if (input.bankLeft) {
+            skate = startTrick(skate, 'kickflip')
+            playWhoosh(0.12, 120, 0.14)
+          } else if (input.bankRight) {
+            skate = startTrick(skate, 'heelflip')
+            playWhoosh(0.12, 125, 0.14)
+          } else if (input.pitchUp) {
+            skate = startTrick(skate, 'shuvit')
+            playWhoosh(0.1, 100, 0.12)
+          } else if (input.speedUp || input.emoteHug) {
+            skate = startTrick(skate, 'treflip')
+            playWhoosh(0.14, 140, 0.16)
+          } else {
+            skate = startTrick(skate, 'ollie')
+            playWhoosh(0.08, 70 + skate.crouch * 40, 0.1 + skate.crouch * 0.08)
+          }
+          skate.crouch = 0
+        } else {
+          skate.crouch = Math.max(0, skate.crouch - dt * 3.5)
+        }
+      }
+
+      // Manual: hold S at speed (brake softens while balanced)
+      if (
+        skate.trick === 'none' &&
+        Math.abs(next.airspeed) > 4.5 &&
+        input.pitchUp &&
+        !crouching
+      ) {
+        skate = startTrick(skate, 'manual')
+      }
+    } else if (airborne && !bailed) {
+      skate.crouch = 0
+      consumeOllieRelease(input.skateCrouch || input.jump)
+      // Late flips mid-air — number / emote keys only (steer stays carve)
+      const canFlip =
+        (skate.trick === 'ollie' && skate.trickT > 0.1) || skate.trick === 'none'
+      if (canFlip) {
+        if (input.emoteWave) {
+          skate = startTrick(skate, 'kickflip')
+          playWhoosh(0.12, 120, 0.14)
+        } else if (input.emoteDance) {
+          skate = startTrick(skate, 'heelflip')
+          playWhoosh(0.12, 125, 0.14)
+        } else if (input.emoteSit) {
+          skate = startTrick(skate, 'shuvit')
+          playWhoosh(0.1, 100, 0.12)
+        } else if (input.emoteHug || input.emoteHighFive) {
+          skate = startTrick(skate, 'treflip')
+          playWhoosh(0.14, 140, 0.16)
+        }
+      }
+      next.velocity.y -= GRAVITY * dt
     } else {
       next.velocity.y -= GRAVITY * dt
+      consumeOllieRelease(input.jump)
+    }
+
+    // End manual when releasing balance key
+    if (manualing && onGround && skate.trick === 'manual' && !input.pitchUp) {
+      skate = awardTrick({ ...skate, trick: 'none' }, 'Manual')
     }
 
     next.position.x += next.velocity.x * dt
     next.position.z += next.velocity.z * dt
     next.position.y += next.velocity.y * dt
 
-    const pushed = resolveSkatepathPush(next.position, config.getHeight, 0.5)
-    next.position.x = pushed.x
-    next.position.z = pushed.z
-    const props = resolvePropPush(config.id, next.position, config.getHeight, 0.48)
-    next.position.x = props.x
-    next.position.z = props.z
+    if (!grinding) {
+      const pushed = resolveSkatepathPush(next.position, config.getHeight, 0.45)
+      next.position.x = pushed.x
+      next.position.z = pushed.z
+      // Soft prop push — skip rails so we can grind them
+      const props = resolvePropPush(config.id, next.position, config.getHeight, 0.42)
+      // Don't shove off rails
+      const nearR = findGrindRail(next.position, config.getHeight, 0.7)
+      if (!nearR) {
+        next.position.x = props.x
+        next.position.z = props.z
+      }
+    }
 
     support = supportY(config, next.position.x, next.position.z)
     groundY = support.y
+    const wasAir = airborne
+    const landing = wasAir && next.position.y <= groundY + SKATE_DECK && next.velocity.y <= 0
+
+    // Catch grind when dropping onto a rail
+    if ((airborne || landing) && !bailed && skate.trick !== 'grind') {
+      const hit = findGrindRail(next.position, config.getHeight, 0.5)
+      if (hit && next.velocity.y <= 2 && Math.abs(next.airspeed) > 2.5) {
+        next.position.x = hit.rail.x
+        next.position.y = hit.topY
+        next.velocity.y = 0
+        skate = {
+          ...startTrick(skate, 'grind'),
+          grindRailId: hit.rail.id,
+        }
+        playWhoosh(0.1, 55, 0.15)
+        next.skate = tickBoardAnim(skate, dt)
+        next.altitude = 0.02
+        next.distance += Math.abs(next.airspeed) * dt
+        next.airtime += dt
+        return { flight: next, parked }
+      }
+    }
+
     if (next.position.y <= groundY + SKATE_DECK) {
       next.position.y = groundY + SKATE_DECK
       if (next.velocity.y < 0) next.velocity.y = 0
+
+      if (landing && !bailed) {
+        const ok = flipComplete(skate)
+        const hard = Math.abs(next.velocity.y) > 9 || (!ok && isFlipTrick(skate.trick))
+        if (hard || (!ok && isFlipTrick(skate.trick) && skate.trickT > 0.15)) {
+          skate = { ...startTrick(skate, 'bail'), bailT: 1.25, combo: 0, comboTimer: 0 }
+          next.airspeed *= 0.25
+          playWhoosh(0.2, 50, 0.25)
+        } else if (skate.trick === 'ollie' || isFlipTrick(skate.trick)) {
+          const name = trickLabel(skate.trick)
+          skate = awardTrick({ ...skate, trick: 'none' }, name)
+          playWhoosh(0.06, 80, 0.08)
+        }
+      }
+    }
+
+    skate = tickBoardAnim(skate, dt)
+
+    // Clear finished ollie anim if still in air with no flip
+    if (skate.trick === 'ollie' && skate.trickT > 0.45 && airborne) {
+      // keep ollie state until land or flip upgrades it
+    }
+    if (skate.trick === 'bail' && skate.bailT <= 0 && onGround) {
+      skate = { ...skate, trick: 'none', boardSpinX: 0, boardSpinY: 0, boardSpinZ: 0 }
     }
 
     next.altitude = Math.max(0, next.position.y - groundY - SKATE_DECK)
     next.distance += Math.abs(next.airspeed) * dt
     next.airtime += dt
 
-    const pitchTarget = braking && next.airspeed > 1 ? 0.1 : gas && next.airspeed > 1 ? -0.06 : 0
-    const rollTarget = steerInput * Math.min(0.22, Math.abs(next.airspeed) * 0.016)
-    next.pitch = lerp(next.pitch, pitchTarget, Math.min(1, 7 * dt))
-    next.roll = lerp(next.roll, rollTarget, Math.min(1, 8 * dt))
+    // Body lean
+    const crouchLean = skate.crouch * 0.35
+    const pitchTarget = manualing
+      ? 0.22
+      : bailed
+        ? 0.5
+        : braking && next.airspeed > 1
+          ? 0.12
+          : gas && next.airspeed > 1
+            ? -0.08 - crouchLean
+            : -crouchLean
+    const rollTarget = bailed
+      ? Math.sin(skate.trickT * 8) * 0.6
+      : steerInput * Math.min(0.32, Math.abs(next.airspeed) * 0.02)
+    next.pitch = lerp(next.pitch, pitchTarget, Math.min(1, 9 * dt))
+    next.roll = lerp(next.roll, rollTarget, Math.min(1, 10 * dt))
+    next.skate = skate
 
+    // Hop off only when stopped and not mid-trick
     if (
-      Math.abs(next.airspeed) < 1.4 &&
-      next.altitude < 0.15 &&
+      Math.abs(next.airspeed) < 1.2 &&
+      next.altitude < 0.12 &&
+      skate.trick === 'none' &&
       (input.interact || input.land)
     ) {
       const leaveX = next.position.x

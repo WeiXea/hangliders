@@ -48,6 +48,34 @@ export type TiltPermission = 'unknown' | 'granted' | 'denied'
 export type LandAction = 'none' | 'wave' | 'dance' | 'sit' | 'hug' | 'highfive'
 export type TandemRole = 'none' | 'pilot' | 'passenger'
 
+export type SkateTrick =
+  | 'none'
+  | 'ollie'
+  | 'kickflip'
+  | 'heelflip'
+  | 'shuvit'
+  | 'treflip'
+  | 'manual'
+  | 'noseManual'
+  | 'grind'
+  | 'bail'
+
+export type SkateState = {
+  trick: SkateTrick
+  trickT: number
+  crouch: number
+  boardSpinX: number
+  boardSpinY: number
+  boardSpinZ: number
+  grindRailId: number
+  combo: number
+  comboTimer: number
+  score: number
+  lastTrick: string
+  trickFlash: number
+  bailT: number
+}
+
 export interface TiltCalibration {
   bank: number
   pitch: number
@@ -116,6 +144,8 @@ export interface FlightState {
   vehicleKind: VehicleKind | null
   /** Skate Path board currently ridden (-1 = none) */
   skateboardId: number
+  /** Skate tricks / combo while skating */
+  skate: SkateState
   /** Active rocket mission script (null outside rocket flow) */
   rocketMission: RocketMission | null
 }
@@ -130,6 +160,8 @@ export interface InputState {
   takeOff: boolean
   land: boolean
   jump: boolean
+  /** Held crouch / ollie charge while skating (not a one-shot) */
+  skateCrouch: boolean
   deployChute: boolean
   interact: boolean
   emoteWave: boolean
@@ -227,6 +259,21 @@ export const INITIAL_FLIGHT: FlightState = {
   vehicleId: -1,
   vehicleKind: null,
   skateboardId: -1,
+  skate: {
+    trick: 'none',
+    trickT: 0,
+    crouch: 0,
+    boardSpinX: 0,
+    boardSpinY: 0,
+    boardSpinZ: 0,
+    grindRailId: -1,
+    combo: 0,
+    comboTimer: 0,
+    score: 0,
+    lastTrick: '',
+    trickFlash: 0,
+    bailT: 0,
+  },
   rocketMission: null,
 }
 
@@ -240,6 +287,7 @@ export const INITIAL_INPUT: InputState = {
   takeOff: false,
   land: false,
   jump: false,
+  skateCrouch: false,
   deployChute: false,
   interact: false,
   emoteWave: false,

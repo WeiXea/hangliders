@@ -82,11 +82,14 @@ export const SKATE_BARRIERS: SkateBarrier[] = [
   { id: 5, x: -3.0, z: 334, w: 5.4, d: 0.55, h: 1.15 },
 ]
 
-/** Low grind rails down the center lane. */
+/** Grind rails down the path. */
 export const SKATE_RAILS: SkateRail[] = [
-  { id: 0, x: 0, z: 78, length: 14, height: 0.55 },
-  { id: 1, x: -1.5, z: 190, length: 18, height: 0.55 },
-  { id: 2, x: 1.2, z: 290, length: 16, height: 0.6 },
+  { id: 0, x: 0, z: 78, length: 16, height: 0.55 },
+  { id: 1, x: 2.2, z: 112, length: 12, height: 0.5 },
+  { id: 2, x: -1.5, z: 190, length: 20, height: 0.55 },
+  { id: 3, x: 0, z: 220, length: 14, height: 0.58 },
+  { id: 4, x: 1.2, z: 290, length: 18, height: 0.6 },
+  { id: 5, x: -2.0, z: 340, length: 15, height: 0.52 },
 ]
 
 /** Raised decks / funbox tops (walkable). */
@@ -151,16 +154,10 @@ export function resolveSkatepathPush(
     }
   }
 
+  // Rails are grindable — not solid push volumes
   const boxes: { x: number; z: number; w: number; d: number; h: number }[] = [
     ...SKATE_BARRIERS,
     ...SKATE_BOXES,
-    ...SKATE_RAILS.map((r) => ({
-      x: r.x,
-      z: r.z,
-      w: 0.28,
-      d: r.length,
-      h: r.height,
-    })),
   ]
 
   for (const b of boxes) {
