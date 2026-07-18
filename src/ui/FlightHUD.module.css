@@ -4,6 +4,23 @@
   overflow: hidden;
 }
 
+.versionBadge {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  z-index: 20;
+  pointer-events: none;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #ffd60a;
+  background: rgba(8, 16, 28, 0.78);
+  border: 1px solid rgba(255, 214, 10, 0.4);
+  border-radius: 999px;
+  padding: 4px 9px;
+}
+
 .fpvFrame {
   position: absolute;
   inset: 0;

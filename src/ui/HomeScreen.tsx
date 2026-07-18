@@ -5,6 +5,7 @@ import { readStoredTiltPreference } from '../game/tilt'
 import { enterRoom, makeRoomCode } from '../game/netRoom'
 import { handleNetMessage, sendHello, setRoomSession } from '../game/netSync'
 import type { Biome, GameMode } from '../types/game'
+import { APP_VERSION_LABEL } from '../version'
 import styles from './HomeScreen.module.css'
 
 const BIOMES: Biome[] = ['tankfarm', 'city', 'beach', 'mountains']
@@ -190,7 +191,10 @@ export function HomeScreen() {
     <div className={styles.home}>
       <div className={styles.heroBg} aria-hidden />
       <div className={styles.heroContent}>
-        <h1 className={styles.brand}>HangGlider</h1>
+        <h1 className={styles.brand}>
+          HangGlider
+          <span className={styles.version}>{APP_VERSION_LABEL}</span>
+        </h1>
         <p className={styles.tagline}>Feel the lift</p>
 
         {!inLobby && (

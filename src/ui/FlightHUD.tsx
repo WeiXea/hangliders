@@ -38,6 +38,7 @@ import { GameCanvas } from '../game/GameCanvas'
 import { JUMP_MIN_ALTITUDE } from '../types/game'
 import { FriendFinder } from './FriendFinder'
 import { WorldMap } from './WorldMap'
+import { APP_VERSION_LABEL } from '../version'
 import styles from './FlightHUD.module.css'
 
 const CAMERA_LABELS = { chase: 'Chase', fpv: 'Cockpit', side: 'Side' } as const
@@ -363,6 +364,9 @@ export function FlightHUD() {
     <div className={styles.hud}>
       <GameCanvas />
       <div className={cameraMode === 'fpv' ? styles.fpvFrame : styles.viewFrame} aria-hidden />
+      <div className={styles.versionBadge} aria-label={`App ${APP_VERSION_LABEL}`}>
+        {APP_VERSION_LABEL}
+      </div>
       {peerConnected && <FriendFinder />}
       <WorldMap />
       {travelBanner && <div className={styles.travelBanner}>{travelBanner}</div>}

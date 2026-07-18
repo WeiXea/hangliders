@@ -47,6 +47,26 @@
   margin: 0;
   line-height: 0.95;
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.28em;
+  flex-wrap: wrap;
+}
+
+.version {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.22em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #ffd60a;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 214, 10, 0.45);
+  border-radius: 999px;
+  padding: 0.35em 0.7em;
+  vertical-align: middle;
+  position: relative;
+  top: -0.35em;
 }
 
 .tagline {
