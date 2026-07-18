@@ -43,7 +43,6 @@ import {
   tickBoardAnim,
   trickLabel,
 } from './skateTricks'
-import { playWhoosh } from './audio'
 import { SKATE_RAILS } from './skatepathWorld'
 import { sampleRocketLaunchSupport } from './rocketPad'
 import {
