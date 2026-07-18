@@ -1,5 +1,11 @@
 import type { Biome, Vec3 } from '../types/game'
 import { buildingWallCrash } from './cityBuildings'
+import {
+  SKATE_BARRIERS,
+  SKATE_BOXES,
+  SKATE_CONES,
+  SKATE_RAILS,
+} from './skatepathWorld'
 
 /** Vertical solid obstacle — cylinder standing on the ground */
 export interface Obstacle {
@@ -71,14 +77,50 @@ const BEACH_CLIFFS: BoxObstacle[] = [
   { x: -92, z: 20, halfW: 4, halfD: 24, y0: 0, height: 22 },
 ]
 
+const SKATE_CYLINDERS: Obstacle[] = SKATE_CONES.map((c) => ({
+  x: c.x,
+  z: c.z,
+  radius: c.radius,
+  height: c.height,
+}))
+
+const SKATE_BOX_OBS: BoxObstacle[] = [
+  ...SKATE_BARRIERS.map((b) => ({
+    x: b.x,
+    z: b.z,
+    halfW: b.w * 0.5,
+    halfD: b.d * 0.5,
+    y0: 0,
+    height: b.h,
+  })),
+  ...SKATE_BOXES.map((b) => ({
+    x: b.x,
+    z: b.z,
+    halfW: b.w * 0.5,
+    halfD: b.d * 0.5,
+    y0: 0,
+    height: b.h,
+  })),
+  ...SKATE_RAILS.map((r) => ({
+    x: r.x,
+    z: r.z,
+    halfW: 0.14,
+    halfD: r.length * 0.5,
+    y0: 0,
+    height: r.height,
+  })),
+]
+
 export function getCylinderObstacles(biome: Biome): Obstacle[] {
   if (biome === 'mountains') return MOUNTAIN_SCENERY
+  if (biome === 'skatepath') return SKATE_CYLINDERS
   return []
 }
 
 export function getBoxObstacles(biome: Biome): BoxObstacle[] {
   if (biome === 'beach') return [...BEACH_HUTS, ...BEACH_CLIFFS]
   if (biome === 'mountains') return MOUNTAIN_CABINS
+  if (biome === 'skatepath') return SKATE_BOX_OBS
   return []
 }
 

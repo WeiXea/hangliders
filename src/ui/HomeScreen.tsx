@@ -8,7 +8,7 @@ import type { Biome, GameMode } from '../types/game'
 import { APP_VERSION_LABEL } from '../version'
 import styles from './HomeScreen.module.css'
 
-const BIOMES: Biome[] = ['tankfarm', 'city', 'beach', 'mountains']
+const BIOMES: Biome[] = ['skatepath', 'tankfarm', 'city', 'beach', 'mountains']
 
 export function HomeScreen() {
   const biome = useGameStore((s) => s.biome)
@@ -220,12 +220,12 @@ export function HomeScreen() {
                     <button
                       key={b}
                       type="button"
-                      className={`${styles.biomeBtn} ${biome === b ? styles.biomeActive : ''} ${b === 'tankfarm' ? styles.biomeNew : ''}`}
+                      className={`${styles.biomeBtn} ${biome === b ? styles.biomeActive : ''} ${b === 'skatepath' ? styles.biomeNew : ''}`}
                       onClick={() => setBiome(b)}
                     >
                       <span className={styles.biomeName}>
                         {cfg.name}
-                        {b === 'tankfarm' ? ' · NEW' : ''}
+                        {b === 'skatepath' ? ' · NEW' : ''}
                       </span>
                       <span className={styles.biomeTag}>{cfg.tagline}</span>
                     </button>
@@ -309,6 +309,12 @@ export function HomeScreen() {
               <p className={styles.cityExploreHint}>
                 <b>Tank Farm</b> — Free Flight starts walking in the yard. WASD between tanks; mount a
                 glider to fly.
+              </p>
+            )}
+            {biome === 'skatepath' && (
+              <p className={styles.cityExploreHint}>
+                <b>Skate Path</b> — Free Flight starts on a long boardwalk. Weave cones, barriers, and
+                funboxes; mount a glider to fly the course.
               </p>
             )}
           </>

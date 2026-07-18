@@ -52,6 +52,14 @@ export function getThermals(biomeId: string): Thermal[] {
       { x: 110, z: 210, radius: 36, strength: 3.5, y0: 15, y1: 125 },
     ]
   }
+  if (biomeId === 'skatepath') {
+    return [
+      { x: 8, z: 60, radius: 22, strength: 2.4, y0: 8, y1: 70 },
+      { x: -6, z: 150, radius: 24, strength: 2.6, y0: 10, y1: 80 },
+      { x: 10, z: 250, radius: 26, strength: 2.8, y0: 10, y1: 85 },
+      { x: 0, z: 340, radius: 28, strength: 2.5, y0: 8, y1: 75 },
+    ]
+  }
   // beach — coastal thermals off cliffs/dunes
   return [
     { x: 20, z: 50, radius: 34, strength: 3.2, y0: 12, y1: 105 },

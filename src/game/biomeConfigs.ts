@@ -81,6 +81,26 @@ function tankfarmHeight(x: number, z: number): number {
   return 2.2 + und
 }
 
+/** Long skateboard path along +Z with soft dirt shoulders. */
+function skatepathHeight(x: number, z: number): number {
+  const und =
+    Math.sin(x * 0.03) * Math.cos(z * 0.02) * 0.35 +
+    Math.sin(x * 0.08 + z * 0.05) * 0.12
+  const dirt = 0.85 + und
+  const onPath = Math.abs(x) < 7.2 && z > -10 && z < 422
+  if (onPath) {
+    const crown = (1 - Math.min(1, Math.abs(x) / 7.2)) * 0.06
+    return 2.05 + crown
+  }
+  // Soft bank into the deck
+  const edge = Math.abs(x) - 7.2
+  if (edge < 4 && z > -10 && z < 422) {
+    const t = Math.max(0, 1 - edge / 4)
+    return lerp(dirt, 2.05, t * t)
+  }
+  return dirt
+}
+
 function moonHeight(x: number, z: number): number {
   const crater = Math.max(0, 1 - Math.hypot(x * 0.08, z * 0.08)) * -3
   const ripples = Math.sin(x * 0.15) * Math.cos(z * 0.13) * 1.2
@@ -246,6 +266,34 @@ export const BIOME_CONFIGS: Record<string, BiomeConfig> = {
     parkedGliders: [
       { x: -12, z: 28, yaw: 0.3 },
       { x: 18, z: 55, yaw: -0.4 },
+    ],
+  },
+  skatepath: {
+    id: 'skatepath',
+    name: 'Skate Path',
+    tagline: 'Long boardwalk with obstacles',
+    launchPosition: { x: 0, y: 0, z: 6 },
+    launchYaw: 0,
+    windStrength: 0.4,
+    thermalStrength: 0.35,
+    fogColor: '#9ab0c4',
+    fogNear: 120,
+    fogFar: 560,
+    skyTurbidity: 4,
+    skyRayleigh: 1.1,
+    sunPosition: [70, 85, 30],
+    getHeight: skatepathHeight,
+    challengeRings: [
+      { x: 0, y: 18, z: 80 },
+      { x: 2, y: 22, z: 160 },
+      { x: -2, y: 20, z: 240 },
+      { x: 0, y: 24, z: 320 },
+      { x: 0, y: 20, z: 390 },
+    ],
+    landingZone: { center: { x: 0, y: 0, z: 400 }, radius: 28 },
+    parkedGliders: [
+      { x: -4, z: 4, yaw: 0.15 },
+      { x: 4.5, z: 10, yaw: -0.2 },
     ],
   },
 }

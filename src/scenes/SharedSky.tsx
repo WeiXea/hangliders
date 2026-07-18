@@ -119,7 +119,7 @@ export function FlightPostFX() {
   }
   // City: skip post entirely. Tank farm: light vignette only.
   if (biome === 'city') return null
-  if (biome === 'tankfarm') {
+  if (biome === 'tankfarm' || biome === 'skatepath') {
     return (
       <EffectComposer multisampling={0}>
         <Vignette offset={0.28} darkness={0.3} />

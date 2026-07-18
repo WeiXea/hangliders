@@ -89,6 +89,7 @@ export const MAP_REGIONS: {
   { id: 'city', label: 'City', x: 48, y: 38, w: 46, h: 40, color: '#e9c46a' },
   { id: 'moon', label: 'Moon', x: 72, y: 6, w: 26, h: 22, color: '#adb5bd' },
   { id: 'tankfarm', label: 'Tank Farm', x: 6, y: 6, w: 20, h: 22, color: '#8a8478' },
+  { id: 'skatepath', label: 'Skate Path', x: 28, y: 78, w: 40, h: 16, color: '#6a7068' },
 ]
 
 export const MAP_POIS: {
@@ -111,4 +112,6 @@ export const MAP_POIS: {
   { biome: 'mountains', label: 'Peaks', u: 50, v: 40 },
   { biome: 'moon', label: 'Landing Site', u: 50, v: 52 },
   { biome: 'tankfarm', label: 'Yard Launch', u: 45, v: 55 },
+  { biome: 'skatepath', label: 'Path Start', u: 20, v: 50 },
+  { biome: 'skatepath', label: 'Far End', u: 85, v: 50 },
 ]

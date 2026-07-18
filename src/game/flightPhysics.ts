@@ -23,6 +23,7 @@ import {
 } from './obstacles'
 import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos, interiorEntryPos, nearestElevatorBuilding, elevatorStreetPos, elevatorRoofPos, CITY_STREET_DECK } from './cityBuildings'
 import { resolveTankfarmPush, sampleTankfarmSupport } from './tankfarmWorld'
+import { resolveSkatepathPush, sampleSkatepathSupport } from './skatepathWorld'
 import { sampleRocketLaunchSupport } from './rocketPad'
 import {
   clampInTunnel,
@@ -209,6 +210,10 @@ function supportY(
 ): { y: number; onRoof: boolean } {
   if (config.id === 'tankfarm') {
     const s = sampleTankfarmSupport(x, z, config.getHeight)
+    return { y: s.y, onRoof: s.onDeck }
+  }
+  if (config.id === 'skatepath') {
+    const s = sampleSkatepathSupport(x, z, config.getHeight)
     return { y: s.y, onRoof: s.onDeck }
   }
   if (config.id !== 'city') {
@@ -665,6 +670,10 @@ export function tickFlight(
         next.position.z = garagePush.z
       } else if (config.id === 'tankfarm') {
         const pushed = resolveTankfarmPush(next.position, config.getHeight, 0.45)
+        next.position.x = pushed.x
+        next.position.z = pushed.z
+      } else if (config.id === 'skatepath') {
+        const pushed = resolveSkatepathPush(next.position, config.getHeight, 0.45)
         next.position.x = pushed.x
         next.position.z = pushed.z
       }

@@ -13,6 +13,7 @@ import { MountainScene } from '../scenes/MountainScene'
 import { CityScene } from '../scenes/CityScene'
 import { MoonScene } from '../scenes/MoonScene'
 import { TankFarmScene } from '../scenes/TankFarmScene'
+import { SkatepathScene } from '../scenes/SkatepathScene'
 import { ChallengeRings, LandingZone } from '../scenes/ChallengeObjects'
 import { FlightPostFX } from '../scenes/SharedSky'
 import { ThermalMarkers } from '../scenes/ThermalMarkers'
@@ -33,6 +34,8 @@ function BiomeWorld() {
       return <MoonScene config={config} />
     case 'tankfarm':
       return <TankFarmScene config={config} />
+    case 'skatepath':
+      return <SkatepathScene config={config} />
     default:
       return <BeachScene config={config} />
   }
@@ -52,7 +55,7 @@ export function GameCanvas() {
       ? flight.position.z - 18
       : config.launchPosition.z - 15
 
-  const liteGpu = biome === 'city' || biome === 'tankfarm'
+  const liteGpu = biome === 'city' || biome === 'tankfarm' || biome === 'skatepath'
 
   return (
     <Canvas
@@ -70,7 +73,13 @@ export function GameCanvas() {
         powerPreference: 'high-performance',
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure:
-          biome === 'moon' ? 0.85 : biome === 'city' ? 1.28 : biome === 'tankfarm' ? 1.15 : 1.05,
+          biome === 'moon'
+            ? 0.85
+            : biome === 'city'
+              ? 1.28
+              : biome === 'tankfarm' || biome === 'skatepath'
+                ? 1.15
+                : 1.05,
         stencil: false,
       }}
       performance={{ min: liteGpu ? 0.35 : 0.5 }}

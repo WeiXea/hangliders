@@ -50,7 +50,7 @@ function SkateDeck({ asphalt }: { asphalt: TankfarmSurfaces['asphalt'] }) {
       <mesh
         receiveShadow
         castShadow
-        position={[0, PATH_DECK_Y, midZ]}
+        position={[0, PATH_DECK_Y - 0.175, midZ]}
       >
         <boxGeometry args={[width, 0.35, length]} />
         <meshStandardMaterial
@@ -68,7 +68,7 @@ function SkateDeck({ asphalt }: { asphalt: TankfarmSurfaces['asphalt'] }) {
       {Array.from({ length: 42 }, (_, i) => {
         const z = PATH_Z0 + 12 + i * 10
         return (
-          <mesh key={i} position={[0, PATH_DECK_Y + 0.19, z]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh key={i} position={[0, PATH_DECK_Y + 0.02, z]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[0.22, 3.2]} />
             <meshStandardMaterial color="#e8e0a8" roughness={0.85} metalness={0} />
           </mesh>
@@ -78,7 +78,7 @@ function SkateDeck({ asphalt }: { asphalt: TankfarmSurfaces['asphalt'] }) {
       {([-1, 1] as const).map((s) => (
         <mesh
           key={s}
-          position={[s * (PATH_HALF_W - 0.35), PATH_DECK_Y + 0.19, midZ]}
+          position={[s * (PATH_HALF_W - 0.35), PATH_DECK_Y + 0.02, midZ]}
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <planeGeometry args={[0.18, length - 4]} />

@@ -9,6 +9,7 @@ const HDRI: Record<Biome, string> = {
   city: '/env/city_1k.hdr',
   moon: '/env/mountains_1k.hdr',
   tankfarm: '/env/tankfarm_1k.hdr',
+  skatepath: '/env/city_1k.hdr',
 }
 
 export function biomeHdriPath(biome: Biome): string {
@@ -83,7 +84,7 @@ export function useGroundMaps(biome: Biome): GroundMaps {
       repeat = 22
       roughness = 0.92
       normalScale = new THREE.Vector2(1.2, 1.2)
-    } else if (biome === 'tankfarm') {
+    } else if (biome === 'tankfarm' || biome === 'skatepath') {
       map = maps.concreteDiff
       normalMap = maps.concreteNor
       roughnessMap = maps.concreteRough

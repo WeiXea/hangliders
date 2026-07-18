@@ -324,6 +324,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       travelBanner = 'Tank Farm — walk the yard between tanks · mount a glider to fly'
     }
+    if (biome === 'skatepath' && mode === 'free') {
+      const x = config.launchPosition.x
+      const z = config.launchPosition.z
+      const y = config.getHeight(x, z) + WALK_FEET
+      flight = {
+        ...flight,
+        phase: 'walking',
+        position: { x, y, z },
+        yaw: config.launchYaw,
+        altitude: 0,
+        airspeed: 0,
+        velocity: { x: 0, y: 0, z: 0 },
+      }
+      travelBanner = 'Skate Path — walk the long boardwalk · weave obstacles · mount a glider to fly'
+    }
     if (biome === 'city') {
       if (mode === 'free') {
         const x = config.launchPosition.x
