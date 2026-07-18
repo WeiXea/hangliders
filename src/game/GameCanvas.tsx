@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
+import { AdaptiveDpr } from '@react-three/drei'
 import * as THREE from 'three'
 import { useGameStore } from './gameStore'
 import { BIOME_CONFIGS } from './biomeConfigs'
@@ -76,11 +77,12 @@ export function GameCanvas() {
       style={{ width: '100%', height: '100%' }}
     >
       <color attach="background" args={[biome === 'moon' ? '#000004' : '#87b8e8']} />
+      {liteGpu && <AdaptiveDpr pixelated />}
       <Suspense fallback={null}>
         <BiomeWorld />
         <HangGlider />
         <RemotePlayer />
-        <ParkedGliders />
+        {biome !== 'city' && <ParkedGliders />}
         {biome !== 'city' && (
           <>
             <ChallengeRings />

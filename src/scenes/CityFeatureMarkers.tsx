@@ -198,7 +198,7 @@ function RoadUnderpass({
   const deckTop = streetY + 0.35
 
   const floorGeo = useMemo(() => {
-    const segs = 24
+    const segs = 8
     const geo = new THREE.PlaneGeometry(w, len, 1, segs)
     geo.rotateX(-Math.PI / 2)
     const pos = geo.attributes.position
@@ -256,57 +256,18 @@ function RoadUnderpass({
         </mesh>
       ))}
 
-      {/* Structural ribs */}
-      {Array.from({ length: 7 }, (_, i) => {
-        const oz = -len * 0.4 + (i * len * 0.8) / 6
-        return (
-          <mesh key={`rib-${i}`} position={[0, -dip + clearH * 0.55, oz]}>
-            <boxGeometry args={[w + wallT * 2.2, 0.35, 0.45]} />
-            <meshStandardMaterial
-              map={urban.plate.map}
-              metalnessMap={urban.plate.metalnessMap}
-              color="#4a4842"
-              roughness={0.45}
-              metalness={0.85}
-            />
-          </mesh>
-        )
-      })}
-
       {/* Overpass deck — street continues on top */}
-      <mesh castShadow receiveShadow position={[0, deckTop - streetY, 0]}>
+      <mesh position={[0, deckTop - streetY, 0]}>
         <boxGeometry args={[w + wallT * 2.5, 0.55, len]} />
-        <meshStandardMaterial
-          map={urban.asphalt.map}
-          color="#4a4e54"
-          roughness={0.92}
-          metalness={0.05}
-        />
+        <meshStandardMaterial color="#4a4e54" roughness={0.92} metalness={0.05} />
       </mesh>
-      {/* Deck edge railings */}
+      {/* Two light strips */}
       {([-1, 1] as const).map((s) => (
-        <mesh key={`rail-${s}`} position={[s * (w * 0.5 + 0.9), deckTop - streetY + 0.55, 0]}>
-          <boxGeometry args={[0.18, 0.9, len]} />
-          <meshStandardMaterial
-            map={urban.plate.map}
-            metalnessMap={urban.plate.metalnessMap}
-            color="#3a3832"
-            roughness={0.4}
-            metalness={0.9}
-          />
+        <mesh key={`lamp-${s}`} position={[0, -dip + clearH - 0.35, s * len * 0.22]}>
+          <boxGeometry args={[w * 0.5, 0.08, 1.6]} />
+          <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={1.4} />
         </mesh>
       ))}
-
-      {/* Fluorescent strips (emissive only — no point lights) */}
-      {Array.from({ length: 5 }, (_, i) => {
-        const oz = -len * 0.35 + (i * len * 0.7) / 4
-        return (
-          <mesh key={`lamp-${i}`} position={[0, -dip + clearH - 0.35, oz]}>
-            <boxGeometry args={[w * 0.5, 0.08, 1.6]} />
-            <meshStandardMaterial color="#fff8e7" emissive="#ffe8a3" emissiveIntensity={1.6} />
-          </mesh>
-        )
-      })}
 
       {/* Portal mouths */}
       {([-1, 1] as const).map((s) => (
@@ -355,7 +316,6 @@ function RoadUnderpass({
           </Suspense>
         </group>
       ))}
-      <PulseBeacon color="#ffd60a" height={9} />
     </group>
   )
 }

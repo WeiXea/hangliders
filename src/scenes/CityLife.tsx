@@ -40,16 +40,14 @@ type Lane = {
 }
 
 /** Lanes sit in the real 22m street grid (not through buildings). */
-/** Fewer NPC cars = smoother city. Keep lanes that hit both underpasses. */
+/** Keep underpass traffic; drop the rest for FPS. */
 const LANES: Lane[] = [
-  { axis: 'x', fixed: 44, min: -40, max: 220, dir: 1, speed: 14, kind: 'bus', offset: 80 },
   /** Midtown Underpass (z=66) */
   { axis: 'x', fixed: 66, min: -50, max: 230, dir: -1, speed: 18, kind: 'police', offset: 20 },
   { axis: 'x', fixed: 110, min: -50, max: 230, dir: -1, speed: 16, kind: 'taxi', offset: 60 },
   /** Central Underpass (x=44) */
   { axis: 'z', fixed: 44, min: -10, max: 200, dir: 1, speed: 15, kind: 'car', offset: 55, color: '#6a994e' },
-  { axis: 'z', fixed: 110, min: -10, max: 200, dir: 1, speed: 14, kind: 'taxi', offset: 110 },
-  { axis: 'z', fixed: 154, min: 0, max: 185, dir: 1, speed: 12, kind: 'fire', offset: 25 },
+  { axis: 'z', fixed: 110, min: -10, max: 200, dir: 1, speed: 14, kind: 'car', offset: 110, color: '#457b9d' },
 ]
 
 const LANE_HALF_WIDTH = 5.5
@@ -692,7 +690,7 @@ function TrafficLights() {
   )
 }
 
-/** Living city layer — traffic, pedestrians, rooftop pads, street furniture. */
+/** Living city layer — light traffic + a few boardable parked cars. */
 export function CityLife() {
   const biome = useGameStore((s) => s.biome)
   if (biome !== 'city') return null
@@ -700,9 +698,11 @@ export function CityLife() {
     <group>
       <TrafficLayer />
       <ParkedCarsLayer />
-      <PedestrianLayer />
       <RooftopPads />
-      <TrafficLights />
     </group>
   )
 }
+
+// Pedestrians / traffic-light meshes disabled for FPS (keep symbols so the file typechecks)
+void PedestrianLayer
+void TrafficLights
