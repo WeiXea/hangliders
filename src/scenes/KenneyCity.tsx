@@ -2,16 +2,12 @@ import { Suspense, useMemo, type ReactElement } from 'react'
 import { Text, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { CITY_BUILDINGS, buildingDepth, type CityBuilding } from '../game/cityBuildings'
-import { inRoadTunnel } from '../game/cityRoadTunnels'
 import { CITY_BUILDING_HEIGHT_BIAS } from '../game/cityScale'
 import { useCityUrbanMaps } from '../game/cityUrbanMats'
 
-const ROAD = '/models/kenney/roads'
 const COMM = '/models/kenney/commercial'
 const RETRO = '/models/kenney/retro'
-
-/** Kenney City Kit tiles are ~1×1 units; our street cells are 11 m wide. */
-const TILE = 11
+const ROAD = '/models/kenney/roads'
 
 function KenneyModel({
   url,
@@ -145,119 +141,6 @@ function KenneyBuilding({
   )
 }
 
-function KenneyRoads({ getHeight }: { getHeight: (x: number, z: number) => number }) {
-  const tiles = useMemo(() => {
-    const result: ReactElement[] = []
-    const xs: number[] = []
-    const zs: number[] = []
-    for (let x = -44; x <= 220; x += 22) xs.push(x)
-    for (let z = 0; z <= 198; z += 22) zs.push(z)
-
-    const xSet = new Set(xs)
-    const zSet = new Set(zs)
-
-    // Intersections (skip underpass footprints — dipped tunnels own that asphalt)
-    for (const x of xs) {
-      for (const z of zs) {
-        if (x < -40 || x > 210 || z < 0 || z > 180) continue
-        if (inRoadTunnel(x, z)) continue
-        const y = getHeight(x, z) + 0.02
-        const url =
-          (x + z) % 44 === 0
-            ? `${ROAD}/road-crossroad-line.glb`
-            : `${ROAD}/road-intersection.glb`
-        result.push(
-          <KenneyModel
-            key={`ix-${x}-${z}`}
-            url={url}
-            position={[x, y, z]}
-            scale={TILE}
-            shadows={false}
-          />,
-        )
-      }
-    }
-
-    // Horizontal straights between intersections (along +X)
-    for (const z of zs) {
-      for (let i = 0; i < xs.length - 1; i++) {
-        const x0 = xs[i]!
-        const x1 = xs[i + 1]!
-        const mid = (x0 + x1) / 2
-        if (inRoadTunnel(mid, z)) continue
-        const y = getHeight(mid, z) + 0.02
-        result.push(
-          <KenneyModel
-            key={`h-${mid}-${z}`}
-            url={`${ROAD}/road-straight.glb`}
-            position={[mid, y, z]}
-            rotation={[0, Math.PI / 2, 0]}
-            scale={TILE}
-            shadows={false}
-          />,
-        )
-      }
-    }
-
-    // Vertical straights between intersections (along +Z)
-    for (const x of xs) {
-      for (let i = 0; i < zs.length - 1; i++) {
-        const z0 = zs[i]!
-        const z1 = zs[i + 1]!
-        const mid = (z0 + z1) / 2
-        if (zSet.has(mid) && xSet.has(x)) continue
-        if (inRoadTunnel(x, mid)) continue
-        const y = getHeight(x, mid) + 0.02
-        result.push(
-          <KenneyModel
-            key={`v-${x}-${mid}`}
-            url={`${ROAD}/road-straight.glb`}
-            position={[x, y, mid]}
-            rotation={[0, 0, 0]}
-            scale={TILE}
-            shadows={false}
-          />,
-        )
-      }
-    }
-
-    // A few crossings / light posts for polish
-    const hubs = [
-      [44, 44],
-      [66, 66],
-      [110, 66],
-      [44, 110],
-      [110, 110],
-    ] as const
-    for (const [x, z] of hubs) {
-      if (inRoadTunnel(x, z)) continue
-      const y = getHeight(x, z)
-      result.push(
-        <KenneyModel
-          key={`cross-${x}-${z}`}
-          url={`${ROAD}/road-crossing.glb`}
-          position={[x, y + 0.03, z + 4]}
-          scale={TILE * 0.55}
-          shadows={false}
-        />,
-      )
-      result.push(
-        <KenneyModel
-          key={`lamp-${x}-${z}`}
-          url={`${ROAD}/light-curved.glb`}
-          position={[x + 5.5, y, z + 5.5]}
-          scale={1.4}
-          shadows={false}
-        />,
-      )
-    }
-
-    return result
-  }, [getHeight])
-
-  return <group>{tiles}</group>
-}
-
 function KenneyProps({ getHeight }: { getHeight: (x: number, z: number) => number }) {
   const props = useMemo(() => {
     const items: ReactElement[] = []
@@ -342,9 +225,4 @@ export function KenneyCity({ getHeight }: { getHeight: (x: number, z: number) =>
 export function preloadKenneyCity() {
   for (const u of BUILDING_MODELS) useGLTF.preload(u)
   for (const u of SKY_MODELS) useGLTF.preload(u)
-  useGLTF.preload(`${ROAD}/road-straight.glb`)
-  useGLTF.preload(`${ROAD}/road-intersection.glb`)
-  useGLTF.preload(`${ROAD}/road-crossroad-line.glb`)
-  useGLTF.preload(`${ROAD}/road-crossing.glb`)
-  useGLTF.preload(`${ROAD}/light-curved.glb`)
 }
