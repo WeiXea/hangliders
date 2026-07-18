@@ -37,6 +37,7 @@ export type FlightPhase =
   | 'rocket'
   | 'rocketCapsule'
   | 'driving'
+  | 'skating'
   | 'freefall'
   | 'parachuting'
   | 'walking'
@@ -113,6 +114,8 @@ export interface FlightState {
   /** City traffic vehicle currently driven (-1 = none) */
   vehicleId: number
   vehicleKind: VehicleKind | null
+  /** Skate Path board currently ridden (-1 = none) */
+  skateboardId: number
   /** Active rocket mission script (null outside rocket flow) */
   rocketMission: RocketMission | null
 }
@@ -223,6 +226,7 @@ export const INITIAL_FLIGHT: FlightState = {
   jetVtol: false,
   vehicleId: -1,
   vehicleKind: null,
+  skateboardId: -1,
   rocketMission: null,
 }
 

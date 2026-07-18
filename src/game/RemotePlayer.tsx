@@ -9,6 +9,8 @@ import { AnimatedPilot, ParachuteCanopy, PILOT_HIP } from './Pilot'
 import { VehicleMesh } from '../scenes/CityLife'
 import { predictedRemote } from './remoteSmooth'
 import { getTrafficSnapshots } from './trafficRegistry'
+import { SkateboardModel } from './SkateboardModel'
+import { skateboardColor } from './skateboardRegistry'
 
 /** Ghosted second player. Hidden while riding tandem together. */
 export function RemotePlayer() {
@@ -34,6 +36,7 @@ export function RemotePlayer() {
   const remoteVy = useGameStore((s) => s.remoteFlight?.velocity.y ?? 0)
   const remoteVehicleKind = useGameStore((s) => s.remoteFlight?.vehicleKind ?? null)
   const remoteVehicleId = useGameStore((s) => s.remoteFlight?.vehicleId ?? -1)
+  const remoteSkateId = useGameStore((s) => s.remoteFlight?.skateboardId ?? -1)
 
   useFrame((_, dt) => {
     if (!group.current || !body.current) return
@@ -58,11 +61,12 @@ export function RemotePlayer() {
       remote.phase === 'grounded' ||
       remote.phase === 'running' ||
       remote.phase === 'landed' ||
-      remote.phase === 'walking'
+      remote.phase === 'walking' ||
+      remote.phase === 'skating'
     body.current.rotation.set(
-      onFoot ? 0 : -d.pitch * 0.8,
+      onFoot && remote.phase !== 'skating' ? 0 : -d.pitch * 0.8,
       0,
-      onFoot ? 0 : -d.roll,
+      onFoot && remote.phase !== 'skating' ? 0 : -d.roll,
     )
   })
 
@@ -75,6 +79,7 @@ export function RemotePlayer() {
   const showHeli = phase === 'helicopter'
   const showJet = phase === 'jet'
   const showDrive = phase === 'driving'
+  const showSkate = phase === 'skating'
   const offGlider = phase === 'walking' || phase === 'freefall' || phase === 'parachuting'
   const showChute = phase === 'parachuting'
   const remoteMode =
@@ -91,6 +96,7 @@ export function RemotePlayer() {
     remoteVehicleId >= 0
       ? getTrafficSnapshots().find((v) => v.id === remoteVehicleId)?.color
       : undefined
+  const boardColor = remoteSkateId >= 0 ? skateboardColor(remoteSkateId) : '#2a4a6a'
 
   return (
     <group ref={group}>
@@ -98,6 +104,14 @@ export function RemotePlayer() {
         {showDrive && (
           <group>
             <VehicleMesh kind={driveKind} color={driveColor} />
+          </group>
+        )}
+        {showSkate && (
+          <group>
+            <SkateboardModel color={boardColor} />
+            <group position={[0, 0.04, 0]}>
+              <AnimatedPilot mode="stand" suitColor="#3d5a80" motionSpeed={0} />
+            </group>
           </group>
         )}
         {showJet && (

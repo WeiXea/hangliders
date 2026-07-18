@@ -9,6 +9,7 @@ import {
 } from '../game/controls'
 import { nearestMountable } from '../game/flightPhysics'
 import { nearestTrafficVehicle } from '../game/trafficRegistry'
+import { nearestSkateboard } from '../game/skateboardRegistry'
 import { VEHICLE_BOARD_RANGE } from '../types/game'
 import { canSocialEmote } from '../game/multiplayerSocial'
 import { canOfferTandem, tandemButtonLabel } from '../game/tandem'
@@ -165,7 +166,9 @@ export function FlightHUD() {
   const rocketAltM = rocketMission?.displayAltM ?? flight.altitude
   const rocketEta = rocketMissionEtaSec(rocketMission)
   const driving = flight.phase === 'driving'
+  const skating = flight.phase === 'skating'
   const canUnmount = onGround && flight.airspeed < 3.2
+  const canDismountSkate = skating && Math.abs(flight.airspeed) < 1.4 && flight.altitude < 0.15
   const jetCanExit = jet && flight.altitude < 0.4 && flight.airspeed < 3.5
   const rocketCanExit =
     (flight.phase === 'rocket' || flight.phase === 'rocketCapsule') &&
@@ -245,6 +248,10 @@ export function FlightHUD() {
     walking &&
     biome === 'city' &&
     nearestTrafficVehicle(flight.position.x, flight.position.z, VEHICLE_BOARD_RANGE)
+  const nearSkate =
+    walking &&
+    biome === 'skatepath' &&
+    nearestSkateboard(flight.position.x, flight.position.z, 5.5)
   const padGroundY = config.getHeight(ROCKET_PAD.x, ROCKET_PAD.z)
   const nearRocketTower =
     walking &&
@@ -358,7 +365,15 @@ export function FlightHUD() {
   }
 
   const showSteerPads =
-    !tiltEnabled || walking || driving || freefall || parachuting || heli || jet || rocket
+    !tiltEnabled ||
+    walking ||
+    driving ||
+    skating ||
+    freefall ||
+    parachuting ||
+    heli ||
+    jet ||
+    rocket
 
   return (
     <div className={styles.hud}>
@@ -578,6 +593,12 @@ export function FlightHUD() {
         </div>
       )}
 
+      {skating && (
+        <div className={styles.coach}>
+          Skate · ↑ push · ↓ brake · A/D carve · Space ollie · E hop off when slow
+        </div>
+      )}
+
       {flying && !canJump && flight.altitude >= 10 && (
         <div className={styles.coach}>
           Climb to {JUMP_MIN_ALTITUDE}m to jump — Alt {Math.round(flight.altitude)}m
@@ -642,11 +663,28 @@ export function FlightHUD() {
       {walking &&
         !nearMount &&
         !nearVehicle &&
+        !nearSkate &&
+        !nearDoor &&
+        !nearElev &&
+        !inside &&
+        !onRoof &&
+        biome === 'skatepath' &&
+        flight.landAction === 'none' && (
+        <div className={styles.coach}>
+          Green rings mark skateboards — press E to ride · weave the path · Shift sprint on foot
+        </div>
+      )}
+
+      {walking &&
+        !nearMount &&
+        !nearVehicle &&
+        !nearSkate &&
         !nearDoor &&
         !nearElev &&
         !inside &&
         !onRoof &&
         biome !== 'city' &&
+        biome !== 'skatepath' &&
         flight.landAction === 'none' && (
         <div className={styles.coach}>
           Green-ring cars · gold-ring F-35 at Skyline Municipal (west) · Shift to sprint
@@ -689,6 +727,10 @@ export function FlightHUD() {
                 : 'Vehicle stopped — press E to hop in'
               : 'In its path — wait for it to stop, then press E'}
         </div>
+      )}
+
+      {walking && nearSkate && !nearMount && (
+        <div className={styles.nearGround}>Skateboard ready — press E to ride</div>
       )}
 
       {heli && (
@@ -960,8 +1002,12 @@ export function FlightHUD() {
             <ControlPad
               label="↑"
               sub={
-                walking || driving
-                  ? 'Fwd'
+                walking || driving || skating
+                  ? walking
+                    ? 'Fwd'
+                    : skating
+                      ? 'Push'
+                      : 'Fwd'
                   : jet
                     ? flight.jetVtol
                       ? 'Forward'
@@ -983,7 +1029,7 @@ export function FlightHUD() {
                 sub={
                   walking
                     ? 'Back'
-                    : driving
+                    : driving || skating
                       ? 'Brake'
                       : jet
                         ? flight.jetVtol
@@ -1061,10 +1107,18 @@ export function FlightHUD() {
                 </>
               )}
               <ControlPad
-                label={nearVehicle && !nearMount ? 'Drive' : 'Mount'}
-                sub={nearMount || nearVehicle ? 'Ready' : 'Near'}
+                label={
+                  nearSkate && !nearMount
+                    ? 'Ride'
+                    : nearVehicle && !nearMount
+                      ? 'Drive'
+                      : 'Mount'
+                }
+                sub={nearMount || nearVehicle || nearSkate ? 'Ready' : 'Near'}
                 action="interact"
-                className={nearMount || nearVehicle ? styles.padLand : styles.padAction}
+                className={
+                  nearMount || nearVehicle || nearSkate ? styles.padLand : styles.padAction
+                }
                 active={input.interact}
               />
               {flight.airtime >= 2.5 && (
@@ -1092,14 +1146,22 @@ export function FlightHUD() {
             <>
               <ControlPad
                 label="+"
-                sub={driving ? 'Gas' : jet ? 'Throttle' : 'Speed'}
+                sub={skating ? 'Push' : driving ? 'Gas' : jet ? 'Throttle' : 'Speed'}
                 action="speedUp"
                 className={styles.padSpeed}
                 active={input.speedUp}
               />
               <ControlPad
                 label="−"
-                sub={driving ? 'Brake' : jet ? (flight.jetVtol ? 'Descend' : 'Cut') : 'Slow'}
+                sub={
+                  skating || driving
+                    ? 'Brake'
+                    : jet
+                      ? flight.jetVtol
+                        ? 'Descend'
+                        : 'Cut'
+                      : 'Slow'
+                }
                 action="speedDown"
                 className={styles.padSpeed}
                 active={input.speedDown}
@@ -1108,6 +1170,9 @@ export function FlightHUD() {
           )}
           {walking && (
             <ControlPad label="Sprint" sub="Shift" action="speedUp" className={styles.padSpeed} active={input.speedUp} />
+          )}
+          {skating && (
+            <ControlPad label="Ollie" sub="Space" action="jump" className={styles.padAction} active={input.jump} />
           )}
           {jet && (
             <button
@@ -1135,9 +1200,11 @@ export function FlightHUD() {
           {jetCanEject && (
             <ControlPad label="Eject" sub="Space" action="jump" className={styles.padAction} active={input.jump} />
           )}
-          {(driving || canUnmount || jetCanExit || rocketCanExit) && (
+          {(driving || canDismountSkate || canUnmount || jetCanExit || rocketCanExit) && (
             <ControlPad
-              label={driving ? 'Exit' : jet || rocketCanExit ? 'Exit' : 'Unmount'}
+              label={
+                skating || driving || jet || rocketCanExit ? 'Exit' : 'Unmount'
+              }
               sub="E"
               action="interact"
               className={styles.padLand}

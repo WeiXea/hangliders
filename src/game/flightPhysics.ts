@@ -24,6 +24,11 @@ import {
 import { resolveBuildingPush, sampleCitySupport, nearestEnterableDoor, clampInsideBuilding, getBuildingById, doorWorldPos, interiorEntryPos, nearestElevatorBuilding, elevatorStreetPos, elevatorRoofPos, CITY_STREET_DECK } from './cityBuildings'
 import { resolveTankfarmPush, sampleTankfarmSupport } from './tankfarmWorld'
 import { resolveSkatepathPush, sampleSkatepathSupport } from './skatepathWorld'
+import {
+  leaveSkateboardInWorld,
+  nearestSkateboard,
+  setTakenSkateboardId,
+} from './skateboardRegistry'
 import { sampleRocketLaunchSupport } from './rocketPad'
 import {
   clampInTunnel,
@@ -143,9 +148,16 @@ export function createInitialFlight(config: BiomeConfig): FlightState {
     jetVtol: false,
     vehicleId: -1,
     vehicleKind: null,
+    skateboardId: -1,
     rocketMission: null,
   }
 }
+
+const SKATE_MAX_SPEED = 15
+const SKATE_ACCEL = 11
+const SKATE_BRAKE = 16
+const SKATE_DECK = 0.16
+const SKATE_BOARD_RANGE = 5.5
 
 export function initParkedGliders(config: BiomeConfig): ParkedGlider[] {
   return config.parkedGliders.map((g, i) => ({
@@ -167,7 +179,8 @@ function collideWorld(next: FlightState, config: BiomeConfig): FlightState {
     next.phase === 'crashed' ||
     next.phase === 'grounded' ||
     next.phase === 'running' ||
-    next.phase === 'driving'
+    next.phase === 'driving' ||
+    next.phase === 'skating'
   ) {
     return next
   }
@@ -282,11 +295,13 @@ function beginLanded(next: FlightState, config: BiomeConfig): FlightState {
     craftType: 'glider',
     vehicleId: -1,
     vehicleKind: null,
+    skateboardId: -1,
   }
 }
 
 export function beginWalking(next: FlightState, config: BiomeConfig): FlightState {
   setTakenVehicleId(-1)
+  setTakenSkateboardId(-1)
   const support = supportY(config, next.position.x, next.position.z)
   return {
     ...next,
@@ -315,7 +330,39 @@ export function beginWalking(next: FlightState, config: BiomeConfig): FlightStat
     jetVtol: false,
     vehicleId: -1,
     vehicleKind: null,
+    skateboardId: -1,
     rocketMission: null,
+  }
+}
+
+export function beginSkating(
+  next: FlightState,
+  config: BiomeConfig,
+  board: { id: number; x: number; z: number; yaw: number },
+): FlightState {
+  setTakenSkateboardId(board.id)
+  const gy = supportY(config, board.x, board.z).y
+  return {
+    ...next,
+    phase: 'skating',
+    skateboardId: board.id,
+    vehicleId: -1,
+    vehicleKind: null,
+    position: { x: board.x, y: gy + SKATE_DECK, z: board.z },
+    yaw: board.yaw,
+    pitch: 0,
+    roll: 0,
+    airspeed: 0,
+    velocity: { x: 0, y: 0, z: 0 },
+    altitude: 0,
+    mountedId: -1,
+    landAction: 'none',
+    interiorId: -1,
+    stallWarning: false,
+    craftType: 'glider',
+    chuteDeployed: false,
+    chuteInflation: 0,
+    chuteSwing: 0,
   }
 }
 
@@ -693,6 +740,18 @@ export function tickFlight(
     next.distance += next.airspeed * dt
 
     if (input.interact && next.interiorId < 0) {
+      if (config.id === 'skatepath') {
+        const board = nearestSkateboard(
+          next.position.x,
+          next.position.z,
+          SKATE_BOARD_RANGE,
+        )
+        if (board) {
+          next = beginSkating(next, config, board)
+          return { flight: next, parked }
+        }
+      }
+
       const hatchRocket =
         config.id === 'city' &&
         nearRocketHatch(
@@ -841,6 +900,105 @@ export function tickFlight(
           }
         }
       }
+    }
+
+    return { flight: next, parked }
+  }
+
+  // --- Skateboard on Skate Path ---
+  if (next.phase === 'skating') {
+    next.stallWarning = false
+    const steerScale = 1.55 / (1 + Math.abs(next.airspeed) * 0.07)
+    const steerInput = (input.bankLeft ? 1 : 0) + (input.bankRight ? -1 : 0)
+    if (steerInput !== 0) {
+      if (Math.abs(next.airspeed) > 0.2) {
+        next.yaw += steerInput * steerScale * Math.sign(next.airspeed) * dt
+      } else {
+        next.yaw += steerInput * 1.6 * dt
+      }
+    }
+
+    const gas = input.pitchDown || input.speedUp
+    const braking = input.pitchUp || input.speedDown
+    if (gas && !braking) {
+      if (next.airspeed >= -0.4) {
+        const pull =
+          SKATE_ACCEL * (1.2 - 0.4 * Math.min(1, Math.max(0, next.airspeed) / SKATE_MAX_SPEED))
+        next.airspeed = Math.min(SKATE_MAX_SPEED, next.airspeed + pull * dt)
+      } else {
+        next.airspeed = Math.min(0, next.airspeed + SKATE_BRAKE * dt)
+      }
+    } else if (braking) {
+      if (next.airspeed > 0.08) {
+        next.airspeed = Math.max(0, next.airspeed - SKATE_BRAKE * dt)
+      } else {
+        next.airspeed = Math.max(-SKATE_MAX_SPEED * 0.28, next.airspeed - SKATE_ACCEL * 0.55 * dt)
+      }
+    } else {
+      const drag = 0.7 + Math.abs(next.airspeed) * 0.08
+      if (next.airspeed > 0) next.airspeed = Math.max(0, next.airspeed - drag * dt)
+      else if (next.airspeed < 0) next.airspeed = Math.min(0, next.airspeed + drag * 1.1 * dt)
+      if (Math.abs(next.airspeed) < 0.12) next.airspeed = 0
+    }
+
+    next.velocity.x = Math.sin(next.yaw) * next.airspeed
+    next.velocity.z = Math.cos(next.yaw) * next.airspeed
+
+    support = supportY(config, next.position.x, next.position.z)
+    groundY = support.y
+    const onDeck = next.position.y <= groundY + SKATE_DECK + 0.12
+
+    if (onDeck && input.jump) {
+      next.velocity.y = 7.2
+      next.position.y = groundY + SKATE_DECK + 0.02
+    } else {
+      next.velocity.y -= GRAVITY * dt
+    }
+
+    next.position.x += next.velocity.x * dt
+    next.position.z += next.velocity.z * dt
+    next.position.y += next.velocity.y * dt
+
+    const pushed = resolveSkatepathPush(next.position, config.getHeight, 0.5)
+    next.position.x = pushed.x
+    next.position.z = pushed.z
+    const props = resolvePropPush(config.id, next.position, config.getHeight, 0.48)
+    next.position.x = props.x
+    next.position.z = props.z
+
+    support = supportY(config, next.position.x, next.position.z)
+    groundY = support.y
+    if (next.position.y <= groundY + SKATE_DECK) {
+      next.position.y = groundY + SKATE_DECK
+      if (next.velocity.y < 0) next.velocity.y = 0
+    }
+
+    next.altitude = Math.max(0, next.position.y - groundY - SKATE_DECK)
+    next.distance += Math.abs(next.airspeed) * dt
+    next.airtime += dt
+
+    const pitchTarget = braking && next.airspeed > 1 ? 0.1 : gas && next.airspeed > 1 ? -0.06 : 0
+    const rollTarget = steerInput * Math.min(0.22, Math.abs(next.airspeed) * 0.016)
+    next.pitch = lerp(next.pitch, pitchTarget, Math.min(1, 7 * dt))
+    next.roll = lerp(next.roll, rollTarget, Math.min(1, 8 * dt))
+
+    if (
+      Math.abs(next.airspeed) < 1.4 &&
+      next.altitude < 0.15 &&
+      (input.interact || input.land)
+    ) {
+      const leaveX = next.position.x
+      const leaveZ = next.position.z
+      const leaveYaw = next.yaw
+      const leaveId = next.skateboardId
+      if (leaveId >= 0) leaveSkateboardInWorld(leaveId, leaveX, leaveZ, leaveYaw)
+      setTakenSkateboardId(-1)
+      const exitYaw = leaveYaw + Math.PI * 0.5
+      next = beginWalking(next, config)
+      next.position.x = leaveX + Math.sin(exitYaw) * 1.4
+      next.position.z = leaveZ + Math.cos(exitYaw) * 1.4
+      next.position.y = supportY(config, next.position.x, next.position.z).y + WALK_FEET
+      return { flight: next, parked }
     }
 
     return { flight: next, parked }

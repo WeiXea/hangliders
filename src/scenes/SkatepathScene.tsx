@@ -1,8 +1,14 @@
-import { Suspense, useMemo } from 'react'
+import { Suspense, useMemo, useRef } from 'react'
 import { Environment } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { BiomeConfig } from '../types/game'
 import { useTankfarmSurfaces, type TankfarmSurfaces } from '../game/tankfarmPbr'
+import { SkateboardModel } from '../game/SkateboardModel'
+import {
+  getParkedSkateboards,
+  getTakenSkateboardId,
+} from '../game/skateboardRegistry'
 import {
   PATH_DECK_Y,
   PATH_HALF_W,
@@ -252,6 +258,47 @@ function SideRails({ getHeight }: { getHeight: (x: number, z: number) => number 
   )
 }
 
+function ParkedBoards({ getHeight }: { getHeight: (x: number, z: number) => number }) {
+  const group = useRef<THREE.Group>(null)
+  useFrame(() => {
+    if (!group.current) return
+    const taken = getTakenSkateboardId()
+    const list = getParkedSkateboards()
+    for (const child of group.current.children) {
+      const id = child.userData.boardId as number
+      const b = list.find((x) => x.id === id)
+      if (!b) {
+        child.visible = false
+        continue
+      }
+      child.visible = id !== taken
+      const gy = getHeight(b.x, b.z)
+      child.position.set(b.x, gy + 0.16, b.z)
+      child.rotation.y = b.yaw
+    }
+  })
+  return (
+    <group ref={group}>
+      {getParkedSkateboards().map((b) => (
+        <group key={b.id} userData={{ boardId: b.id }}>
+          <SkateboardModel color={b.color} />
+          {/* Soft mount ring */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.12, 0]}>
+            <ringGeometry args={[0.55, 0.72, 24]} />
+            <meshStandardMaterial
+              color="#40e0a0"
+              transparent
+              opacity={0.55}
+              roughness={0.8}
+              metalness={0.1}
+            />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  )
+}
+
 function SkateYard({ getHeight }: { getHeight: (x: number, z: number) => number }) {
   const surfaces = useTankfarmSurfaces()
   return (
@@ -259,6 +306,7 @@ function SkateYard({ getHeight }: { getHeight: (x: number, z: number) => number 
       <DirtGround getHeight={getHeight} />
       <SkateDeck asphalt={surfaces.asphalt} />
       <SideRails getHeight={getHeight} />
+      <ParkedBoards getHeight={getHeight} />
       {SKATE_CONES.map((c) => (
         <Cone key={c.id} cone={c} groundY={getHeight(c.x, c.z)} />
       ))}

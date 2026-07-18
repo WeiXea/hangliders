@@ -15,10 +15,12 @@ import type {
 import { INITIAL_FLIGHT, INITIAL_INPUT, WALK_FEET } from '../types/game'
 import { BIOME_CONFIGS } from './biomeConfigs'
 import {
+  beginSkating,
   createInitialFlight,
   getLandingQuality,
   initParkedGliders,
 } from './flightPhysics'
+import { getParkedSkateboards, resetSkateboards } from './skateboardRegistry'
 import { buildChallengeRings } from './challengeCourse'
 import { buildXCTask, type XCTask } from './xcTask'
 import { playRingSound } from './audio'
@@ -325,19 +327,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
       travelBanner = 'Tank Farm — walk the yard between tanks · mount a glider to fly'
     }
     if (biome === 'skatepath' && mode === 'free') {
-      const x = config.launchPosition.x
-      const z = config.launchPosition.z
-      const y = config.getHeight(x, z) + WALK_FEET
-      flight = {
-        ...flight,
-        phase: 'walking',
-        position: { x, y, z },
-        yaw: config.launchYaw,
-        altitude: 0,
-        airspeed: 0,
-        velocity: { x: 0, y: 0, z: 0 },
+      resetSkateboards()
+      const boards = getParkedSkateboards()
+      const starter = boards[0]
+      if (starter) {
+        flight = beginSkating(flight, config, {
+          id: starter.id,
+          x: starter.x,
+          z: starter.z,
+          yaw: config.launchYaw,
+        })
+      } else {
+        const x = config.launchPosition.x
+        const z = config.launchPosition.z
+        const y = config.getHeight(x, z) + WALK_FEET
+        flight = {
+          ...flight,
+          phase: 'walking',
+          position: { x, y, z },
+          yaw: config.launchYaw,
+          altitude: 0,
+          airspeed: 0,
+          velocity: { x: 0, y: 0, z: 0 },
+        }
       }
-      travelBanner = 'Skate Path — walk the long boardwalk · weave obstacles · mount a glider to fly'
+      travelBanner =
+        'Skate Path — ↑ push · A/D carve · Space ollie · weave the course · E hop off · mount a glider to fly'
     }
     if (biome === 'city') {
       if (mode === 'free') {

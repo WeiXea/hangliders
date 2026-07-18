@@ -148,7 +148,8 @@ export function useKeyboardControls() {
           phase === 'flying' ||
           phase === 'helicopter' ||
           phase === 'jet' ||
-          phase === 'driving'
+          phase === 'driving' ||
+          phase === 'skating'
         ) {
           pulseAction('jump')
           setInput({ jump: true })
@@ -179,6 +180,7 @@ export function useKeyboardControls() {
         if (
           phase === 'walking' ||
           phase === 'driving' ||
+          phase === 'skating' ||
           phase === 'grounded' ||
           phase === 'running' ||
           phase === 'helicopter' ||
@@ -276,6 +278,7 @@ export function useKeyboardControls() {
         tiltEnabled &&
         phase !== 'walking' &&
         phase !== 'driving' &&
+        phase !== 'skating' &&
         phase !== 'helicopter' &&
         phase !== 'jet' &&
         phase !== 'rocket' &&
@@ -326,6 +329,7 @@ export function useKeyboardControls() {
         if (
           phase !== 'walking' &&
           phase !== 'driving' &&
+          phase !== 'skating' &&
           phase !== 'helicopter' &&
           phase !== 'jet' &&
           phase !== 'rocket' &&
@@ -424,6 +428,7 @@ export function useTiltControls() {
       if (
         phase === 'walking' ||
         phase === 'driving' ||
+        phase === 'skating' ||
         phase === 'helicopter' ||
         phase === 'jet' ||
         phase === 'rocket' ||

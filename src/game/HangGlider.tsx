@@ -11,6 +11,8 @@ import { getLookOffsets, setKeyLookTarget, tickLook } from './lookCamera'
 import { GliderContactShadow } from '../scenes/SharedSky'
 import { VehicleMesh } from '../scenes/CityLife'
 import { getTrafficSnapshots } from './trafficRegistry'
+import { SkateboardModel } from './SkateboardModel'
+import { skateboardColor } from './skateboardRegistry'
 
 export function HangGlider() {
   const groupRef = useRef<THREE.Group>(null)
@@ -86,12 +88,13 @@ export function HangGlider() {
     const jet = ph === 'jet'
     const rocket = ph === 'rocket' || ph === 'rocketCapsule'
     const driving = ph === 'driving'
+    const skating = ph === 'skating'
     const swingRoll = ph === 'parachuting' ? -swing * 0.35 : 0
     const visualPitch = -sp
     bodyRef.current.rotation.set(
       crashed
         ? visualPitch - 0.35
-        : heli || jet || rocket || driving
+        : heli || jet || rocket || driving || skating
           ? visualPitch
           : onGround
             ? 0
@@ -99,7 +102,13 @@ export function HangGlider() {
               ? Math.max(-0.4, visualPitch)
               : visualPitch,
       crashed ? 0.25 : 0,
-      crashed ? -sr : heli || jet || rocket || driving ? -sr : onGround ? 0 : -sr + swingRoll,
+      crashed
+        ? -sr
+        : heli || jet || rocket || driving || skating
+          ? -sr
+          : onGround
+            ? 0
+            : -sr + swingRoll,
     )
 
     if (barRef.current) {
@@ -125,9 +134,11 @@ export function HangGlider() {
 
     worldQuat.current.setFromEuler(
       new THREE.Euler(
-        onGround && !heli && !jet && !rocket && !driving ? 0 : visualPitch * 0.28,
+        onGround && !heli && !jet && !rocket && !driving && !skating ? 0 : visualPitch * 0.28,
         sy,
-        onGround && !heli && !jet && !rocket && !driving ? 0 : -sr * 0.35 + swingRoll,
+        onGround && !heli && !jet && !rocket && !driving && !skating
+          ? 0
+          : -sr * 0.35 + swingRoll,
         'YXZ',
       ),
     )
@@ -220,6 +231,20 @@ export function HangGlider() {
         lookAt.set(0, 0.2, 14)
         targetFov = 58
       }
+    } else if (ph === 'skating') {
+      if (cameraMode === 'fpv') {
+        eye.set(0, PILOT_EYE * 0.92, 0.15)
+        lookAt.set(0, PILOT_EYE * 0.5, 12)
+        targetFov = 70
+      } else if (cameraMode === 'side') {
+        eye.set(8, 2.2, -1)
+        lookAt.set(0, 0.8, 6)
+        targetFov = 58
+      } else {
+        eye.set(0, 2.8, -8.5)
+        lookAt.set(0, 0.9, 10)
+        targetFov = 60
+      }
     } else if (cameraMode === 'chase') {
       if (ph === 'flying' && flight.altitude < 22) {
         eye.set(0, 5.2, -14)
@@ -253,7 +278,8 @@ export function HangGlider() {
             ph === 'running' ||
             ph === 'helicopter' ||
             ph === 'jet' ||
-            ph === 'driving'
+            ph === 'driving' ||
+            ph === 'skating'
           ? 1 - Math.exp(-4.2 * delta)
           : 1 - Math.exp(-8 * delta)
 
@@ -287,6 +313,7 @@ export function HangGlider() {
   const showJet = phase === 'jet'
   const showRocket = phase === 'rocket' || phase === 'rocketCapsule'
   const showDrive = phase === 'driving'
+  const showSkate = phase === 'skating'
   const rocketMission = useGameStore((s) => s.flight.rocketMission)
   const rocketThrust =
     rocketMission &&
@@ -305,6 +332,7 @@ export function HangGlider() {
   const showTandemPassenger = peerConnected && tandemRole === 'pilot' && showWing
   const vehicleKind = useGameStore((s) => s.flight.vehicleKind)
   const vehicleId = useGameStore((s) => s.flight.vehicleId)
+  const skateboardId = useGameStore((s) => s.flight.skateboardId)
   const jetBurn = useGameStore((s) => {
     if (s.flight.phase !== 'jet') return 0
     const spd = Math.min(1, s.flight.airspeed / 240)
@@ -322,6 +350,7 @@ export function HangGlider() {
     vehicleId >= 0
       ? getTrafficSnapshots().find((v) => v.id === vehicleId)?.color
       : undefined
+  const boardColor = skateboardId >= 0 ? skateboardColor(skateboardId) : undefined
 
   return (
     <group ref={groupRef}>
@@ -331,6 +360,15 @@ export function HangGlider() {
             <VehicleMesh kind={vehicleKind} color={driveColor} />
           </group>
         )}
+        {showSkate && (
+          <group>
+            <SkateboardModel color={boardColor} />
+            <group position={[0, 0.04, 0]}>
+              <AnimatedPilot mode="stand" motionSpeed={0} />
+            </group>
+          </group>
+        )}
+        {showSkate && <GliderContactShadow />}
         {showJet && (
           <group>
             <JetModel
