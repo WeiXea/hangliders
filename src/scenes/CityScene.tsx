@@ -10,6 +10,7 @@ import {
 } from './TerrainHelpers'
 import { SharedSky, SharedLighting } from './SharedSky'
 import { CityLife } from './CityLife'
+import { CityAirport } from './CityAirport'
 import { CityLaunchPad, RocketTower } from './CityLaunchPad'
 import {
   CITY_GARAGES,
@@ -197,9 +198,9 @@ export function CityScene({ config }: CitySceneProps) {
       <KenneyCity getHeight={config.getHeight} />
       <CityFeatureMarkers getHeight={config.getHeight} />
       <CityLife />
+      <CityAirport />
       <CityLaunchPad />
       <RocketTower elevatorY={rocketElevY} />
-      {/* Small bay strip — full ocean was a large shader cost */}
       <OceanSurface
         y={-0.55}
         scale={[420, 80]}

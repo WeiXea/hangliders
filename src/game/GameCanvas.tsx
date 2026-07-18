@@ -82,17 +82,18 @@ export function GameCanvas() {
         <BiomeWorld />
         <HangGlider />
         <RemotePlayer />
-        {biome !== 'city' && <ParkedGliders />}
+        <ParkedGliders />
+        <ChallengeRings />
+        <LandingZone />
         {biome !== 'city' && (
           <>
-            <ChallengeRings />
-            <LandingZone />
             <XCTurnpoints />
             <ThermalMarkers />
             <RidgeLiftMarkers />
             <FlightParticles />
           </>
         )}
+        {biome === 'city' && <ThermalMarkers />}
         <FlightSimulator />
         <FlightPostFX />
       </Suspense>
